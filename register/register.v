@@ -27,7 +27,7 @@ module regfile #(
 );
     wire [31:0][width - 1:0] reg_out;
     wire [31:0] reg_enable;
-    register #(width) regfile_ [31:0](
+    register #(width) regs [31:0](
         .Q(reg_out),
         .D(W_data),
         .clk(clk),
@@ -42,7 +42,7 @@ module regfile #(
         .data_out(reg_enable),
         .data_in(32'h1),
         .shift_amount(W_addr),
-        .direction(0) // shift left
+        .direction(1'b0) // shift left
     );
 
 endmodule
