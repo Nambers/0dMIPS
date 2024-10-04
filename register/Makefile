@@ -1,5 +1,5 @@
-register: *.v ../D_flip_flop/D_flip_flop.v
-	iverilog -Wall -o register *.v ../D_flip_flop/D_flip_flop.v
+register: *.v ../D_flip_flop/D_flip_flop.v ../barrel_shifter/barrel_shifter.v ../mux/mux.v
+	iverilog -Wall -o $@ $^
 
 all: register
 	./register

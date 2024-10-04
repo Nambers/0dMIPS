@@ -1,4 +1,4 @@
-mux: mux.v
-	iverilog -Wall -o mux *.v
+mux: *.v
+	iverilog -Wall -o $@ $^
 
 all: mux

@@ -37,7 +37,7 @@ module register_tb;
         #10 enable = 1;
         d = `WIDTH'h3; // q = 3
 
-        #10;
+        #20;
         $finish;
     end
 

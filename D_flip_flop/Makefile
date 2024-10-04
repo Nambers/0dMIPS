@@ -1,5 +1,5 @@
 D_flip_flop: *.v
-	iverilog -Wall -o D_flip_flop D_flip_flop_tb.v D_flip_flop.v
+	iverilog -Wall -o $@ $^
 all: D_flip_flop
 	./D_flip_flop
 clean:

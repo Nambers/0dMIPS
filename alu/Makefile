@@ -1,5 +1,5 @@
 alu: *.v ../mux/mux.v
-	iverilog -Wall -o alu *.v ../mux/mux.v
+	iverilog -Wall -o $@ $^
 all: alu
 	./alu
 clean:
