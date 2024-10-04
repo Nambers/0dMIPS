@@ -23,9 +23,9 @@ module adder(
     // = a'b'c + a'bc' + abc + ab'c'
     // = c(a'b' + ab) + c'(a'b + ab')
     // = c(a Xnor b) + c'(a ^ b)
-    // or
-    // = a ^ b ^ c + abc
-    assign out = (a ^ b_ ^ cin) | (a & b_ & cin);
+    // = c((a ^ b)') + c'(a ^ b)
+    // = c ^ (a ^ b) = c ^ a ^ b
+    assign out = a ^ b_ ^ cin;
     // K-map
     // a b / c | 0 | 1
     //     0 0 |   |  

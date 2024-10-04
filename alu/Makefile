@@ -1,4 +1,4 @@
-alu: alu.v
+alu: *.v ../mux/mux.v
 	iverilog -Wall -o alu *.v ../mux/mux.v
 all: alu
 	./alu

@@ -45,23 +45,23 @@ module alu_tb;
 
         #10
         a = 1;
-        b = 2; // out = -1 = 0xFFFFFFFFFFFFFFFF 2's complement
+        b = 2; // out = -1 = 0xffffffff 2's complement
 
 // LU tests
         #10
         alu_op = `ALU_OR;
         a = 0;
-        b = 64'hdeadbeefdeadbeef; // out = 0xdeadbeefdeadbeef
+        b = `WIDTH'hdeadbeef; // out = 0xdeadbeef
 
         #10
         alu_op = `ALU_AND;
-        a = 64'hdeadbeefdeadbeef;
+        a = `WIDTH'hdeadbeef;
         b = 0; // out = 0
 
         #10
         alu_op = `ALU_XOR;
-        a = 64'hdeadbeefdeadbeef;
-        b = 64'hdeadbeefdeadbeef; // out = 0
+        a = `WIDTH'hdeadbeef;
+        b = `WIDTH'hdeadbeef; // out = 0
 
         #10;
         $finish;
@@ -70,7 +70,7 @@ module alu_tb;
     always #5 clk = ~clk;
 
     always @(posedge clk) begin
-        $display("a = %h, b = %h, op = %h, out = %h, n/z/o = %b%b%b", a, b, alu_op, out, negative, zero, overflow);
+        $display("a = %h, b = %h, op = %b, out = %h, n/z/o = %b%b%b", a, b, alu_op, out, negative, zero, overflow);
     end
 
 endmodule

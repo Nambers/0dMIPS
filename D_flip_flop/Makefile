@@ -1,4 +1,4 @@
-D_flip_flop: D_flip_flop.v
+D_flip_flop: *.v
 	iverilog -Wall -o D_flip_flop D_flip_flop_tb.v D_flip_flop.v
 all: D_flip_flop
 	./D_flip_flop
