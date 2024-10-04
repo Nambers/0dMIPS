@@ -4,7 +4,7 @@
 `define ALU_OR     3'b101
 `define ALU_NOR    3'b110
 `define ALU_XOR    3'b111
-`define WIDTH 32
+`define WIDTH 64
 
 module alu_tb;
     reg clk;
@@ -31,20 +31,37 @@ module alu_tb;
         clk = 0;
         a = 0;
         b = 0;
-        alu_op = `ALU_ADD;
 
+// AU tests
         #10;
+        alu_op = `ALU_ADD;
         a = 1;
-        b = 2;
+        b = 2; // out = 3
 
         #10
-        a = 3;
-        b = 2;
         alu_op = `ALU_SUB;
+        a = 3;
+        b = 2; // out = 1
 
         #10
         a = 1;
-        b = 2;
+        b = 2; // out = -1 = 0xFFFFFFFFFFFFFFFF 2's complement
+
+// LU tests
+        #10
+        alu_op = `ALU_OR;
+        a = 0;
+        b = 64'hdeadbeefdeadbeef; // out = 0xdeadbeefdeadbeef
+
+        #10
+        alu_op = `ALU_AND;
+        a = 64'hdeadbeefdeadbeef;
+        b = 0; // out = 0
+
+        #10
+        alu_op = `ALU_XOR;
+        a = 64'hdeadbeefdeadbeef;
+        b = 64'hdeadbeefdeadbeef; // out = 0
 
         #10;
         $finish;

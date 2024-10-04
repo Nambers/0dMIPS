@@ -42,15 +42,17 @@ module lu #(
 ) (
     input wire [width-1:0] a,
     input wire [width-1:0] b,
-    input wire [2:0] alu_op,
+    input wire [1:0] lu_op,
     output wire [width-1:0] out
 );
-    // or a mux
-    assign out = (alu_op == `ALU_AND) ? a & b :
-                 (alu_op == `ALU_OR)  ? a | b :
-                 (alu_op == `ALU_NOR) ? ~(a | b) :
-                 (alu_op == `ALU_XOR) ? a ^ b :
-                 0;
+    mux4v #(width) mux4v_0(
+        out,
+        a & b,
+        a | b,
+        ~(a | b),
+        a ^ b,
+        lu_op
+    );
 endmodule
 
 module au #(
@@ -103,7 +105,7 @@ module alu #(
     lu #(width) lu_0(
         a,
         b,
-        alu_op,
+        alu_op[1:0],
         lu_out
     );
     au #(width) au_0(
@@ -116,7 +118,10 @@ module alu #(
         overflow
     );
 
-    // or a mux
-    assign out = (alu_op[2]) ? lu_out : au_out;
-    
+    mux2v #(width) mux2v_0(
+        out,
+        au_out,
+        lu_out,
+        alu_op[2]
+    );
 endmodule
