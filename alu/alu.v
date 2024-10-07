@@ -92,13 +92,13 @@ endmodule
 module alu #(
     parameter width = 32
 ) (
+    output wire [width-1:0] out,
+    output wire overflow,
+    output wire zero,
+    output wire negative,
     input wire [width-1:0] a,
     input wire [width-1:0] b,
-    input wire [2:0] alu_op,
-    output wire [width-1:0] out,
-    output wire negative,
-    output wire zero,
-    output wire overflow
+    input wire [2:0] alu_op
 );
 
     wire [width-1:0] lu_out, au_out;

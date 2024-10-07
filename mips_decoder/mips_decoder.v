@@ -17,13 +17,13 @@
 // zero          (input) - from the ALU
 //
 // for definitions of the opcodes and functs, see mips_define.v
-`include "../mips_define.v"
+`include "./mips_define.v"
 
 module mips_decode(
     output wire [2:0] alu_op,
-    output wire [1:0] alu_src2,
     output wire       writeenable,
     output wire       rd_src,
+    output wire [1:0] alu_src2,
     output wire       except,
     output wire [1:0] control_type,
     output wire       mem_read,
@@ -62,13 +62,14 @@ module mips_decode(
     wire lw  = (opcode == `OP_LW);
     wire lbu = (opcode == `OP_LBU);
     wire sw  = (opcode == `OP_SW);
-    wire sb  = (opcode == `OP_SB); 
+    wire sb  = (opcode == `OP_SB);
+    wire nop = (opcode == 6'h00 && funct == 6'h00);
 
     assign alu_op[0] = sub_inst | or_inst | xor_inst | ori_inst | xori_inst | beq | bne | slt;
     assign alu_op[1] = add_inst | sub_inst | xor_inst | nor_inst | addi_inst | xori_inst | beq | bne | slt | lw | lbu | sw | sb;
     assign alu_op[2] = and_inst | or_inst | xor_inst | nor_inst | andi_inst | ori_inst | xori_inst;
 
-    assign except = ~(add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | beq | bne | j | jr | lui | slt | lw | lbu | sw | sb);
+    assign except = ~(add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | beq | bne | j | jr | lui | slt | lw | lbu | sw | sb | nop);
     assign rd_src = (addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | lw | lbu) & ~except;
 
     assign alu_src2[0] = (addi_inst | addiu_inst | lw | lbu | sw | sb) & ~except;
