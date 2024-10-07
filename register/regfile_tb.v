@@ -3,6 +3,7 @@
 module regfile_tb;
     wire [`WIDTH-1:0] A_data;
     wire [`WIDTH-1:0] B_data;
+    wire [31:0][`WIDTH - 1:0] reg_out; 
     reg [4:0] A_addr = 5'b00000;
     reg [4:0] B_addr = 5'b00000;
     reg [4:0] W_addr = 5'b00000;
@@ -24,7 +25,8 @@ module regfile_tb;
         .W_data(W_data),
         .wr_enable(wr_enable),
         .clk(clk),
-        .reset(reset)
+        .reset(reset),
+        .debug_reg_out(reg_out)
     );
 
     integer i;
@@ -34,7 +36,8 @@ module regfile_tb;
         $dumpvars(0, regfile_tb);
         reset = 1;
         wr_enable = 1;
-        W_data = `WIDTH'hdeadbeef; // write to 0
+        W_addr = 32'h1;
+        W_data = `WIDTH'hdeadbeef; // write to 1
         
         #10 reset = 0;
 
@@ -48,6 +51,9 @@ module regfile_tb;
         B_addr = 32'h14; // check result
 
         #10;
+        for (i = 0; i < 32; i = i + 1) begin
+            $display ( "%d: 0x%x ( %d )", i, reg_out[i], reg_out[i]);
+        end
         $finish;
     end
 

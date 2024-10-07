@@ -23,9 +23,13 @@ module regfile #(
     input wire [width-1:0] W_data,
     input wire wr_enable,
     input wire clk,
-    input wire reset
+    input wire reset,
+    output wire [31:0][width - 1:0] debug_reg_out
 );
     wire [31:0][width - 1:0] reg_out;
+    `ifdef SIMULATION
+        assign debug_reg_out = reg_out;
+    `endif
     wire [31:0] reg_enable;
     register #(width) regs [31:0](
         .Q(reg_out),

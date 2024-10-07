@@ -15,7 +15,7 @@ VERILOG_MODULES := $(filter-out %_tb.v, $(VERILOG_MODULES))
 
 # no need to add mips_define.v, it should be included
 fullmachine: rom.v $(VERILOG_MODULES) fullmachine.v fullmachine_tb.v
-	iverilog -o $@ $^
+	iverilog -DSIMULATION -Wall -o $@ $^
 
 memory_dat: memory.s
 	mips64-linux-gnu-as memory.s -o memory.o
