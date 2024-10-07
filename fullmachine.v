@@ -43,7 +43,11 @@ module full_machine(
     instruction_memory im(inst, pc[63:2]);
 
     // -- reg --
-    regfile #(64) rf (A_data, B_data, inst[25:21], inst[20:16], W_addr, W_data, write_enable, clock, reset, debug_reg_out);
+    wire [31:0][63:0] tmp_reg_out;
+    regfile #(64) rf (A_data, B_data, inst[25:21], inst[20:16], W_addr, W_data, write_enable, clock, reset, tmp_reg_out);
+    `ifdef SIMULATION
+        assign debug_reg_out = tmp_reg_out;
+    `endif
     mux2v #(5) rd_mux(W_addr, inst[15:11], inst[20:16], rd_src);
     mux2v #(64) lui_mux(W_data, alu_mem_out, {{32{inst[15]}}, inst[15:0], 16'b0 }, lui);
 

@@ -78,7 +78,7 @@ module data_mem(data_out, addr, data_in, word_we, byte_we, clk, reset);
             $readmemh("memory.data.dat", data_seg);
         end
 
-    assign valid_address = (addr >= data_start[63:0]) && (addr < (data_start[63:0] + data_words));
+    assign valid_address = (addr >= data_start) && (addr < (data_start + data_words));
     assign index = addr[23:3];
     assign d_out = data_seg[index];
     assign data_out = d_out;
