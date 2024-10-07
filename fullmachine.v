@@ -3,6 +3,7 @@
 // except (output) - set to 1 when an unrecognized instruction is to be executed.
 // clock   (input) - the clock signal
 // reset   (input) - set to 1 to set all registers to zero, set to 0 for normal execution.
+`define ALU_ADD    3'b010
 
 module full_machine(
     output wire except,
