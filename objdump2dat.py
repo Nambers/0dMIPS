@@ -26,12 +26,12 @@ with open("memory_dump.text.dat", "r") as f:
 
 # rebasing text section may have problem in direct jump
 formatted_output = parse_objdump(objdump_output)
-with open("memory.text.dat", "w") as f:
+with open("memory.text.mem", "w") as f:
     f.write(formatted_output)
 
 with open("memory_dump.data.dat", "r") as f:
     objdump_output = f.read()
 
 formatted_output = parse_objdump(objdump_output, 8)
-with open("memory.data.dat", "w") as f:
+with open("memory.data.mem", "w") as f:
     f.write(formatted_output)

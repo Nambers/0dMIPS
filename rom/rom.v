@@ -37,7 +37,7 @@ module instruction_memory (data, addr);
         end
 
         // read in the program from a file, mem.dat
-        $readmemh("memory.text.dat", memWords);
+        $readmemh("memory.text.mem", memWords);
     end
    
 endmodule // instruction_memory
@@ -75,7 +75,7 @@ module data_mem(data_out, addr, data_in, word_we, byte_we, clk, reset);
                 data_seg[i] = 64'hdeadbeef00000000 + i;
 
             // Grab initial memory values
-            $readmemh("memory.data.dat", data_seg);
+            $readmemh("memory.data.mem", data_seg);
         end
 
     assign valid_address = (addr >= data_start) && (addr < (data_start + data_words));
