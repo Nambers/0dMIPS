@@ -6,7 +6,7 @@ module barrel_shifter32_tb;
     reg clk = 0;
     always #5 clk = ~clk;
 
-    barrel_shifter32 barrel_shifter32_(
+    barrel_shifter32 #(32) barrel_shifter32_(
         .data_out(data_out),
         .data_in(data_in),
         .shift_amount(shift_amount),
@@ -28,6 +28,11 @@ module barrel_shifter32_tb;
         #10;
         data_in = 32'h1;
         shift_amount = 5'd31;
+
+        #10;
+        direction = 1'b1;
+        data_in = 32'b100;
+        shift_amount = 5'b1;
 
         #10;
         $finish;

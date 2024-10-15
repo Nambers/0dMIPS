@@ -30,7 +30,22 @@ module regfile #(
     `ifdef SIMULATION
         assign debug_reg_out = reg_out;
     `endif
-    wire [31:0] reg_enable;
+    wire [31:0] reg_enable, reg_enable_tmp;
+
+    barrel_shifter32 #(32) barrel_shifter32_(
+        .data_out(reg_enable_tmp),
+        .data_in(32'h1),
+        .shift_amount(W_addr),
+        .direction(1'b0) // shift left
+    );
+
+    mux2v #(32) mux2v_0(
+        reg_enable,
+        {32{1'b0}},
+        reg_enable_tmp,
+        wr_enable
+    );
+
     register #(width) regs [31:0](
         .Q(reg_out),
         .D(W_data),
@@ -41,12 +56,5 @@ module regfile #(
     
     assign A_data = reg_out[A_addr];
     assign B_data = reg_out[B_addr];
-    
-    barrel_shifter32 barrel_shifter32_(
-        .data_out(reg_enable),
-        .data_in(32'h1),
-        .shift_amount(W_addr),
-        .direction(1'b0) // shift left
-    );
 
 endmodule

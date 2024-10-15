@@ -14,7 +14,7 @@ module full_machine(
     // decoder def
     wire [31:0] inst;
     wire [2:0] alu_op;
-    wire write_enable, rd_src, mem_read, word_we, byte_we, byte_load, slt, lui, zero;
+    wire write_enable, rd_src, mem_read, word_we, byte_we, byte_load, slt, lui, zero, cut_shifter_out32, cut_alu_out32, shift_right, alu_shifter_src, shifter_plus32;
     wire [1:0] alu_src2, control_type;
     // pc counter def
     wire [63:0] pc, next_pc, pc4, pc_branch;
@@ -26,7 +26,9 @@ module full_machine(
     wire [63:0] data_out, mem_out, alu_mem_out, mem_addr;
     // ALU def
     wire negative, overflow;
-    wire [63:0] B_in, A_in, slt_out;
+    wire [63:0] B_in, A_in, slt_out, alu_tmp_out, alu_out;
+    // shifter def
+    wire [63:0] shifter_out, shifter_tmp_out, shifter_plus32_out;
 
     // utiles
     wire [63:0] SignExtImm = { {48{inst[15]}}, inst[15:0] };
@@ -53,9 +55,17 @@ module full_machine(
     mux2v #(64) lui_mux(W_data, alu_mem_out, {{32{inst[15]}}, inst[15:0], 16'b0 }, lui);
 
     // -- ALU --
-    alu #(64) alu_ (out, overflow, zero, negative, A_data, B_in, alu_op);
+    alu #(64) alu_ (alu_tmp_out, overflow, zero, negative, A_data, B_in, alu_op);
     mux3v #(64) B_in_mux(B_in, B_data, SignExtImm, ZeroExtImm, alu_src2);
     mux2v #(64) slt_mux(slt_out, out, {63'b0, (~A_in[63] & B_in[63]) | ((A_in[63] == B_in[63]) & negative)}, slt);
+    mux2v #(64) cut_alu_out(alu_out, alu_tmp_out, {{32{alu_tmp_out[31]}}, alu_tmp_out[31:0]}, cut_alu_out32);
+
+    // -- shifter --
+    barrel_shifter32 #(64) shifter(shifter_tmp_out, B_data, inst[10:6], shift_right);
+    mux2v #(64) cut_shifter_out(shifter_out, shifter_tmp_out, {{32{shifter_tmp_out[31]}}, shifter_tmp_out[31:0]}, cut_shifter_out32);
+    mux2v #(64) shifter_plus32_mux(shifter_plus32_out, shifter_out, {shifter_out[31:0], {32{1'b0}}}, shifter_plus32);
+
+    mux2v #(64) alu_shifter_mux(out, alu_out, shifter_plus32_out, alu_shifter_src);
 
     // -- mem --
     // {out[63:3], 3'b000} to align the data to the memory
@@ -68,6 +78,6 @@ module full_machine(
     mux2v #(64) alu_mem_mux(alu_mem_out, slt_out, mem_out, mem_read);
 
     // -- decoder --
-    mips_decode decoder(alu_op, write_enable, rd_src, alu_src2, except, control_type, mem_read, word_we, byte_we, byte_load, slt, lui, inst[31:26], inst[5:0], zero);
+    mips_decode decoder(alu_op, write_enable, rd_src, alu_src2, except, control_type, mem_read, word_we, byte_we, byte_load, slt, lui, shift_right, shifter_plus32, alu_shifter_src, cut_shifter_out32, cut_alu_out32, inst[31:26], inst[5:0], zero);
     
 endmodule // full_machine

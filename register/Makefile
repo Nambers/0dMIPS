@@ -8,4 +8,10 @@ all: register regfile
 	./register
 	./regfile
 
+clean:
+	rm -f register
+	rm -f regfile
+	rm -f register_tb.vcd
+	rm -f regfile_tb.vcd
+
 .PHONY: all register regfile

@@ -272,3 +272,12 @@
 `define EX_FPE    5'd15
 `define EX_WATCH  5'd23
 `define EX_VCED   5'd31
+
+
+////
+//// MIPS64
+////
+`define OP_64_DADDIU  6'b011001
+`define OP0_64_DADDU  6'b101101
+`define OP0_64_DSRL   6'b111010
+`define OP0_64_DSLL32 6'b111100

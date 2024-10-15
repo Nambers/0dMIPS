@@ -23,7 +23,7 @@ module fullmachine_test;
         $dumpvars(0, fullmachine_test); // dump all variables except memories
 
         # 3 reset = 0;
-        # 300 done = 1;
+        # 500 done = 1;
         // this is enough time to run 30 instructions. If you need to run
         // more, change the "300" above to a more appropriate number
     end

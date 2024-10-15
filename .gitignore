@@ -3,3 +3,4 @@
 !Makefile
 !*.v
 !*.py
+!.gitignore
