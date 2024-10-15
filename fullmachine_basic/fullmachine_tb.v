@@ -44,6 +44,7 @@ module fullmachine_test;
             for (i = 0; i < 32; i = i + 1) begin
                 $display ( "%d: 0x%x ( %d )", i, reg_out[i], reg_out[i]);
             end
+            $writememh("memory_after.txt", fm.mem.data_seg);
             $display ( "Done.  Simulation ending." );
             $finish;
         end

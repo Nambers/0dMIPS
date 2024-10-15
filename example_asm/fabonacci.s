@@ -21,7 +21,7 @@ __start:
 	is_o_end:
 	# sum
 	or $t3, $0, $0;
-	beq $0, $0, loop_end;
+	j loop_end;
 	loop_start:
 		add $t3, $t1, $t2;
 		or $t1, $t2, $0;
@@ -29,8 +29,7 @@ __start:
 		sub $t0, $t0, 1;
 	loop_end:
 		bne $t0, 1, loop_start;
-		or $v0, $0, $t3;
 
 	end:
-    # should = 8 in reg2($v0)
+    # should be 5 in reg2($v0)
 	or $v0, $0, $t3;

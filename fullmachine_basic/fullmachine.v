@@ -34,7 +34,7 @@ module full_machine(
     wire [63:0] SignExtImm = { {48{inst[15]}}, inst[15:0] };
     wire [63:0] ZeroExtImm = { {48{1'b0}}, inst[15:0] };
     wire [63:0] BranchAddr = { {46{inst[15]}}, inst[15:0], 2'b0 };
-    wire [63:0] JumpAddr = { pc4[63:60], inst[25:0], 2'b0, {32{1'b0}}};
+    wire [63:0] JumpAddr = {{32{1'b0}}, pc4[63:60], inst[25:0], 2'b0};
 
     // -- PC counter --
     register #(64) PC_reg(pc, next_pc, clock, 1'b1, reset);
