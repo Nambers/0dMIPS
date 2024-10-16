@@ -14,8 +14,8 @@ module full_machine(
     // decoder def
     wire [31:0] inst;
     wire [2:0] alu_op;
-    wire write_enable, rd_src, mem_read, word_we, byte_we, byte_load, slt, lui, zero, cut_shifter_out32, cut_alu_out32, shift_right, alu_shifter_src, shifter_plus32;
-    wire [1:0] alu_src2, control_type;
+    wire write_enable, rd_src, mem_read, word_we, byte_we, byte_load, slt, lui, zero, cut_shifter_out32, cut_alu_out32, shift_right, alu_shifter_src;
+    wire [1:0] alu_src2, control_type, shifter_plus32;
     // pc counter def
     wire [63:0] pc, next_pc, pc4, pc_branch;
     // reg def
@@ -63,7 +63,7 @@ module full_machine(
     // -- shifter --
     barrel_shifter32 #(64) shifter(shifter_tmp_out, B_data, inst[10:6], shift_right);
     mux2v #(64) cut_shifter_out(shifter_out, shifter_tmp_out, {{32{shifter_tmp_out[31]}}, shifter_tmp_out[31:0]}, cut_shifter_out32);
-    mux2v #(64) shifter_plus32_mux(shifter_plus32_out, shifter_out, {shifter_out[31:0], {32{1'b0}}}, shifter_plus32);
+    mux3v #(64) shifter_plus32_mux(shifter_plus32_out, shifter_out, {shifter_out[31:0], {32{1'b0}}}, {{32{1'b0}}, shifter_out[63:32]}, shifter_plus32);
 
     mux2v #(64) alu_shifter_mux(out, alu_out, shifter_plus32_out, alu_shifter_src);
 

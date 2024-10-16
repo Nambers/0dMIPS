@@ -38,7 +38,7 @@ module mips_decode(
     output wire       slt_out,
     output wire       lui_out,
     output wire       shift_right,
-    output wire       shifter_plus32,
+    output wire [1:0] shifter_plus32,
     output wire       alu_shifter_src,
     output wire       cut_shifter_out32,
     output wire       cut_alu_out32,
@@ -59,8 +59,8 @@ module mips_decode(
     assign nor_inst = op0 & (funct == `OP0_NOR);
     wire jr  = op0 & (funct == `OP0_JR);
     wire slt = op0 & (funct == `OP0_SLT);
-    wire sll = op0 & (funct == `OP0_SLL | funct == `OP0_64_DSLL32);
-    wire srl = op0 & (funct == `OP0_SRL | funct == `OP0_64_DSRL);
+    wire sll = op0 & (funct == `OP0_SLL | funct == `OP0_64_DSLL | funct == `OP0_64_DSLL32);
+    wire srl = op0 & (funct == `OP0_SRL | funct == `OP0_64_DSRL | funct == `OP0_64_DSRL32);
     
 
     assign addi_inst = (opcode == `OP_ADDI);
@@ -101,6 +101,7 @@ module mips_decode(
     assign shift_right = srl;
 
     assign cut_alu_out32 = ~(opcode == `OP_64_DADDIU | (op0 & funct == `OP0_64_DADDU)) & ~except;
-    assign cut_shifter_out32 = ~(op0 & (funct == `OP0_64_DSRL)) & ~except;
-    assign shifter_plus32 = op0 & (funct == `OP0_64_DSLL32) & ~except;
+    assign cut_shifter_out32 = ~(op0 & (funct == `OP0_64_DSRL | funct == `OP0_64_DSLL | funct == `OP0_64_DSRL32)) & ~except;
+    assign shifter_plus32[0] = op0 & (funct == `OP0_64_DSLL32) & ~except;
+    assign shifter_plus32[1] = op0 & (funct == `OP0_64_DSRL32) & ~except;
 endmodule // mips_decode

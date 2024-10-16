@@ -1,5 +1,5 @@
 .data
-step:	.word 5
+step:	.word 6
 
 .text
 .global __start
@@ -31,5 +31,5 @@ __start:
 		bne $t0, 1, loop_start;
 
 	end:
-    # should be 5 in reg2($v0)
+    # should be 8 in reg2($v0)
 	or $v0, $0, $t3;

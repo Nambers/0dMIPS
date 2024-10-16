@@ -45,7 +45,7 @@ endmodule // instruction_memory
 module data_mem(data_out, addr, data_in, word_we, byte_we, clk, reset);
     parameter     // size of data segment
         data_start   = 64'h10000000,
-        data_words   = 'h10000, /* 2 M */
+        data_words   = 'h1000, /* 1 M */
         data_length  = data_words * 8;
     
     input         clk, reset;
