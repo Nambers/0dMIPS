@@ -75,6 +75,7 @@ module data_mem(data_out, addr, data_in, word_we, byte_we, clk, reset);
                 data_seg[i] = 64'hdeadbeef00000000 + i;
 
             // Grab initial memory values
+            $readmemh("memory.text.mem", data_seg);
             $readmemh("memory.data.mem", data_seg);
         end
 

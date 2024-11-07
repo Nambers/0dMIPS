@@ -1,3 +1,7 @@
+// There are two ways to implement D flip-flop with enable
+// -- use master-slave D flip-flop --
+
+/***
 module D_latch (
     input wire clk,
     input wire enable,
@@ -31,3 +35,29 @@ module D_flip_flop(
     // load slave in posedge
     D_latch slave(clk, enable, rst, tmp_q, Q);
 endmodule
+***/
+
+// -- use always block --
+
+// dffe: D-type flip-flop with enable
+//
+// q      (output) - Current value of flip flop
+// d      (input)  - Next value of flip flop
+// clk    (input)  - Clock (positive edge-sensitive)
+// enable (input)  - Load new value? (yes = 1, no = 0)
+// reset  (input)  - Synchronous reset   (reset =  1)
+//
+module D_flip_flop(
+    input wire clk,
+    input wire rst,
+    input wire enable,
+    input wire D,
+    output reg Q
+);
+    always@(posedge clk)
+        if (rst == 1'b1)
+        Q <= 0;
+        else if (enable == 1'b1)
+        Q <= D;
+
+endmodule // dffe

@@ -9,4 +9,5 @@ ASM_FILES := $(wildcard *.s)
 
 clean:
 	rm -f *.o *.elf
+	rm -f ../memory_dump.text.dat ../memory_dump.data.dat ../memory.text.dat ../memory.data.dat
 

@@ -18,12 +18,12 @@ module barrel_shifter32_tb;
         $dumpvars(0, barrel_shifter32_tb);
 
         data_in = 32'h1;
-        shift_amount = 5'b00000;
+        shift_amount = 5'b0;
         direction = 1'b0;
 
         #10;
         data_in = 32'h1;
-        shift_amount = 5'b00001;
+        shift_amount = 5'b1;
 
         #10;
         data_in = 32'h1;

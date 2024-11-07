@@ -15,7 +15,8 @@ module regfile_tb;
     always #5 clk = ~clk;
 
     regfile #(
-        .width(`WIDTH)
+        .width(`WIDTH),
+        .reset_value(`WIDTH'hz)
     ) regfile_(
         .A_data(A_data),
         .B_data(B_data),

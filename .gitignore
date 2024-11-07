@@ -5,4 +5,5 @@
 !*.py
 !*.md
 !.gitignore
+!*.png
 vivado_proj/**

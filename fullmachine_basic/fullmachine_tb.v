@@ -22,10 +22,8 @@ module fullmachine_test;
         $dumpfile("fullmachine.vcd");
         $dumpvars(0, fullmachine_test); // dump all variables except memories
 
-        # 3 reset = 0;
-        # 500 done = 1;
-        // this is enough time to run 30 instructions. If you need to run
-        // more, change the "300" above to a more appropriate number
+        # 10 reset = 0; // wait a clock
+        # 600 done = 1; // run x / 10 instructions
     end
    
     initial
@@ -45,6 +43,7 @@ module fullmachine_test;
                 $display ( "%d: 0x%x ( %d )", i, reg_out[i], reg_out[i]);
             end
             $writememh("memory_after.txt", fm.mem.data_seg);
+            $writememh("inst_mem_after.txt", fm.im.memWords);
             $display ( "Done.  Simulation ending." );
             $finish;
         end
