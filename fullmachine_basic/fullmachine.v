@@ -42,9 +42,6 @@ module full_machine(
     alu #(64) pc_branch_alu (pc_branch, , , , pc4, BranchAddr, `ALU_ADD);
     mux4v #(64) pc_mux(next_pc, pc4, pc_branch, JumpAddr, A_data, control_type);
 
-    // -- inst mem --
-    instruction_memory im(inst, pc[63:2]);
-
     // -- reg --
     wire [31:0][63:0] tmp_reg_out;
     regfile #(64) rf (A_data, B_data, inst[25:21], inst[20:16], W_addr, W_data, write_enable, clock, reset, tmp_reg_out);
@@ -69,7 +66,7 @@ module full_machine(
 
     // -- mem --
     // {out[63:3], 3'b000} to align the data to the memory
-    data_mem #(64) mem(data_out, {out[63:3], 3'b000}, B_data, word_we, byte_we, clock, reset);
+    data_mem #(64) mem(data_out, out[63:0], B_data, word_we, byte_we, clock, reset, inst, pc[63:0]);
     mux8v #(8) byte_load_mux(byte_load_out,
         data_out[7:0], data_out[15:8], data_out[23:16], data_out[31:24],
         data_out[39:32], data_out[47:40], data_out[55:48], data_out[63:56],

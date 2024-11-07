@@ -28,7 +28,7 @@ module fullmachine_test;
    
     initial
         $monitor("At time %t, reset = %d pc = %h, inst = %h, except = %h",
-                 $time, reset, fm.PC_reg.Q, fm.im.data, except);
+                 $time, reset, fm.PC_reg.Q, fm.mem.inst, except);
     
     // periodically check for the end of simulation.  When it happens
     // dump the register file contents.
@@ -43,7 +43,6 @@ module fullmachine_test;
                 $display ( "%d: 0x%x ( %d )", i, reg_out[i], reg_out[i]);
             end
             $writememh("memory_after.txt", fm.mem.data_seg);
-            $writememh("inst_mem_after.txt", fm.im.memWords);
             $display ( "Done.  Simulation ending." );
             $finish;
         end

@@ -11,38 +11,7 @@
 ////////////////////////////////////////////////////////////////////////
 // this file is modified
 
-module instruction_memory (data, addr);
-    output [31:0] data;       // output the data in the memory 
-    input  [61:0] addr;
-    
-    //declare size words of width bits for storage
-    reg [31:0] memWords [0:1023];
-    
-    reg [63:0]   i;          // for initialization
-    
-    // whenever addr changes, the word it points to is put
-    // on the data lines
-    assign data = memWords[addr[9:0]];
-    
-    initial
-    begin
-        // this is the memory initialization routine
-        // it happens once on startup...
-        // note! this is not synthesizable
-
-        // set memory to zero
-        for (i = 0 ; i < 1024 ; i = i + 1 )
-        begin
-            memWords[i] = 0;
-        end
-
-        // read in the program from a file, mem.dat
-        $readmemh("memory.text.mem", memWords);
-    end
-   
-endmodule // instruction_memory
-
-module data_mem(data_out, addr, data_in, word_we, byte_we, clk, reset);
+module data_mem(data_out, addr, data_in, word_we, byte_we, clk, reset, inst, inst_addr);
     parameter     // size of data segment
         data_start   = 64'h10000000,
         data_words   = 'h1000, /* 1 M */
@@ -52,6 +21,8 @@ module data_mem(data_out, addr, data_in, word_we, byte_we, clk, reset);
 
     // Inputs and ouptuts: Port 1
     output [63:0] data_out;     // Memory read data
+    output [31:0] inst;
+    input  [63:0] inst_addr;
     input  [63:0] addr;         // Memory address
     input  [63:0] data_in;      // Memory write data
     input         word_we;      // Write enable (active high)
@@ -80,9 +51,8 @@ module data_mem(data_out, addr, data_in, word_we, byte_we, clk, reset);
         end
 
     assign valid_address = (addr >= data_start) && (addr < (data_start + data_words));
-    assign index = addr[23:3];
-    assign d_out = data_seg[index];
-    assign data_out = d_out;
+    assign data_out = (addr[2] == 1'b0) ? data_seg[addr[23:3]][31:0] : data_seg[addr[23:3]][63:32];
+    assign inst = (inst_addr[2] == 1'b0) ? data_seg[inst_addr[23:3]][31:0] : data_seg[inst_addr[23:3]][63:32];
 
     always @(negedge clk)
     begin

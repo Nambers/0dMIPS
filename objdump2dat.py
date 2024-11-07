@@ -6,6 +6,15 @@ def parse_objdump(objdump_output, addr_dividor=1):
     lines = objdump_output.split("\n")
     memory = []
     current_address = 0
+    phrase = []
+
+    def group_mem(phrase):
+        paired_list = [
+            f"{phrase[i+1]}{phrase[i]}" for i in range(0, len(phrase) - 1, 2)
+        ]
+        if len(phrase) % 2 == 1:
+            paired_list.append(f"00000000{phrase[-1]}")
+        return paired_list
 
     for line in lines:
         match = re.match(pattern, line)
@@ -14,10 +23,13 @@ def parse_objdump(objdump_output, addr_dividor=1):
             instruction = match.group(2)
             if address != current_address + 4:
                 assert address % addr_dividor == 0
+                # group every 2 elements in phrase
+                memory.extend(group_mem(phrase))
+                phrase = []
                 memory.append(f"@{(address // addr_dividor):08x}")
             current_address = address
-            memory.append(instruction)
-
+            phrase.append(instruction)
+    memory.extend(group_mem(phrase))
     return "\n".join(memory)
 
 
