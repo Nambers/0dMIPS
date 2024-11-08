@@ -28,6 +28,9 @@
 - sw
 - sb
 - nop
+- MFC0
+- MFC0
+- ERET
   
 ## Mips64
 - daddu
