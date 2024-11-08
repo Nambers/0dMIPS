@@ -4,6 +4,11 @@
 // clock   (input) - the clock signal
 // reset   (input) - set to 1 to set all registers to zero, set to 0 for normal execution.
 `define ALU_ADD    3'b010
+// these didn't limit by ROM size bc they are virtually mapped
+`define currentTimeAddr 63'hFFFF001C
+`define acknowledgeInterruptAddr 63'hFFFF006C
+// need to < ROM size
+`define interrupeHandlerAddr 64'h200
 
 module full_machine(
     output wire except,
@@ -23,12 +28,19 @@ module full_machine(
     wire [4:0] W_addr;
     // mem def
     wire [7:0] byte_load_out;
-    wire [63:0] data_out, mem_out, alu_mem_out, mem_addr;
+    wire [63:0] data_out, mem_out, alu_mem_out, mem_addr, alu_mem_timer_out;
     // ALU def
     wire negative, overflow;
     wire [63:0] B_in, A_in, slt_out, alu_tmp_out, alu_out;
     // shifter def
     wire [63:0] shifter_out, shifter_tmp_out, shifter_plus32_out;
+    // timer def
+    wire        TimerInterrupt, TimerAddress;
+    wire [63:0] cycle;
+    // cp0 def
+    wire [61:0] EPC;
+    wire [63:0] c0_rd_data, new_next_pc, new_next_pc_final, new_W_data;
+    wire MFC0, MTC0, ERET, TakenInterrupt;
 
     // utiles
     wire [63:0] SignExtImm = { {48{inst[15]}}, inst[15:0] };
@@ -37,19 +49,19 @@ module full_machine(
     wire [63:0] JumpAddr = {{32{1'b0}}, pc4[63:60], inst[25:0], 2'b0};
 
     // -- PC counter --
-    register #(64) PC_reg(pc, next_pc, clock, 1'b1, reset);
+    register #(64) PC_reg(pc, new_next_pc_final, clock, 1'b1, reset);
     alu #(64) pc_4alu (pc4, , , , pc, 64'd4, `ALU_ADD);
     alu #(64) pc_branch_alu (pc_branch, , , , pc4, BranchAddr, `ALU_ADD);
     mux4v #(64) pc_mux(next_pc, pc4, pc_branch, JumpAddr, A_data, control_type);
 
     // -- reg --
     wire [31:0][63:0] tmp_reg_out;
-    regfile #(64) rf (A_data, B_data, inst[25:21], inst[20:16], W_addr, W_data, write_enable, clock, reset, tmp_reg_out);
+    regfile #(64) rf (A_data, B_data, inst[25:21], inst[20:16], W_addr, new_W_data, write_enable, clock, reset, tmp_reg_out);
     `ifdef SIMULATION
         assign debug_reg_out = tmp_reg_out;
     `endif
     mux2v #(5) rd_mux(W_addr, inst[15:11], inst[20:16], rd_src);
-    mux2v #(64) lui_mux(W_data, alu_mem_out, {{32{inst[15]}}, inst[15:0], 16'b0 }, lui);
+    mux2v #(64) lui_mux(W_data, alu_mem_timer_out, {{32{inst[15]}}, inst[15:0], 16'b0 }, lui);
 
     // -- ALU --
     alu #(64) alu_ (alu_tmp_out, overflow, zero, negative, A_data, B_in, alu_op);
@@ -64,9 +76,13 @@ module full_machine(
 
     mux2v #(64) alu_shifter_mux(out, alu_out, shifter_plus32_out, alu_shifter_src);
 
+    // -- timer --
+    timer #(64) t(TimerInterrupt, cycle, TimerAddress, B_data, out[63:0], 1'b1, word_we | byte_we, clock, reset);
+    mux2v #(64) alu_mem_timer_mux(alu_mem_timer_out, alu_mem_out, cycle, TimerAddress);
+
     // -- mem --
     // {out[63:3], 3'b000} to align the data to the memory
-    data_mem #(64) mem(data_out, out[63:0], B_data, word_we, byte_we, clock, reset, inst, pc[63:0]);
+    data_mem #(64) mem(data_out, out[63:0], B_data, word_we & ~TimerAddress, byte_we & ~TimerAddress, clock, reset, inst, pc[63:0]);
     mux8v #(8) byte_load_mux(byte_load_out,
         data_out[7:0], data_out[15:8], data_out[23:16], data_out[31:24],
         data_out[39:32], data_out[47:40], data_out[55:48], data_out[63:56],
@@ -74,7 +90,13 @@ module full_machine(
     mux2v #(64) mem_out_mux(mem_out, data_out, {{56{byte_load_out[7]}}, byte_load_out}, byte_load);
     mux2v #(64) alu_mem_mux(alu_mem_out, slt_out, mem_out, mem_read);
 
+    // -- cp0 --
+    cp0 #(64) cp(c0_rd_data, EPC, TakenInterrupt, B_data, W_addr, next_pc[63:2], MTC0, ERET, TimerInterrupt, clock, reset);
+    mux2v #(64) ERET_next_pc_mux(new_next_pc, next_pc, {EPC, 2'b0}, ERET);
+    mux2v #(64) Interrupt_pc_mux(new_next_pc_final, new_next_pc, `interrupeHandlerAddr, TakenInterrupt);
+    mux2v #(64) mfc0_mux(new_W_data, W_data, c0_rd_data, MFC0);
+
     // -- decoder --
-    mips_decode decoder(alu_op, write_enable, rd_src, alu_src2, except, control_type, mem_read, word_we, byte_we, byte_load, slt, lui, shift_right, shifter_plus32, alu_shifter_src, cut_shifter_out32, cut_alu_out32, inst[31:26], inst[5:0], zero);
+    mips_decode decoder(alu_op, write_enable, rd_src, alu_src2, except, control_type, mem_read, word_we, byte_we, byte_load, slt, lui, shift_right, shifter_plus32, alu_shifter_src, cut_shifter_out32, cut_alu_out32, MFC0, MTC0, ERET, inst, zero);
     
 endmodule // full_machine

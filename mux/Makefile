@@ -1,4 +1,4 @@
-mux: *.v
+mux: mux.v
 	iverilog -Wall -o $@ $^
 
 clean:

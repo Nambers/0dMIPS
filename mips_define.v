@@ -110,7 +110,6 @@
 `define OP_SWC0     6'h38
 `define OP_SWC1     6'h39
 `define OP_SWC2     6'h3a
-`define OP_SWC3     6'h3b
 
 // Secondary opcodes (funct2 field; OP_OTHER0)
 `define OP0_SLL     6'h00
@@ -121,6 +120,7 @@
 `define OP0_SRAV    6'h07
 `define OP0_JR      6'h08
 `define OP0_JALR    6'h09
+`define OP0_MOZV    6'h0a
 `define OP0_SYSCALL 6'h0c
 `define OP0_BREAK   6'h0d
 `define OP0_MFHI    6'h10
@@ -141,8 +141,6 @@
 `define OP0_NOR     6'h27
 `define OP0_SLT     6'h2a
 `define OP0_SLTU    6'h2b
-// new instr for the lab 
-`define OP0_ADDM    6'h2c 
 
 // Secondary opcodes (rs field; OP_Z[0-3])
 `define OPZ_MFCZ    5'h00
@@ -197,6 +195,10 @@
 `define OPF_CNGEF   6'h3d
 `define OPF_CLEF    6'h3e
 `define OPF_CNGTF   6'h3f
+
+// ERET stuff
+`define OP_CO       1'b1
+`define OPC_ERET    6'h18
 
 
 ////

@@ -1,6 +1,6 @@
 all: fullmachine
 
-VERILOG_MODULES := barrel_shifter mux D_flip_flop alu mips_decoder register rom
+VERILOG_MODULES := barrel_shifter mux D_flip_flop alu mips_decoder register rom timer cp0
 VERILOG_MODULES := $(foreach dir,$(VERILOG_MODULES),$(wildcard ../$(dir)/*.v))
 VERILOG_MODULES := $(filter-out %_tb.v, $(VERILOG_MODULES))
 

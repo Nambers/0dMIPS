@@ -42,12 +42,17 @@ module mips_decode(
     output wire       alu_shifter_src,
     output wire       cut_shifter_out32,
     output wire       cut_alu_out32,
-    input wire  [5:0] opcode, funct,
+    output wire       MFC0,
+    output wire       MTC0,
+    output wire       ERET,
+    input wire  [31:0]inst,
     input wire        zero
 );
 
     wire    op0, addu_inst, add_inst, sub_inst, and_inst, or_inst, xor_inst, nor_inst;
     wire    addi_inst, addiu_inst, andi_inst, ori_inst, xori_inst;
+    wire [5:0]   opcode = inst[31:26];
+    wire [5:0]   funct = inst[5:0];
 
     assign op0 = (opcode == `OP_OTHER0);
     assign addu_inst = op0 & (funct == `OP0_ADDU | funct == `OP0_64_DADDU);
@@ -83,12 +88,12 @@ module mips_decode(
     assign alu_op[2] = and_inst | or_inst | xor_inst | nor_inst | andi_inst | ori_inst | xori_inst;
 
     assign except = ~(add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | beq | bne | j | jr | lui | slt | lw | lbu | sw | sb | nop | sll | srl);
-    assign rd_src = (addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | lw | lbu) & ~except;
+    assign rd_src = (addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | lw | lbu) & ~MFC0 & ~except;
 
     assign alu_src2[0] = (addi_inst | addiu_inst | lw | lbu | sw | sb) & ~except;
     assign alu_src2[1] = (andi_inst | ori_inst | xori_inst) & ~except;
     
-    assign writeenable = (add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | slt | lw | lbu) & ~except;
+    assign writeenable = (add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | slt | lw | lbu) & ~MTC0 & ~ERET & ~beq & ~except;
     assign control_type[1] = (j | jr) & ~except;
     assign control_type[0] = ((beq & zero) | (bne & ~zero) | jr) & ~except;
     assign mem_read = (lw | lbu) & ~except;
@@ -104,4 +109,10 @@ module mips_decode(
     assign cut_shifter_out32 = ~(op0 & (funct == `OP0_64_DSRL | funct == `OP0_64_DSLL | funct == `OP0_64_DSRL32)) & ~except;
     assign shifter_plus32[0] = op0 & (funct == `OP0_64_DSLL32) & ~except;
     assign shifter_plus32[1] = op0 & (funct == `OP0_64_DSRL32) & ~except;
+
+    wire [4:0]   rs = inst[25:21];
+    wire         co = inst[25];
+    assign MFC0 = opcode == `OP_Z0 && rs == `OPZ_MFCZ;
+    assign MTC0 = opcode == `OP_Z0 && rs == `OPZ_MTCZ;
+    assign ERET = opcode == `OP_Z0 && co == `OP_CO && funct == `OPC_ERET;
 endmodule // mips_decode

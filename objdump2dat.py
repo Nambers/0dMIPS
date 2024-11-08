@@ -37,7 +37,7 @@ with open("memory_dump.text.dat", "r") as f:
     objdump_output = f.read()
 
 # rebasing text section may have problem in direct jump
-formatted_output = parse_objdump(objdump_output)
+formatted_output = parse_objdump(objdump_output, 8)
 with open("memory.text.mem", "w") as f:
     f.write(formatted_output)
 
