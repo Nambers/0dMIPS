@@ -45,7 +45,9 @@ module mips_decoder(
     output wire       MFC0,
     output wire       MTC0,
     output wire       ERET,
+    /* verilator lint_off UNUSEDSIGNAL */
     input wire  [31:0]inst,
+    /* verilator lint_on UNUSEDSIGNAL */
     input wire        zero
 );
 

@@ -16,20 +16,23 @@ module full_machine(
     input wire reset
 );
     // decoder def
-    wire [31:0] inst;
+    wire [31:0] inst /*verilator public*/;
     wire [2:0] alu_op;
     wire write_enable, rd_src, mem_read, word_we, byte_we, byte_load, slt, lui, zero, cut_shifter_out32, cut_alu_out32, shift_right, alu_shifter_src;
     wire [1:0] alu_src2, control_type, shifter_plus32;
     // pc counter def
-    wire [63:0] pc, next_pc, pc4, pc_branch;
+    wire [63:0] pc /*verilator public*/;
+    wire [63:0] next_pc, pc4, pc_branch;
     // reg def
     wire [63:0] A_data, B_data, out, W_data;
     wire [4:0] W_addr;
     // mem def
     wire [7:0] byte_load_out;
-    wire [63:0] data_out, mem_out, alu_mem_out, mem_addr, alu_mem_timer_out;
+    wire [63:0] data_out, mem_out, alu_mem_out, alu_mem_timer_out;
     // ALU def
-    wire negative, overflow;
+    /* verilator lint_off UNUSEDSIGNAL */
+    wire negative, overflow; // TODO overflow to cp0
+    /* verilator lint_on UNUSEDSIGNAL */
     wire [63:0] B_in, A_in, slt_out, alu_tmp_out, alu_out;
     // shifter def
     wire [63:0] shifter_out, shifter_tmp_out, shifter_plus32_out;
@@ -56,13 +59,13 @@ module full_machine(
     mux4v #(64) pc_mux(next_pc, pc4, pc_branch, JumpAddr, A_data, control_type);
 
     // -- reg --
-    wire [31:0][63:0] tmp_reg_out;
     regfile #(64) rf (A_data, B_data, inst[25:21], inst[20:16], W_addr, new_W_data, write_enable, clock, reset);
     mux2v #(5) rd_mux(W_addr, inst[15:11], inst[20:16], rd_src);
     mux2v #(64) lui_mux(W_data, alu_mem_timer_out, {{32{inst[15]}}, inst[15:0], 16'b0 }, lui);
 
     // -- ALU --
-    alu #(64) alu_ (alu_tmp_out, overflow, zero, negative, A_data, B_in, alu_op);
+    assign A_in = A_data;
+    alu #(64) alu_ (alu_tmp_out, overflow, zero, negative, A_in, B_in, alu_op);
     mux3v #(64) B_in_mux(B_in, B_data, SignExtImm, ZeroExtImm, alu_src2);
     mux2v #(64) slt_mux(slt_out, out, {63'b0, (~A_in[63] & B_in[63]) | ((A_in[63] == B_in[63]) & negative)}, slt);
     mux2v #(64) cut_alu_out(alu_out, alu_tmp_out, {{32{alu_tmp_out[31]}}, alu_tmp_out[31:0]}, cut_alu_out32);
@@ -89,7 +92,7 @@ module full_machine(
     mux2v #(64) alu_mem_mux(alu_mem_out, slt_out, mem_out, mem_read);
 
     // -- cp0 --
-    cp0 #(64) cp(c0_rd_data, EPC, TakenInterrupt, B_data, W_addr, next_pc[63:2], MTC0, ERET, TimerInterrupt, clock, reset);
+    cp0 cp(c0_rd_data, EPC, TakenInterrupt, B_data, W_addr, next_pc[63:2], MTC0, ERET, TimerInterrupt, clock, reset);
     mux2v #(64) ERET_next_pc_mux(new_next_pc, next_pc, {EPC, 2'b0}, ERET);
     mux2v #(64) Interrupt_pc_mux(new_next_pc_final, new_next_pc, `interrupeHandlerAddr, TakenInterrupt);
     mux2v #(64) mfc0_mux(new_W_data, W_data, c0_rd_data, MFC0);

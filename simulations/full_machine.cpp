@@ -1,5 +1,9 @@
-#include <verilated.h>
 #include <Full_machine.h>
+#include <Full_machine_full_machine.h>
+#include <verilated.h>
+
+#include <iomanip>
+#include <iostream>
 
 #define TICK                          \
     machine->clock = !machine->clock; \
@@ -15,10 +19,12 @@ int main(int argc, char **argv) {
     TICK;
     machine->reset = 0;
     for (int i = 0; i < 60; i++) {
-        std::cout << "time = \t" << i << "\treset = \t" << machine->reset
-                  << "\tpc = \t" << machine->PC_reg.Q << "\tinst = \t"
-                  << machine->mem.inst << "\texcept = \t" << machine->except
-                  << std::endl;
+        std::cout << "time = \t" << i << "\treset = \t" << (bool)machine->reset
+                  << "\tpc = \t" << std::hex << std::setfill('0')
+                  << std::setw(8) << machine->full_machine->pc << "\tinst = \t"
+                  << std::setfill('0') << std::setw(8)
+                  << machine->full_machine->inst << std::dec << "\texcept = \t"
+                  << (bool)machine->except << std::endl;
         TICK;
     }
     machine->final();
