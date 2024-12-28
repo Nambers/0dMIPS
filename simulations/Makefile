@@ -4,7 +4,7 @@ UPPER_NAME := Full_machine
 DEPS := $(shell find ./src -name "*.sv" | grep -Ev "($(NAME)|mips_define).sv")
 
 $(NAME): src/units/$(NAME).sv ${DEPS} simulations/$(NAME).cpp
-	verilator -Wall -cc src/units/$(NAME).sv ${DEPS} -y . \
+	verilator -Wall --trace -cc src/units/$(NAME).sv ${DEPS} -y . \
 	-Mdir build/$(NAME) --prefix $(UPPER_NAME) \
 	--exe simulations/$(NAME).cpp \
 	-o $(UPPER_NAME) \

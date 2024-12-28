@@ -1,6 +1,8 @@
 # File is modified from https://github.com/mortenjc/systemverilog/blob/main/Makefile
 # Under copyright (C) 2021 Morten Jagd Christensen, LICENSE: BSD2
 
+.SUFFIXES:
+
 include Makefile.macros
 
 VLCOVFLAGS = --annotate logs/annotate --annotate-all --annotate-min 1
@@ -66,3 +68,4 @@ realclean: clean
 	@rm -fr googletest db output_files simulation
 
 include simulations/Makefile
+include example_asm/Makefile

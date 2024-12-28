@@ -41,7 +41,7 @@ module data_mem (
     wire           valid_address;
 
     // Memory segments
-    reg     [63:0] data_seg      [0:data_words-1];
+    reg     [63:0] data_seg      [0:data_words-1] /* verilator public */;
 
     // Verilog implementation stuff
     integer        i;
