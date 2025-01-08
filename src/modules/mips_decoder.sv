@@ -24,65 +24,65 @@
 // for definitions of the opcodes and functs, see mips_define.v
 `include "src/modules/mips_define.sv"
 
-module mips_decoder(
-    output wire [2:0] alu_op,
-    output wire       writeenable,
-    output wire       rd_src,
-    output wire [1:0] alu_src2,
-    output wire       except,
-    output wire [1:0] control_type,
-    output wire       mem_read,
-    output wire       word_we,
-    output wire       byte_we,
-    output wire       byte_load,
-    output wire       slt_out,
-    output wire       lui_out,
-    output wire       shift_right,
-    output wire [1:0] shifter_plus32,
-    output wire       alu_shifter_src,
-    output wire       cut_shifter_out32,
-    output wire       cut_alu_out32,
-    output wire       MFC0,
-    output wire       MTC0,
-    output wire       ERET,
+module mips_decoder (
+    output logic [ 2:0] alu_op,
+    output logic        writeenable,
+    output logic        rd_src,
+    output logic [ 1:0] alu_src2,
+    output logic        except,
+    output logic [ 1:0] control_type,
+    output logic        mem_read,
+    output logic        word_we,
+    output logic        byte_we,
+    output logic        byte_load,
+    output logic        slt_out,
+    output logic        lui_out,
+    output logic        shift_right,
+    output logic [ 1:0] shifter_plus32,
+    output logic        alu_shifter_src,
+    output logic        cut_shifter_out32,
+    output logic        cut_alu_out32,
+    output logic        MFC0,
+    output logic        MTC0,
+    output logic        ERET,
     /* verilator lint_off UNUSEDSIGNAL */
-    input wire  [31:0]inst,
+    input  logic [31:0] inst,
     /* verilator lint_on UNUSEDSIGNAL */
-    input wire        zero
+    input  logic        zero
 );
 
-    wire    op0, addu_inst, add_inst, sub_inst, and_inst, or_inst, xor_inst, nor_inst;
-    wire    addi_inst, addiu_inst, andi_inst, ori_inst, xori_inst;
-    wire [5:0]   opcode = inst[31:26];
-    wire [5:0]   funct = inst[5:0];
+    logic op0, addu_inst, add_inst, sub_inst, and_inst, or_inst, xor_inst, nor_inst;
+    logic addi_inst, addiu_inst, andi_inst, ori_inst, xori_inst;
+    wire [5:0] opcode = inst[31:26];
+    wire [5:0] funct = inst[5:0];
 
     assign op0 = (opcode == `OP_OTHER0);
     assign addu_inst = op0 & (funct == `OP0_ADDU | funct == `OP0_64_DADDU);
     assign add_inst = op0 & (funct == `OP0_ADD);
     assign sub_inst = op0 & (funct == `OP0_SUB);
     assign and_inst = op0 & (funct == `OP0_AND);
-    assign or_inst  = op0 & (funct == `OP0_OR);
+    assign or_inst = op0 & (funct == `OP0_OR);
     assign xor_inst = op0 & (funct == `OP0_XOR);
     assign nor_inst = op0 & (funct == `OP0_NOR);
-    wire jr  = op0 & (funct == `OP0_JR);
+    wire jr = op0 & (funct == `OP0_JR);
     wire slt = op0 & (funct == `OP0_SLT);
     wire sll = op0 & (funct == `OP0_SLL | funct == `OP0_64_DSLL | funct == `OP0_64_DSLL32);
     wire srl = op0 & (funct == `OP0_SRL | funct == `OP0_64_DSRL | funct == `OP0_64_DSRL32);
-    
 
-    assign addi_inst = (opcode == `OP_ADDI);
+
+    assign addi_inst  = (opcode == `OP_ADDI);
     assign addiu_inst = (opcode == `OP_ADDIU) | (opcode == `OP_64_DADDIU);
-    assign andi_inst = (opcode == `OP_ANDI);
-    assign ori_inst = (opcode == `OP_ORI);
-    assign xori_inst = (opcode == `OP_XORI);
+    assign andi_inst  = (opcode == `OP_ANDI);
+    assign ori_inst   = (opcode == `OP_ORI);
+    assign xori_inst  = (opcode == `OP_XORI);
     wire beq = (opcode == `OP_BEQ);
     wire bne = (opcode == `OP_BNE);
-    wire j   = (opcode == `OP_J);
+    wire j = (opcode == `OP_J);
     wire lui = (opcode == `OP_LUI);
-    wire lw  = (opcode == `OP_LW);
+    wire lw = (opcode == `OP_LW);
     wire lbu = (opcode == `OP_LBU);
-    wire sw  = (opcode == `OP_SW);
-    wire sb  = (opcode == `OP_SB);
+    wire sw = (opcode == `OP_SW);
+    wire sb = (opcode == `OP_SB);
     wire nop = (opcode == 6'h00 && funct == 6'h00);
 
     assign alu_op[0] = sub_inst | or_inst | xor_inst | ori_inst | xori_inst | beq | bne | slt;
@@ -94,7 +94,7 @@ module mips_decoder(
 
     assign alu_src2[0] = (addi_inst | addiu_inst | lw | lbu | sw | sb) & ~except;
     assign alu_src2[1] = (andi_inst | ori_inst | xori_inst) & ~except;
-    
+
     assign writeenable = (add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | slt | lw | lbu) & ~MTC0 & ~ERET & ~beq & ~except;
     assign control_type[1] = (j | jr) & ~except;
     assign control_type[0] = ((beq & zero) | (bne & ~zero) | jr) & ~except;
@@ -112,9 +112,9 @@ module mips_decoder(
     assign shifter_plus32[0] = op0 & (funct == `OP0_64_DSLL32) & ~except;
     assign shifter_plus32[1] = op0 & (funct == `OP0_64_DSRL32) & ~except;
 
-    wire [4:0]   rs = inst[25:21];
-    wire         co = inst[25];
+    wire [4:0] rs = inst[25:21];
+    wire co = inst[25];
     assign MFC0 = opcode == `OP_Z0 && rs == `OPZ_MFCZ;
     assign MTC0 = opcode == `OP_Z0 && rs == `OPZ_MTCZ;
     assign ERET = opcode == `OP_Z0 && co == `OP_CO && funct == `OPC_ERET;
-endmodule // mips_decode
+endmodule  // mips_decode

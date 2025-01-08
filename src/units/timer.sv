@@ -8,24 +8,24 @@ module timer #(
     parameter currentTimeAddr = 64'hFFFF001C,
     parameter acknowledgeInterruptAddr = 64'hFFFF006C
 ) (
-    output wire               TimerInterrupt,
-    output wire [width - 1:0] cycle,
-    output wire               TimerAddress,
-    input  wire [width - 1:0] data,
-    input  wire [width - 1:0] address,
-    input  wire               MemRead,
-    input  wire               MemWrite,
-    input  wire               clock,
-    input  wire               reset
+    output logic               TimerInterrupt,
+    output logic [width - 1:0] cycle,
+    output logic               TimerAddress,
+    input  logic [width - 1:0] data,
+    input  logic [width - 1:0] address,
+    input  logic               MemRead,
+    input  logic               MemWrite,
+    input  logic               clock,
+    input  logic               reset
 );
 
-    // -- wire declarations --
+    // -- logic declarations --
     // cycle counter
-    wire [width - 1:0] cycle_D, cycle_Q;
+    logic [width - 1:0] cycle_D, cycle_Q;
     // interrupt cycle
-    wire [width - 1:0] icycle_Q;
+    logic [width - 1:0] icycle_Q;
     // lower
-    wire Acknowledge, TimerWrite, TimerRead;
+    logic Acknowledge, TimerWrite, TimerRead;
 
     // -- cycle counter --
 

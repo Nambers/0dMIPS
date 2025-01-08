@@ -2,18 +2,18 @@ module regfile #(
     parameter width = 32,
     parameter reset_value = 0
 ) (
-    output wire [width-1:0] A_data,
-    output wire [width-1:0] B_data,
-    input wire [4:0] A_addr,
-    input wire [4:0] B_addr,
-    input wire [4:0] W_addr,
-    input wire [width-1:0] W_data,
-    input wire wr_enable,
-    input wire clk,
-    input wire reset
+    output logic [width-1:0] A_data,
+    output logic [width-1:0] B_data,
+    input logic [4:0] A_addr,
+    input logic [4:0] B_addr,
+    input logic [4:0] W_addr,
+    input logic [width-1:0] W_data,
+    input logic wr_enable,
+    input logic clk,
+    input logic reset
 );
-    wire [31:0][width - 1:0] reg_out;
-    wire [31:0] reg_enable, reg_enable_tmp;
+    logic [31:0][width - 1:0] reg_out;
+    logic [31:0] reg_enable, reg_enable_tmp;
 
     barrel_shifter32 barrel_shifter32_(
         .data_out(reg_enable_tmp),

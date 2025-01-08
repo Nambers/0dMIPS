@@ -4,28 +4,28 @@ module cp0 #(
     parameter [4:0] EPC_REGISTER    = 5'd14 // register for resuming execution after interrupt
 ) (
     output logic [63:0] rd_data,
-    output wire  [63:0] EPC,
-    output wire         TakenInterrupt,
-    input  wire  [63:0] wr_data,
-    input  wire  [ 4:0] regnum,
-    input  wire  [ 2:0] sel,
-    input  wire  [63:0] next_pc,
-    input  wire         MTC0,
-    input  wire         ERET,
-    input  wire         TimerInterrupt,
-    input  wire         clock,
-    input  wire         reset,
-    input  wire         overflow,
-    input  wire         reserved_inst,
-    input  wire         syscall,
-    input  wire         break_
+    output logic [63:0] EPC,
+    output logic        TakenInterrupt,
+    input  logic [63:0] wr_data,
+    input  logic [ 4:0] regnum,
+    input  logic [ 2:0] sel,
+    input  logic [63:0] next_pc,
+    input  logic        MTC0,
+    input  logic        ERET,
+    input  logic        TimerInterrupt,
+    input  logic        clock,
+    input  logic        reset,
+    input  logic        overflow,
+    input  logic        reserved_inst,
+    input  logic        syscall,
+    input  logic        break_
 );
     logic [4:0] exc_code;
     /* verilator lint_off UNUSEDSIGNAL */
-    wire [31:0] user_status;
+    logic [31:0] user_status;
     /* verilator lint_on UNUSEDSIGNAL */
-    wire [63:0] EPC_D;
-    wire exception_level;
+    logic [63:0] EPC_D;
+    logic exception_level;
 
     register #(32, 32'h00400004) user_status_reg (
         user_status,
@@ -67,7 +67,7 @@ module cp0 #(
     };
     wire [31:0] status_reg = {user_status[31:2], exception_level, user_status[0]};
 
-    // wire a,b,c;
+    // logic  a,b,c;
     // and a1(a, cause_reg[15], status_reg[15]);
     // not b1(b, status_reg[1]);
     // and c1(c, b, status_reg[0]);

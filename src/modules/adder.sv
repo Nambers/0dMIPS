@@ -1,10 +1,10 @@
-module adder(
-    output wire out,
-    output wire cout,
-    input wire a,
-    input wire b,
-    input wire cin,
-    input wire sub
+module adder (
+    output logic out,
+    output logic cout,
+    input  logic a,
+    input  logic b,
+    input  logic cin,
+    input  logic sub
 );
     wire b_ = b ^ sub;
     // K-map
@@ -18,7 +18,7 @@ module adder(
     // = c(a Xnor b) + c'(a ^ b)
     // = c((a ^ b)') + c'(a ^ b)
     // = c ^ (a ^ b) = c ^ a ^ b
-    assign out = a ^ b_ ^ cin;
+    assign out  = a ^ b_ ^ cin;
     // K-map
     // a b / c | 0 | 1
     //     0 0 |   |  

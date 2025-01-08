@@ -33,10 +33,10 @@ module register #(
     parameter reset_value = 0
 ) (
     output logic [(width-1):0] Q,
-    input wire [(width-1):0] D,
-    input wire clk,
-    input wire enable,
-    input wire rst
+    input logic [(width-1):0] D,
+    input logic clk,
+    input logic enable,
+    input logic rst
 );
     always @(posedge clk or posedge rst) begin
         if (rst) Q <= reset_value;

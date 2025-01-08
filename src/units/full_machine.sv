@@ -11,38 +11,38 @@
 `define interrupeHandlerAddr 64'h200
 
 module full_machine(
-    input wire clock,
-    input wire reset
+    input logic clock,
+    input logic reset
 );
     // decoder def
-    wire reserved_inst_E;
-    wire [31:0] inst /*verilator public*/;
-    wire [2:0] alu_op;
-    wire write_enable, rd_src, mem_read, word_we, byte_we, byte_load, slt, lui, zero, cut_shifter_out32, cut_alu_out32, shift_right, alu_shifter_src;
-    wire [1:0] alu_src2, control_type, shifter_plus32;
+    logic reserved_inst_E;
+    logic [31:0] inst /*verilator public*/;
+    logic [2:0] alu_op;
+    logic write_enable, rd_src, mem_read, word_we, byte_we, byte_load, slt, lui, zero, cut_shifter_out32, cut_alu_out32, shift_right, alu_shifter_src;
+    logic [1:0] alu_src2, control_type, shifter_plus32;
     // pc counter def
-    wire [63:0] pc /*verilator public*/;
-    wire [63:0] next_pc, pc4, pc_branch;
+    logic [63:0] pc /*verilator public*/;
+    logic [63:0] next_pc, pc4, pc_branch;
     // reg def
-    wire [63:0] A_data, B_data, out, W_data;
-    wire [4:0] W_addr;
+    logic [63:0] A_data, B_data, out, W_data;
+    logic [4:0] W_addr;
     // mem def
-    wire [7:0] byte_load_out;
-    wire [63:0] data_out, mem_out, alu_mem_out, alu_mem_timer_out;
+    logic [7:0] byte_load_out;
+    logic [63:0] data_out, mem_out, alu_mem_out, alu_mem_timer_out;
     // ALU def
     /* verilator lint_off UNUSEDSIGNAL */
-    wire negative, overflow; // TODO overflow to cp0
+    logic negative, overflow; // TODO overflow to cp0
     /* verilator lint_on UNUSEDSIGNAL */
-    wire [63:0] B_in, A_in, slt_out, alu_tmp_out, alu_out;
+    logic [63:0] B_in, A_in, slt_out, alu_tmp_out, alu_out;
     // shifter def
-    wire [63:0] shifter_out, shifter_tmp_out, shifter_plus32_out;
+    logic [63:0] shifter_out, shifter_tmp_out, shifter_plus32_out;
     // timer def
-    wire        TimerInterrupt, TimerAddress;
-    wire [63:0] cycle;
+    logic        TimerInterrupt, TimerAddress;
+    logic [63:0] cycle;
     // cp0 def
-    wire [63:0] EPC, c0_rd_data, new_next_pc, new_next_pc_final, new_W_data;
-    wire MFC0, MTC0, ERET;
-    wire TakenInterrupt /* verilator public */;
+    logic [63:0] EPC, c0_rd_data, new_next_pc, new_next_pc_final, new_W_data;
+    logic MFC0, MTC0, ERET;
+    logic TakenInterrupt /* verilator public */;
 
     // utiles
     wire [63:0] SignExtImm = { {48{inst[15]}}, inst[15:0] };

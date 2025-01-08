@@ -1,15 +1,15 @@
 module au #(
     parameter width = 32
 ) (
-    input wire [width-1:0] a,
-    input wire [width-1:0] b,
-    input wire sub,
-    output wire [width-1:0] out,
-    output wire negative,
-    output wire zero,
-    output wire overflow
+    input logic [width-1:0] a,
+    input logic [width-1:0] b,
+    input logic sub,
+    output logic [width-1:0] out,
+    output logic negative,
+    output logic zero,
+    output logic overflow
 );
-    wire [width-1:0] c_out;
+    logic [width-1:0] c_out;
     // adder adder_0 (
     //     .out(out[0]),
     //     .cout(c_out[0]),
