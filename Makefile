@@ -12,7 +12,7 @@ MODULES =
 UNITS = alu timer cp0
 UNITS.alu = modules/mux modules/adder units/au units/lu
 UNITS.timer = modules/register units/alu $(UNITS.alu)
-UNITS.cp0 = modules/barrel_shifter32 modules/register modules/mux
+UNITS.cp0 = modules/register modules/mux
 # User only needs to edit above
 
 TARGETS = $(addsuffix Test, $(addprefix bin/, $(MODULES))) $(addsuffix Test, $(addprefix bin/, $(UNITS)))

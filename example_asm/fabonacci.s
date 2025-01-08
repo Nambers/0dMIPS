@@ -33,7 +33,6 @@ __start:
 	end:
     # should be 8 in reg2($v0)
 	or $v0, $0, $t3;
-	sw $0, 0($0);
 	sw $0, 4($0);
 	# memory dump 0x0 should be 8
 	sw $v0, 0($0);

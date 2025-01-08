@@ -32,8 +32,7 @@ module register #(
     parameter width = 32,
     parameter reset_value = 0
 ) (
-
-    output reg [(width-1):0] Q,
+    output logic [(width-1):0] Q,
     input wire [(width-1):0] D,
     input wire clk,
     input wire enable,

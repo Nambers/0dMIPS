@@ -49,8 +49,8 @@ int main(int argc, char **argv) {
                   << std::setfill('0') << std::setw(8)
                   << machine->full_machine->pc << "\tinst = \t"
                   << std::setfill('0') << std::setw(8)
-                  << machine->full_machine->inst << std::dec << "\texcept = \t"
-                  << (bool)machine->except << std::endl;
+                  << machine->full_machine->inst << std::dec << "\tInterrupted = \t"
+                  << (bool)machine->full_machine->TakenInterrupt << std::endl;
         TICK;
     }
 

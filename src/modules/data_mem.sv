@@ -39,7 +39,7 @@ module data_mem (
     input byte_we;  // Write enable (active high)
 
     // Memory segments
-    reg     [63:0] data_seg[0:data_words-1]  /* verilator public */;
+    logic     [63:0] data_seg[0:data_words-1]  /* verilator public */;
 
     // Verilog implementation stuff
     integer        i;

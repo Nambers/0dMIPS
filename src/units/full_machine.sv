@@ -1,6 +1,6 @@
 // full_machine: execute a series of MIPS instructions from an instruction cache
 //
-// except (output) - set to 1 when an unrecognized instruction is to be executed.
+// reserved_inst_E (output) - set to 1 when an unrecognized instruction is to be executed.
 // clock   (input) - the clock signal
 // reset   (input) - set to 1 to set all registers to zero, set to 0 for normal execution.
 `define ALU_ADD    3'b010
@@ -11,11 +11,11 @@
 `define interrupeHandlerAddr 64'h200
 
 module full_machine(
-    output wire except,
     input wire clock,
     input wire reset
 );
     // decoder def
+    wire reserved_inst_E;
     wire [31:0] inst /*verilator public*/;
     wire [2:0] alu_op;
     wire write_enable, rd_src, mem_read, word_we, byte_we, byte_load, slt, lui, zero, cut_shifter_out32, cut_alu_out32, shift_right, alu_shifter_src;
@@ -40,9 +40,9 @@ module full_machine(
     wire        TimerInterrupt, TimerAddress;
     wire [63:0] cycle;
     // cp0 def
-    wire [61:0] EPC;
-    wire [63:0] c0_rd_data, new_next_pc, new_next_pc_final, new_W_data;
-    wire MFC0, MTC0, ERET, TakenInterrupt;
+    wire [63:0] EPC, c0_rd_data, new_next_pc, new_next_pc_final, new_W_data;
+    wire MFC0, MTC0, ERET;
+    wire TakenInterrupt /* verilator public */;
 
     // utiles
     wire [63:0] SignExtImm = { {48{inst[15]}}, inst[15:0] };
@@ -92,12 +92,12 @@ module full_machine(
     mux2v #(64) alu_mem_mux(alu_mem_out, slt_out, mem_out, mem_read);
 
     // -- cp0 --
-    cp0 cp(c0_rd_data, EPC, TakenInterrupt, B_data, W_addr, next_pc[63:2], MTC0, ERET, TimerInterrupt, clock, reset);
-    mux2v #(64) ERET_next_pc_mux(new_next_pc, next_pc, {EPC, 2'b0}, ERET);
+    cp0 cp(c0_rd_data, EPC, TakenInterrupt, B_data, W_addr, inst[2:0], next_pc, MTC0, ERET, TimerInterrupt, clock, reset, overflow, reserved_inst_E, 0, 0); // TODO syscall, break
+    mux2v #(64) ERET_next_pc_mux(new_next_pc, next_pc, EPC, ERET);
     mux2v #(64) Interrupt_pc_mux(new_next_pc_final, new_next_pc, `interrupeHandlerAddr, TakenInterrupt);
     mux2v #(64) mfc0_mux(new_W_data, W_data, c0_rd_data, MFC0);
 
     // -- decoder --
-    mips_decoder decoder(alu_op, write_enable, rd_src, alu_src2, except, control_type, mem_read, word_we, byte_we, byte_load, slt, lui, shift_right, shifter_plus32, alu_shifter_src, cut_shifter_out32, cut_alu_out32, MFC0, MTC0, ERET, inst, zero);
+    mips_decoder decoder(alu_op, write_enable, rd_src, alu_src2, reserved_inst_E, control_type, mem_read, word_we, byte_we, byte_load, slt, lui, shift_right, shifter_plus32, alu_shifter_src, cut_shifter_out32, cut_alu_out32, MFC0, MTC0, ERET, inst, zero);
     
 endmodule // full_machine
