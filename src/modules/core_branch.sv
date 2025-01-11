@@ -1,0 +1,44 @@
+import structures::control_type_t;
+import structures::NORMAL;
+import structures::BRANCH;
+import structures::J;
+import structures::JR;
+import structures::ID_regs_t;
+
+module core_branch (
+    /* verilator lint_off UNUSEDSIGNAL */
+    input ID_regs_t ID_regs,
+    /* verilator lint_on UNUSEDSIGNAL */
+    input logic [63:0] EPC,
+    input logic TakenInterrupt,
+    output logic [63:0] next_pc,
+    output logic flush
+);
+    always_comb begin
+        if (TakenInterrupt) begin
+            next_pc = `interrupeHandlerAddr;
+            flush   = 1'b1;
+        end else if (ID_regs.ERET) begin
+            next_pc = EPC;
+            flush   = 1'b1;
+        end else
+            case (ID_regs.control_type)
+                NORMAL: begin
+                    next_pc = ID_regs.pc4;
+                    flush   = 1'b0;
+                end
+                BRANCH: begin
+                    next_pc = ID_regs.pc_branch;
+                    flush   = 1'b1;
+                end
+                J: begin
+                    next_pc = ID_regs.jumpAddr;
+                    flush   = 1'b1;
+                end
+                JR: begin
+                    next_pc = ID_regs.A_data;
+                    flush   = 1'b1;
+                end
+            endcase
+    end
+endmodule

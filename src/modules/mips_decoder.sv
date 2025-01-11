@@ -23,32 +23,33 @@
 //
 // for definitions of the opcodes and functs, see mips_define.v
 `include "src/modules/mips_define.sv"
+import structures::control_type_t;
 
 module mips_decoder (
-    output logic [ 2:0] alu_op,
-    output logic        writeenable,
-    output logic        rd_src,
-    output logic [ 1:0] alu_src2,
-    output logic        except,
-    output logic [ 1:0] control_type,
-    output logic        mem_read,
-    output logic        word_we,
-    output logic        byte_we,
-    output logic        byte_load,
-    output logic        slt_out,
-    output logic        lui_out,
-    output logic        shift_right,
-    output logic [ 1:0] shifter_plus32,
-    output logic        alu_shifter_src,
-    output logic        cut_shifter_out32,
-    output logic        cut_alu_out32,
-    output logic        MFC0,
-    output logic        MTC0,
-    output logic        ERET,
+    output logic          [ 2:0] alu_op,
+    output logic                 writeenable,
+    output logic                 rd_src,
+    output logic          [ 1:0] alu_src2,
+    output logic                 except,
+    output control_type_t        control_type,
+    output logic                 mem_read,
+    output logic                 word_we,
+    output logic                 byte_we,
+    output logic                 byte_load,
+    output logic                 slt_out,
+    output logic                 lui_out,
+    output logic                 shift_right,
+    output logic          [ 1:0] shifter_plus32,
+    output logic                 alu_shifter_src,
+    output logic                 cut_shifter_out32,
+    output logic                 cut_alu_out32,
+    output logic                 MFC0,
+    output logic                 MTC0,
+    output logic                 ERET,
     /* verilator lint_off UNUSEDSIGNAL */
-    input  logic [31:0] inst,
+    input  logic          [31:0] inst,
     /* verilator lint_on UNUSEDSIGNAL */
-    input  logic        zero
+    input  logic                 zero
 );
 
     logic op0, addu_inst, add_inst, sub_inst, and_inst, or_inst, xor_inst, nor_inst;
@@ -70,11 +71,11 @@ module mips_decoder (
     wire srl = op0 & (funct == `OP0_SRL | funct == `OP0_64_DSRL | funct == `OP0_64_DSRL32);
 
 
-    assign addi_inst  = (opcode == `OP_ADDI);
+    assign addi_inst = (opcode == `OP_ADDI);
     assign addiu_inst = (opcode == `OP_ADDIU) | (opcode == `OP_64_DADDIU);
-    assign andi_inst  = (opcode == `OP_ANDI);
-    assign ori_inst   = (opcode == `OP_ORI);
-    assign xori_inst  = (opcode == `OP_XORI);
+    assign andi_inst = (opcode == `OP_ANDI);
+    assign ori_inst = (opcode == `OP_ORI);
+    assign xori_inst = (opcode == `OP_XORI);
     wire beq = (opcode == `OP_BEQ);
     wire bne = (opcode == `OP_BNE);
     wire j = (opcode == `OP_J);

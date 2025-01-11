@@ -1,15 +1,12 @@
 # -- start full simulation --
-join-with =  $(patsubst %$1,%,$(subst $(space),$1,$(strip $2)))
-
 NAME := core
 UPPER_NAME := Core
-PERIPHERALS := VGA
+PERIPHERALS := VGA|timer
 
-DEPS := $(shell find ./src -name "*.sv" | grep -Ev "($(NAME)|mips_define|SOC|$(call join-with,|,$(PERIPHERALS))).sv")
+DEPS := $(shell find ./src -name "*.sv" | grep -Ev "($(NAME)|mips_define|structures|SOC|$(PERIPHERALS)).sv")
 
-$(NAME): src/units/$(NAME).sv ${DEPS} simulations/$(NAME).cpp
-	echo $(GREP_PATTERN)
-	verilator -Wall --trace -cc src/units/$(NAME).sv ${DEPS} -y . \
+$(NAME): src/modules/structures.sv src/units/$(NAME).sv ${DEPS} simulations/$(NAME).cpp
+	verilator -Wall --trace -cc src/modules/structures.sv src/units/$(NAME).sv ${DEPS} -y . \
 	-Mdir build/$(NAME) --prefix $(UPPER_NAME) \
 	--exe simulations/$(NAME).cpp \
 	-o $(UPPER_NAME) \

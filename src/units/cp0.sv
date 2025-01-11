@@ -12,7 +12,7 @@ module cp0 #(
     input  logic [63:0] next_pc,
     input  logic        MTC0,
     input  logic        ERET,
-    input  logic        TimerInterrupt,
+    input  logic [ 7:0] interrupt_source,
     input  logic        clock,
     input  logic        reset,
     input  logic        overflow,
@@ -58,9 +58,7 @@ module cp0 #(
 
     wire [31:0] cause_reg = {
         16'b0,  // reserved
-        TimerInterrupt,  // timer
-        5'b0,  // Hardware
-        2'b0,  // Software
+        interrupt_source,  // 7 outside interrupt sources
         1'b0,  // reserved
         exc_code,  // ExcCode
         2'b0  // reserved
