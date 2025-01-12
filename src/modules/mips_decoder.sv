@@ -46,10 +46,11 @@ module mips_decoder (
     output logic                 MFC0,
     output logic                 MTC0,
     output logic                 ERET,
+    output logic                 beq,
+    output logic                 bne,
     /* verilator lint_off UNUSEDSIGNAL */
-    input  logic          [31:0] inst,
+    input  logic          [31:0] inst
     /* verilator lint_on UNUSEDSIGNAL */
-    input  logic                 zero
 );
 
     logic op0, addu_inst, add_inst, sub_inst, and_inst, or_inst, xor_inst, nor_inst;
@@ -76,8 +77,8 @@ module mips_decoder (
     assign andi_inst = (opcode == `OP_ANDI);
     assign ori_inst = (opcode == `OP_ORI);
     assign xori_inst = (opcode == `OP_XORI);
-    wire beq = (opcode == `OP_BEQ);
-    wire bne = (opcode == `OP_BNE);
+    assign beq = (opcode == `OP_BEQ);
+    assign bne = (opcode == `OP_BNE);
     wire j = (opcode == `OP_J);
     wire lui = (opcode == `OP_LUI);
     wire lw = (opcode == `OP_LW);
@@ -97,8 +98,8 @@ module mips_decoder (
     assign alu_src2[1] = (andi_inst | ori_inst | xori_inst) & ~except;
 
     assign writeenable = (add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | slt | lw | lbu) & ~MTC0 & ~ERET & ~beq & ~except;
-    assign control_type[1] = (j | jr) & ~except;
-    assign control_type[0] = ((beq & zero) | (bne & ~zero) | jr) & ~except;
+    assign control_type[1] = jr & ~except;
+    assign control_type[0] = j & ~except;
     assign mem_read = (lw | lbu) & ~except;
     assign word_we = sw & ~except;
     assign byte_we = sb & ~except;

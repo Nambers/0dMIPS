@@ -12,34 +12,25 @@
 // this file is modified
 
 module data_mem (
-    data_out,
-    addr,
-    data_in,
-    word_we,
-    byte_we,
-    clk,
-    reset,
-    inst,
-    inst_addr
+    output logic [63:0] data_out,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input logic [63:0] addr,
+    /* verilator lint_on UNUSEDSIGNAL */
+    input logic [63:0] data_in,
+    input logic word_we,
+    input logic byte_we,
+    input logic clk,
+    input logic reset,
+    output logic [31:0] inst,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input logic [63:0] inst_addr
+    /* verilator lint_on UNUSEDSIGNAL */
 );
     parameter  // size of data segment
     data_words = 'h4000;  /* 4 M */
 
-    input clk, reset;
-
-    // Inputs and ouptuts: Port 1
-    output [63:0] data_out;  // Memory read data
-    output [31:0] inst;
-    /* verilator lint_off UNUSEDSIGNAL */
-    input [63:0] inst_addr;
-    input [63:0] addr;  // Memory address
-    /* verilator lint_on UNUSEDSIGNAL */
-    input [63:0] data_in;  // Memory write data
-    input word_we;  // Write enable (active high)
-    input byte_we;  // Write enable (active high)
-
     // Memory segments
-    logic     [63:0] data_seg[0:data_words-1]  /* verilator public */;
+    logic   [63:0] data_seg[0:data_words-1]  /* verilator public */;
 
     // Verilog implementation stuff
     integer        i;
@@ -55,26 +46,25 @@ module data_mem (
 
     wire [ 5:0] index = addr[8:3], inst_index = inst_addr[8:3];
     wire [63:0] d_out = data_seg[index];
+
     // TODO 32bit read
-    assign data_out = d_out;
-    assign inst = (inst_addr[2] == 1'b0) ? data_seg[inst_index][31:0] : data_seg[inst_index][63:32];
+    always_comb begin
+        data_out = data_seg[index];
+        inst = (inst_addr[2] == 1'b0) ? data_seg[inst_index][31:0] : data_seg[inst_index][63:32];
+    end
 
     always @(negedge clk or posedge reset) begin
-        if (reset == 1'b1) begin
+        if (reset) begin
             for (i = 0; i < data_words; i = i + 1) data_seg[i] <= 64'b0;
             $readmemh("memory.text.mem", data_seg);
             $readmemh("memory.data.mem", data_seg);
         end else begin
-            if (word_we == 1'b1) begin
-                if (addr[2] == 1'b0) begin
-                    data_seg[index][31:0] <= data_in[31:0];
-                end else begin
-                    data_seg[index][63:32] <= data_in[31:0];
-                end
+            if (word_we) begin
+                if (addr[2] == 1'b0) data_seg[index][31:0] <= data_in[31:0];
+                else data_seg[index][63:32] <= data_in[31:0];
             end else begin
-                if (byte_we == 1'b1) begin
+                if (byte_we)
                     data_seg[index] <= (d_out & ~(64'hff << (8*(addr[2:0])))) | ((data_in & 64'hff) << (8*(addr[2:0])));
-                end
             end
         end
     end

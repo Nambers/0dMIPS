@@ -13,7 +13,6 @@ import structures::IF_regs_t;
 import structures::ID_regs_t;
 import structures::EX_regs_t;
 import structures::MEM_regs_t;
-import structures::WB_regs_t;
 import structures::forward_type_t;
 
 module core (
@@ -43,100 +42,92 @@ module core (
     ID_regs_t  ID_regs;
     EX_regs_t  EX_regs;
     MEM_regs_t MEM_regs;
-    WB_regs_t  WB_regs;
 
     logic [63:0] pc  /* verilator public */, next_pc;
-    logic [31:0] inst;
+    logic [31:0] inst  /* verilator public */;
     forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
 
     core_forward forward_unit (
-        ID_regs.inst[25:21],
-        ID_regs.inst[20:16],
-        MEM_regs.W_regnum,
-        MEM_regs.write_enable,
-        WB_regs.W_regnum,
-        WB_regs.write_enable,
-        forward_A,
-        forward_B
+        .IF_rs(IF_regs.inst[25:21]),
+        .IF_rt(IF_regs.inst[20:16]),
+        .ID_rd(ID_regs.W_regnum),
+        .ID_alu_writeback(ID_regs.write_enable & ~ID_regs.mem_read),
+        .EX_rd(EX_regs.W_regnum),
+        .EX_mem_writeback(EX_regs.write_enable & EX_regs.mem_read),
+        .forward_A(forward_A),
+        .forward_B(forward_B)
     );
 
     // TODO in mem stage, redirect d_data to WB
     core_hazard hazard_unit (
-        ID_regs.inst[25:21],
-        ID_regs.inst[20:16],
-        EX_regs.W_regnum,
-        EX_regs.mem_read,
-        stall,
-        EX_regs.out,
-        EX_regs.byte_we | EX_regs.word_we,
-        d_ready,
-        d_valid
+        .IF_rs(IF_regs.inst[25:21]),
+        .IF_rt(IF_regs.inst[20:16]),
+        .ID_W_regnum(ID_regs.W_regnum),
+        .ID_mem_read(ID_regs.mem_read),
+        .stall(stall),
+
+        // --- peripherals ---
+        .addr(EX_regs.out),
+        .EX_mem_read(EX_regs.mem_read),
+        .EX_mem_write(EX_regs.byte_we | EX_regs.word_we),
+        .d_ready(d_ready),
+        .d_valid(d_valid)
     );
 
     core_branch branch_unit (
-        ID_regs,
-        MEM_regs.EPC,
-        MEM_regs.takenInterrupt,
-        next_pc,
-        flush
+        .ID_regs(ID_regs),
+        .EX_regs(EX_regs),
+        .pc4(IF_regs.pc4),
+        .EPC(MEM_regs.EPC),
+        .TakenInterrupt(MEM_regs.takenInterrupt),
+        .next_pc(next_pc),
+        .flush(flush)
     );
 
     core_IF IF_stage (
-        clock,
-        reset,
-        next_pc,
-        inst,
-        stall,
-        flush,
-        pc,
-        IF_regs
+        .clock(clock),
+        .reset(reset),
+        .next_pc(next_pc),
+        .inst(inst),
+        .stall(stall),
+        .flush(flush),
+        .pc(pc),
+        .IF_regs(IF_regs)
     );
 
     core_ID ID_stage (
-        clock,
-        reset,
-        IF_regs,
-        WB_regs,
-        EX_regs.zero,
-        stall,
-        flush,
-        ID_regs,
-        forward_A,
-        forward_B,
-        MEM_regs.W_data
+        .clock(clock),
+        .reset(reset),
+        .IF_regs(IF_regs),
+        .stall(stall),
+        .flush(flush),
+        .MEM_regs(MEM_regs),
+        .ID_regs(ID_regs),
+        .forward_A(forward_A),
+        .forward_B(forward_B)
     );
 
     core_EX EX_stage (
-        clock,
-        reset,
-        ID_regs,
-        stall,
-        flush,
-        d_valid,
-        EX_regs
+        .clock  (clock),
+        .reset  (reset),
+        .ID_regs(ID_regs),
+        .flush  (flush),
+        .EX_regs(EX_regs),
+        .MEM_data(MEM_regs.W_data)
     );
 
     core_MEM MEM_stage (
-        clock,
-        reset,
-        EX_regs,
-        pc,
-        interrupt_sources,
-        next_pc,
-        d_valid,
-        d_ready,
-        d_rdata,
-        inst,
-        MEM_regs
-    );
-
-    core_WB WB_stage (
-        clock,
-        reset,
-        MEM_regs.W_regnum,
-        MEM_regs.W_data,
-        MEM_regs.write_enable,
-        WB_regs
+        .clock(clock),
+        .reset(reset),
+        .inst_addr(pc),
+        .interrupt_sources(interrupt_sources),
+        .next_pc(next_pc),
+        .d_valid(d_valid),
+        .d_ready(d_ready),
+        .d_rdata(d_rdata),
+        .inst(inst),
+        .EX_regs(EX_regs),
+        .MEM_regs(MEM_regs)
     );
 
     // -- peripheral --

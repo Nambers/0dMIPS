@@ -93,6 +93,8 @@ module core_MEM (
     );
 
     always_ff @(posedge clock, posedge reset) begin
+        // $display("write addr: %h, enable: %h, data: %h", EX_regs.out,
+        //          EX_regs.byte_we | EX_regs.word_we, EX_regs.B_data);
         if (reset) begin
             MEM_regs <= '0;
         end else begin
@@ -101,6 +103,7 @@ module core_MEM (
             MEM_regs.W_regnum <= EX_regs.W_regnum;
             MEM_regs.write_enable <= EX_regs.write_enable;
             MEM_regs.takenInterrupt <= takenInterrupt;
+            MEM_regs.mem_read <= EX_regs.mem_read;
         end
     end
 endmodule

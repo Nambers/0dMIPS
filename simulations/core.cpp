@@ -10,8 +10,6 @@
 #include <iostream>
 #include <unordered_map>
 
-#define MEM_WORD 1000
-
 #define TICK_HALF                         \
     do {                                  \
         machine->clock = !machine->clock; \
@@ -23,19 +21,20 @@
     TICK_HALF; \
     TICK_HALF
 
-std::unordered_map<uint64_t, std::string> parseInst(FILE *f) {
-    std::unordered_map<uint64_t, std::string> insts;
+std::unordered_map<uint32_t, std::string> parseInst(FILE *f) {
+    std::unordered_map<uint32_t, std::string> insts;
     char buffer[256];
 
     while (fgets(buffer, sizeof(buffer), f)) {
         if (buffer[0] == ' ' && buffer[1] == ' ') {
             uint64_t addr;
-            char inst[9], format[128];
+            uint32_t inst;
+            char format[128];
 
-            if (sscanf(buffer, " %lx: %8s %[^\n]", &addr, inst, format) == 3) {
-                insts[addr] = "";
+            if (sscanf(buffer, " %lx: %8x %[^\n]", &addr, &inst, format) == 3) {
+                insts[inst] = "";
                 for (char c : std::string(format)) {
-                    insts[addr] += (c == '\t') ? ' ' : c;
+                    insts[inst] += (c == '\t') ? ' ' : c;
                 }
             }
         }
@@ -78,30 +77,39 @@ int main(int argc, char **argv) {
                  "ask peripheral data access"
               << std::endl;
     std::cout << "simulation starting" << std::endl;
-    while (ctx->time() < 60 * 2) {
+    while (ctx->time() < 100 * 2) {
         std::cout << "time = " << ctx->time() << "\tpc = " << std::hex
-                  << std::setfill('0') << std::setw(8) << std::dec
-                  << machine->core->pc << "\t flags = ";
+                  << std::right << std::setfill('0') << std::setw(8)
+                  << machine->core->pc << std::dec << std::left
+                  << "\t flags = ";
         std::string flags;
         if (machine->core->MEM_stage->takenInterrupt) flags += "I|";
         if (machine->core->stall) flags += "S|";
         if (machine->core->flush) flags += "F|";
         if (machine->core->reset) flags += "R|";
         if (machine->core->d_valid) flags += "D|";
-        if (machine->core->forward_A) flags += "A|";
-        if (machine->core->forward_B) flags += "B|";
+        if (machine->core->forward_A == 1) flags += "AA|";
+        if (machine->core->forward_A == 2) flags += "AM|";
+        if (machine->core->forward_B == 1) flags += "BA|";
+        if (machine->core->forward_B == 2) flags += "BM|";
 
         if (!flags.empty()) {
             flags.pop_back();
         }
 
-        std::cout << std::left << std::setfill(' ') << std::setw(13) << flags;
-        std::cout << "inst = " << inst_map[machine->core->pc] << std::endl;
+        std::cout << std::left << std::setfill(' ') << std::setw(12) << flags;
+        std::cout << "IF_inst = " << inst_map[machine->core->inst];
+        if (machine->core->d_valid) {
+            std::cout << "\td_addr = " << std::hex << std::right
+                      << std::setfill('0') << std::setw(8)
+                      << machine->core->d_addr << std::dec << std::left;
+        }
+        std::cout << std::endl;
         TICK;
     }
 
     std::ofstream mem_out("memory_after.txt");
-    for (int i = 0; i < MEM_WORD; i++) {
+    for (int i = 0; i < machine->core->MEM_stage->mem->data_seg.size(); i++) {
         mem_out << std::hex << std::setfill('0') << std::setw(16)
                 << machine->core->MEM_stage->mem->data_seg[i] << std::endl;
     }

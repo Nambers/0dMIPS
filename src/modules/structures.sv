@@ -1,37 +1,36 @@
 package structures;
     typedef enum [1:0] {
         NORMAL = 0,
-        BRANCH = 1,
-        J = 2,
-        JR = 3
+        J = 1,
+        JR = 2
     } control_type_t;
 
     typedef enum [1:0] {
         NO_FORWARD  = 0,
-        FORWARD_MEM = 1,
-        FORWARD_WB  = 2
+        FORWARD_ALU = 1,
+        FORWARD_MEM  = 2
     } forward_type_t;
 
     typedef struct packed {
         logic [31:0] inst;
-        logic [63:0] pc4;
+        logic [63:0] pc4, pc;
     } IF_regs_t;
 
     typedef struct packed {
         logic [63:0] A_data, B_data, pc4, pc_branch, jumpAddr;
         logic [31:0] inst;
+        logic [4:0] W_regnum;
         logic [2:0] alu_op;
         logic [1:0] alu_src2, shifter_plus32;
         control_type_t control_type;
+        forward_type_t forward_A, forward_B;
         logic reserved_inst_E,
             write_enable,
-            rd_src,
             mem_read,
             word_we,
             byte_we,
             byte_load,
             slt,
-            zero,
             cut_shifter_out32,
             cut_alu_out32,
             shift_right,
@@ -39,26 +38,23 @@ package structures;
             // -- CP0 --
             MFC0,
             MTC0,
-            ERET
+            ERET,
+            BEQ,
+            BNE,
+            lui
         ;
     } ID_regs_t;
 
     typedef struct packed {
-        logic [63:0] out, slt_out, B_data, pc4;
+        logic [63:0] out, slt_out, B_data, pc4, pc_branch;
         logic [4:0] W_regnum;
         logic [2:0] sel;
-        logic reserved_inst_E, overflow, zero, mem_read, word_we, byte_we, byte_load, MFC0, MTC0, ERET, write_enable;
+        logic reserved_inst_E, overflow, zero, mem_read, word_we, byte_we, byte_load, MFC0, MTC0, ERET, write_enable, BEQ, BNE;
     } EX_regs_t;
 
     typedef struct packed {
         logic [63:0] EPC, W_data;
         logic [4:0] W_regnum;
-        logic write_enable, takenInterrupt;
+        logic write_enable, takenInterrupt, mem_read;
     } MEM_regs_t;
-
-    typedef struct packed {
-        logic [63:0] W_data;
-        logic [4:0] W_regnum;
-        logic write_enable;
-    } WB_regs_t;
 endpackage

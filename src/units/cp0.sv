@@ -81,7 +81,7 @@ module cp0 #(
         endcase
     end
 
-    always @(*) begin
+    always_comb begin
         if (~exception_level && (overflow | reserved_inst | syscall | break_)) begin
             case (1'b1)
                 overflow:      exc_code = 5'h0c;
