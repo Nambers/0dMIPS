@@ -42,7 +42,8 @@ module core_ID (
         MTC0,
         ERET,
         BEQ,
-        BNE;
+        BNE,
+        signed_byte;
 
     // -- decoder --
     mips_decoder decoder (
@@ -68,6 +69,7 @@ module core_ID (
         ERET,
         BEQ,
         BNE,
+        signed_byte,
         IF_regs.inst
     );
 
@@ -131,6 +133,7 @@ module core_ID (
             ID_regs.forward_A <= forward_A;
             ID_regs.forward_B <= forward_B;
             ID_regs.lui <= lui;
+            ID_regs.signed_byte <= signed_byte;
         end
     end
 endmodule

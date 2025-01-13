@@ -4,6 +4,7 @@ step:	.word 6
 .text
 .global __start
 __start:
+	xor $0, $0, $0;
     # load step addr into $t0 as double word(64bits)
 	dla $t0, step;
 	lw $t0, 0($t0);

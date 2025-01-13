@@ -1,7 +1,7 @@
-#include <Core.h>
-#include <Core_core.h>
-#include <Core_core_MEM.h>
-#include <Core_data_mem__D40.h>
+#include <Core_sim.h>
+#include <Core_sim_core.h>
+#include <Core_sim_core_MEM.h>
+#include <Core_sim_data_mem__D40.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 
@@ -42,10 +42,12 @@ std::unordered_map<uint32_t, std::string> parseInst(FILE *f) {
     return insts;
 }
 
+// ./Core_sim [cycle_max]
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
+    unsigned int cycle_max = argc > 1 ? std::stoi(argv[1]) : 200;
     VerilatedContext *ctx = new VerilatedContext;
-    Core *machine = new Core{ctx};
+    Core_sim *machine = new Core_sim{ctx};
     VerilatedVcdC *tfp = new VerilatedVcdC;
     ctx->debug(0);
     ctx->randReset(2);
@@ -77,13 +79,13 @@ int main(int argc, char **argv) {
                  "ask peripheral data access"
               << std::endl;
     std::cout << "simulation starting" << std::endl;
-    while (ctx->time() < 100 * 2) {
+    while (ctx->time() < cycle_max * 2) {
         std::cout << "time = " << ctx->time() << "\tpc = " << std::hex
                   << std::right << std::setfill('0') << std::setw(8)
                   << machine->core->pc << std::dec << std::left
                   << "\t flags = ";
         std::string flags;
-        if (machine->core->MEM_stage->takenInterrupt) flags += "I|";
+        if (machine->core->MEM_stage->takenHandler) flags += "I|";
         if (machine->core->stall) flags += "S|";
         if (machine->core->flush) flags += "F|";
         if (machine->core->reset) flags += "R|";

@@ -48,6 +48,7 @@ module mips_decoder (
     output logic                 ERET,
     output logic                 beq,
     output logic                 bne,
+    output logic                 signed_byte,
     /* verilator lint_off UNUSEDSIGNAL */
     input  logic          [31:0] inst
     /* verilator lint_on UNUSEDSIGNAL */
@@ -82,7 +83,8 @@ module mips_decoder (
     wire j = (opcode == `OP_J);
     wire lui = (opcode == `OP_LUI);
     wire lw = (opcode == `OP_LW);
-    wire lbu = (opcode == `OP_LBU);
+    assign signed_byte = (opcode == `OP_LB);
+    wire lbu = (opcode == `OP_LBU) | signed_byte;
     wire sw = (opcode == `OP_SW);
     wire sb = (opcode == `OP_SB);
     wire nop = (opcode == 6'h00 && funct == 6'h00);

@@ -8,7 +8,7 @@ template <class T>
 class TestBaseI : public testing::Test {
    protected:
     using DIST_TYPE = std::uniform_int_distribution<std::mt19937::result_type>;
-    TestBaseI() : rng(dev()) {};
+    TestBaseI() : rng(dev()), ctx() {};
     virtual void tick() = 0;
     virtual void SetUp() = 0;
     virtual void TearDown() = 0;
@@ -17,24 +17,29 @@ class TestBaseI : public testing::Test {
     T *inst_ = nullptr;
     std::random_device dev;
     std::mt19937 rng;
+    VerilatedContext ctx;
 };
 
 template <class T>
 class TestBase : public TestBaseI<T> {
    protected:
     T *inst_;
+    virtual void customSetUp() {};
     void tick() override {
         inst_->clock = !inst_->clock;
         inst_->eval();
+        this->ctx.timeInc(1);
         inst_->clock = !inst_->clock;
         inst_->eval();
+        this->ctx.timeInc(1);
     };
     void SetUp() override {
-        inst_ = new T;
+        inst_ = new T{&this->ctx};
         inst_->clock = 1;
         inst_->reset = 1;
         tick();
         inst_->reset = 0;
+        customSetUp();
     };
     void TearDown() override {
         inst_->final();

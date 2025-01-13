@@ -12,13 +12,28 @@ module core_branch (
     /* verilator lint_on UNUSEDSIGNAL */
     input logic [63:0] pc4,
     input logic [63:0] EPC,
-    input logic TakenInterrupt,
+    input logic takenHandler,
     output logic [63:0] next_pc,
     output logic flush
 );
+    logic [63:0] interrupeHandlerAddr;
+
+    initial begin
+        integer fd;
+        // plz put the error handler address at first in .data section
+        // this can help the memory be compacted
+        fd = $fopen("memory.data.mem", "r");
+        if (|fd) begin
+            $fscanf(fd, "@%h", interrupeHandlerAddr);  // skip the first line
+            $fscanf(fd, "%h", interrupeHandlerAddr);
+            interrupeHandlerAddr = {interrupeHandlerAddr[31:0], interrupeHandlerAddr[63:32]};
+            $fclose(fd);
+        end
+    end
+
     always_comb begin
-        if (TakenInterrupt) begin
-            next_pc = `interrupeHandlerAddr;
+        if (takenHandler) begin
+            next_pc = interrupeHandlerAddr;
             flush   = 1'b1;
         end else if (ID_regs.ERET) begin
             next_pc = EPC;

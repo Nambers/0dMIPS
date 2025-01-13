@@ -79,7 +79,7 @@ module core (
         .EX_regs(EX_regs),
         .pc4(IF_regs.pc4),
         .EPC(MEM_regs.EPC),
-        .TakenInterrupt(MEM_regs.takenInterrupt),
+        .takenHandler(MEM_regs.takenHandler),
         .next_pc(next_pc),
         .flush(flush)
     );
@@ -108,10 +108,10 @@ module core (
     );
 
     core_EX EX_stage (
-        .clock  (clock),
-        .reset  (reset),
+        .clock(clock),
+        .reset(reset),
         .ID_regs(ID_regs),
-        .flush  (flush),
+        .flush(flush),
         .EX_regs(EX_regs),
         .MEM_data(MEM_regs.W_data)
     );

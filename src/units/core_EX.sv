@@ -133,6 +133,7 @@ module core_EX (
             EX_regs.write_enable <= ID_regs.write_enable;
             EX_regs.reserved_inst_E <= ID_regs.reserved_inst_E;
             EX_regs.slt_out <= slt_out;
+            EX_regs.signed_byte <= ID_regs.signed_byte;
         end
     end
 endmodule

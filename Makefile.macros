@@ -23,7 +23,7 @@ endef
 #
 define make_mktargets
 build/$(1)/$(1).mk: src/$(2)/$(1).sv $(call process_sv_path,$(3)) tests/$(1)_test.cpp
-	@verilator -Wall --coverage -cc src/$(2)/$(1).sv $(call process_sv_path,$(3)) -y . \
+	@verilator -Wall --coverage -cc $(call process_sv_path,$(3)) src/$(2)/$(1).sv -y . \
 							-Mdir build/$(1) --prefix $(call capitalize_first,$(1)) \
 	            --exe ../tests/$(1)_test.cpp \
 							-o $(1)Test \

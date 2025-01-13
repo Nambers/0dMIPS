@@ -6,13 +6,16 @@
 include Makefile.macros
 
 VLCOVFLAGS = --annotate logs/annotate --annotate-all --annotate-min 1
+export PERIPHERALS := VGA|timer
+export CORE_DEPS := ./src/modules/structures.sv $(shell find ./src -name "*.sv" | grep -Ev "(core|mips_define|structures|SOC|$(PERIPHERALS)).sv")
 
 # User only needs to edit below
 MODULES = 
-UNITS = alu timer cp0
+UNITS = alu timer cp0 core
 UNITS.alu = modules/mux modules/adder units/au units/lu
 UNITS.timer = modules/register units/alu $(UNITS.alu)
 UNITS.cp0 = modules/register modules/mux
+UNITS.core = $(patsubst ./src/%.sv,%,$(CORE_DEPS))
 # User only needs to edit above
 
 TARGETS = $(addsuffix Test, $(addprefix bin/, $(MODULES))) $(addsuffix Test, $(addprefix bin/, $(UNITS)))

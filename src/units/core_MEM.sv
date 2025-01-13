@@ -17,9 +17,9 @@ module core_MEM (
     output MEM_regs_t MEM_regs
 );
     logic [7:0] byte_load_out;
-    logic [63:0] data_out, mem_out, alu_mem_out, alu_mem_d_out;
+    logic [63:0] data_out, mem_out, alu_mem_out, alu_mem_d_out, byte_out;
     logic [63:0] EPC, c0_rd_data, W_data;
-    logic takenInterrupt  /* verilator public */;
+    logic takenHandler  /* verilator public */;
 
     // -- mem --
     // {out[63:3], 3'b000} to align the data to the memory
@@ -34,6 +34,7 @@ module core_MEM (
         inst,
         inst_addr
     );
+
     mux8v #(8) byte_load_mux (
         byte_load_out,
         data_out[7:0],
@@ -46,10 +47,18 @@ module core_MEM (
         data_out[63:56],
         EX_regs.out[2:0]
     );
+
+    mux2v #(64) byte_mux (
+        byte_out,
+        {{56'b0, byte_load_out}},
+        {{56{byte_load_out[7]}}, byte_load_out},
+        EX_regs.signed_byte
+    );
+
     mux2v #(64) mem_out_mux (
         mem_out,
         data_out,
-        {{56{byte_load_out[7]}}, byte_load_out},
+        byte_out,
         EX_regs.byte_load
     );
     mux2v #(64) alu_mem_mux (
@@ -69,7 +78,7 @@ module core_MEM (
     cp0 cp (
         c0_rd_data,
         EPC,
-        takenInterrupt,
+        takenHandler,
         EX_regs.B_data,
         EX_regs.W_regnum,
         EX_regs.sel,
@@ -95,6 +104,9 @@ module core_MEM (
     always_ff @(posedge clock, posedge reset) begin
         // $display("write addr: %h, enable: %h, data: %h", EX_regs.out,
         //          EX_regs.byte_we | EX_regs.word_we, EX_regs.B_data);
+        if (EX_regs.mem_read) begin
+            $display("read addr: %h, data: %h, final: %h", EX_regs.out, data_out, W_data);
+        end
         if (reset) begin
             MEM_regs <= '0;
         end else begin
@@ -102,7 +114,7 @@ module core_MEM (
             MEM_regs.W_data <= W_data;
             MEM_regs.W_regnum <= EX_regs.W_regnum;
             MEM_regs.write_enable <= EX_regs.write_enable;
-            MEM_regs.takenInterrupt <= takenInterrupt;
+            MEM_regs.takenHandler <= takenHandler;
             MEM_regs.mem_read <= EX_regs.mem_read;
         end
     end

@@ -35,13 +35,14 @@ package structures;
             cut_alu_out32,
             shift_right,
             alu_shifter_src,
+            BEQ,
+            BNE,
+            lui,
+            signed_byte,
             // -- CP0 --
             MFC0,
             MTC0,
-            ERET,
-            BEQ,
-            BNE,
-            lui
+            ERET
         ;
     } ID_regs_t;
 
@@ -49,12 +50,14 @@ package structures;
         logic [63:0] out, slt_out, B_data, pc4, pc_branch;
         logic [4:0] W_regnum;
         logic [2:0] sel;
-        logic reserved_inst_E, overflow, zero, mem_read, word_we, byte_we, byte_load, MFC0, MTC0, ERET, write_enable, BEQ, BNE;
+        logic reserved_inst_E, 
+        overflow, zero, mem_read, 
+        word_we, byte_we, byte_load, MFC0, MTC0, ERET, write_enable, BEQ, BNE, signed_byte;
     } EX_regs_t;
 
     typedef struct packed {
         logic [63:0] EPC, W_data;
         logic [4:0] W_regnum;
-        logic write_enable, takenInterrupt, mem_read;
+        logic write_enable, takenHandler, mem_read;
     } MEM_regs_t;
 endpackage
