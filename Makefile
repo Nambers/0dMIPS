@@ -13,7 +13,7 @@ export CORE_DEPS := ./src/modules/structures.sv $(shell find ./src -name "*.sv" 
 MODULES = 
 UNITS = alu timer cp0 core
 UNITS.alu = modules/mux modules/adder units/au units/lu
-UNITS.timer = modules/register units/alu $(UNITS.alu)
+UNITS.timer = modules/register
 UNITS.cp0 = modules/register modules/mux
 UNITS.core = $(patsubst ./src/%.sv,%,$(CORE_DEPS))
 # User only needs to edit above

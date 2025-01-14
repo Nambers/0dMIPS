@@ -25,13 +25,12 @@ module core (
     // input  logic        i_ready,  // 
 
     // // --- data ---
-    output logic [63:0] d_addr,     // peripheral data addr
-    output logic [63:0] d_wdata,    // peripheral data W_data send
-    input  logic [63:0] d_rdata,    // peripheral data R_data return
-    output logic        d_word_we,  // peripheral data word enable
-    output logic        d_byte_we,  // peripheral data byte enable
-    output logic        d_valid,    // ask for peripheral data
-    input  logic        d_ready,    // peripheral data ready
+    output logic            [63:0] d_addr,        // peripheral data addr
+    output logic            [63:0] d_wdata,       // peripheral data W_data send
+    input  logic            [63:0] d_rdata,       // peripheral data R_data return
+    output mem_store_type_t        d_store_type,  // peripheral data store type
+    output logic                   d_valid,       // ask for peripheral data
+    input  logic                   d_ready,       // peripheral data ready
 
     // // --- outside interrupt source ---
     input logic [7:0] interrupt_sources
@@ -48,12 +47,12 @@ module core (
     forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
 
     core_forward forward_unit (
-        .IF_rs(IF_regs.inst[25:21]),
-        .IF_rt(IF_regs.inst[20:16]),
-        .ID_rd(ID_regs.W_regnum),
-        .ID_alu_writeback(ID_regs.write_enable & ~ID_regs.mem_read),
+        .ID_rs(ID_regs.inst[25:21]),
+        .ID_rt(ID_regs.inst[20:16]),
         .EX_rd(EX_regs.W_regnum),
-        .EX_mem_writeback(EX_regs.write_enable & EX_regs.mem_read),
+        .EX_alu_writeback(EX_regs.write_enable & ~(|EX_regs.mem_load_type)),
+        .MEM_rd(MEM_regs.W_regnum),
+        .MEM_mem_writeback(MEM_regs.write_enable),
         .forward_A(forward_A),
         .forward_B(forward_B)
     );
@@ -63,13 +62,13 @@ module core (
         .IF_rs(IF_regs.inst[25:21]),
         .IF_rt(IF_regs.inst[20:16]),
         .ID_W_regnum(ID_regs.W_regnum),
-        .ID_mem_read(ID_regs.mem_read),
+        .ID_mem_read(|ID_regs.mem_load_type),
         .stall(stall),
 
         // --- peripherals ---
         .addr(EX_regs.out),
-        .EX_mem_read(EX_regs.mem_read),
-        .EX_mem_write(EX_regs.byte_we | EX_regs.word_we),
+        .EX_mem_read(|EX_regs.mem_load_type),
+        .EX_mem_write(|EX_regs.mem_store_type),
         .d_ready(d_ready),
         .d_valid(d_valid)
     );
@@ -102,9 +101,7 @@ module core (
         .stall(stall),
         .flush(flush),
         .MEM_regs(MEM_regs),
-        .ID_regs(ID_regs),
-        .forward_A(forward_A),
-        .forward_B(forward_B)
+        .ID_regs(ID_regs)
     );
 
     core_EX EX_stage (
@@ -113,7 +110,9 @@ module core (
         .ID_regs(ID_regs),
         .flush(flush),
         .EX_regs(EX_regs),
-        .MEM_data(MEM_regs.W_data)
+        .MEM_data(MEM_regs.W_data),
+        .forward_A(forward_A),
+        .forward_B(forward_B)
     );
 
     core_MEM MEM_stage (
@@ -131,8 +130,7 @@ module core (
     );
 
     // -- peripheral --
-    assign d_word_we = EX_regs.word_we;
-    assign d_byte_we = EX_regs.byte_we;
+    assign d_store_type = EX_regs.mem_store_type;
     assign d_addr = EX_regs.out;
     assign d_wdata = EX_regs.B_data;
 

@@ -16,9 +16,10 @@ module core_MEM (
     output logic [31:0] inst,
     output MEM_regs_t MEM_regs
 );
+    logic [63:0]
+        data_out, mem_out, alu_mem_out, alu_mem_d_out, byte_out, word_out, EPC, c0_rd_data, W_data;
+    logic [31:0] raw_word_out;
     logic [7:0] byte_load_out;
-    logic [63:0] data_out, mem_out, alu_mem_out, alu_mem_d_out, byte_out;
-    logic [63:0] EPC, c0_rd_data, W_data;
     logic takenHandler  /* verilator public */;
 
     // -- mem --
@@ -27,8 +28,7 @@ module core_MEM (
         data_out,
         EX_regs.out,
         EX_regs.B_data,
-        EX_regs.word_we & ~d_valid,  // TODO ~timeraddr
-        EX_regs.byte_we & ~d_valid,
+        EX_regs.mem_store_type & {2{~d_valid}},
         clock,
         reset,
         inst,
@@ -55,17 +55,34 @@ module core_MEM (
         EX_regs.signed_byte
     );
 
-    mux2v #(64) mem_out_mux (
-        mem_out,
-        data_out,
-        byte_out,
-        EX_regs.byte_load
+    mux2v #(32) raw_word_mux (
+        raw_word_out,
+        data_out[31:0],
+        data_out[63:32],
+        EX_regs.out[2]  // if ending with 4
     );
+
+    mux2v #(64) word_mux (
+        word_out,
+        {{32'b0, raw_word_out}},
+        {{32{raw_word_out[31]}}, raw_word_out},
+        EX_regs.signed_word
+    );
+
+    mux4v #(64) mem_out_byte_mux (
+        mem_out,
+        'z,
+        byte_out,
+        word_out,
+        data_out,
+        EX_regs.mem_load_type
+    );
+
     mux2v #(64) alu_mem_mux (
         alu_mem_out,
         EX_regs.slt_out,
         mem_out,
-        EX_regs.mem_read
+        |EX_regs.mem_load_type
     );
     mux2v #(64) d_mux (
         alu_mem_d_out,
@@ -102,10 +119,11 @@ module core_MEM (
     );
 
     always_ff @(posedge clock, posedge reset) begin
-        // $display("write addr: %h, enable: %h, data: %h", EX_regs.out,
-        //          EX_regs.byte_we | EX_regs.word_we, EX_regs.B_data);
-        if (EX_regs.mem_read) begin
+        if (|EX_regs.mem_load_type) begin
             $display("read addr: %h, data: %h, final: %h", EX_regs.out, data_out, W_data);
+        end
+        if(|EX_regs.mem_store_type) begin
+            $display("write addr: %h, data: %h, type: %d", EX_regs.out, EX_regs.B_data, EX_regs.mem_store_type);
         end
         if (reset) begin
             MEM_regs <= '0;
@@ -115,7 +133,6 @@ module core_MEM (
             MEM_regs.W_regnum <= EX_regs.W_regnum;
             MEM_regs.write_enable <= EX_regs.write_enable;
             MEM_regs.takenHandler <= takenHandler;
-            MEM_regs.mem_read <= EX_regs.mem_read;
         end
     end
 endmodule

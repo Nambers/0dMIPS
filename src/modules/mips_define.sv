@@ -98,6 +98,7 @@
 `define OP_LBU      6'h24
 `define OP_LHU      6'h25
 `define OP_LWR      6'h26
+`define OP_LWU      6'h27
 `define OP_SB       6'h28
 `define OP_SH       6'h29
 `define OP_SWL      6'h2a
@@ -107,9 +108,11 @@
 `define OP_LWC1     6'h31
 `define OP_LWC2     6'h32
 `define OP_LWC3     6'h33
+`define OP_LD       6'h37
 `define OP_SWC0     6'h38
 `define OP_SWC1     6'h39
 `define OP_SWC2     6'h3a
+`define OP_SD       6'h3f
 
 // Secondary opcodes (funct2 field; OP_OTHER0)
 `define OP0_SLL     6'h00

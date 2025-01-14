@@ -2,7 +2,8 @@ import structures::IF_regs_t;
 import structures::ID_regs_t;
 import structures::MEM_regs_t;
 import structures::control_type_t;
-import structures::forward_type_t;
+import structures::mem_load_type_t;
+import structures::mem_store_type_t;
 
 module core_ID (
     input logic clock,
@@ -13,25 +14,19 @@ module core_ID (
     /* verilator lint_off UNUSEDSIGNAL */
     input MEM_regs_t MEM_regs,
     /* verilator lint_on UNUSEDSIGNAL */
-    output ID_regs_t ID_regs,
-
-    // -- forward --
-    input forward_type_t forward_A,
-    input forward_type_t forward_B
+    output ID_regs_t ID_regs
 );
-    logic [63:0] A_data, B_data;
+    logic [63:0] A_data, B_data, A_data_forwarded, B_data_forwarded;
     logic [4:0] W_regnum;
     logic [2:0] alu_op;
     logic [1:0] alu_src2, shifter_plus32;
     control_type_t control_type;
+    mem_load_type_t mem_load_type;
+    mem_store_type_t mem_store_type;
     logic
         reserved_inst_E,
         write_enable,
         rd_src,
-        mem_read,
-        word_we,
-        byte_we,
-        byte_load,
         slt,
         lui,
         cut_shifter_out32,
@@ -43,7 +38,8 @@ module core_ID (
         ERET,
         BEQ,
         BNE,
-        signed_byte;
+        signed_byte,
+        signed_word;
 
     // -- decoder --
     mips_decoder decoder (
@@ -53,10 +49,8 @@ module core_ID (
         alu_src2,
         reserved_inst_E,
         control_type,
-        mem_read,
-        word_we,
-        byte_we,
-        byte_load,
+        mem_store_type,
+        mem_load_type,
         slt,
         lui,
         shift_right,
@@ -70,6 +64,7 @@ module core_ID (
         BEQ,
         BNE,
         signed_byte,
+        signed_word,
         IF_regs.inst
     );
 
@@ -86,6 +81,19 @@ module core_ID (
         reset
     );
 
+    mux2v #(64) forwarded_A_mux (
+        A_data_forwarded,
+        A_data,
+        MEM_regs.W_data,
+        MEM_regs.write_enable & (MEM_regs.W_regnum == IF_regs.inst[25:21])
+    );
+
+    mux2v #(64) forwarded_B_mux (
+        B_data_forwarded,
+        B_data,
+        MEM_regs.W_data,
+        MEM_regs.write_enable & (MEM_regs.W_regnum == IF_regs.inst[20:16])
+    );
 
     mux2v #(5) rd_mux (
         W_regnum,
@@ -100,6 +108,9 @@ module core_ID (
     always_ff @(posedge clock, posedge reset) begin
         // $display("writeback regnum = %d, data = %h, enable = %h", MEM_regs.W_regnum,
         //          MEM_regs.W_data, MEM_regs.write_enable);
+        if(MEM_regs.write_enable) begin
+            $display("writeback regnum = %d, data = %h", MEM_regs.W_regnum, MEM_regs.W_data);
+        end
         if (reset || flush || stall) begin
             ID_regs <= '0;
         end else begin
@@ -107,10 +118,8 @@ module core_ID (
             ID_regs.reserved_inst_E <= reserved_inst_E;
             ID_regs.alu_op <= alu_op;
             ID_regs.write_enable <= write_enable;
-            ID_regs.mem_read <= mem_read;
-            ID_regs.word_we <= word_we;
-            ID_regs.byte_we <= byte_we;
-            ID_regs.byte_load <= byte_load;
+            ID_regs.mem_store_type <= mem_store_type;
+            ID_regs.mem_load_type <= mem_load_type;
             ID_regs.slt <= slt;
             ID_regs.cut_shifter_out32 <= cut_shifter_out32;
             ID_regs.cut_alu_out32 <= cut_alu_out32;
@@ -124,16 +133,15 @@ module core_ID (
             ID_regs.alu_src2 <= alu_src2;
             ID_regs.control_type <= control_type;
             ID_regs.shifter_plus32 <= shifter_plus32;
-            ID_regs.A_data <= A_data;
-            ID_regs.B_data <= B_data;
+            ID_regs.A_data <= A_data_forwarded;
+            ID_regs.B_data <= B_data_forwarded;
             ID_regs.inst <= IF_regs.inst;
             ID_regs.pc4 <= IF_regs.pc4;
             ID_regs.pc_branch <= IF_regs.pc + BranchAddr;
             ID_regs.jumpAddr <= JumpAddr;
-            ID_regs.forward_A <= forward_A;
-            ID_regs.forward_B <= forward_B;
             ID_regs.lui <= lui;
             ID_regs.signed_byte <= signed_byte;
+            ID_regs.signed_word <= signed_word;
         end
     end
 endmodule

@@ -1,4 +1,5 @@
 // mips_decode: a decoder for MIPS arithmetic instructions
+// TODO doc
 //
 // alu_op       (output) - control signal to be sent to the ALU
 // writeenable  (output) - should a new value be captured by the register file
@@ -6,7 +7,6 @@
 // alu_src2     (output) - should the 2nd ALU source be a register (0) or an immediate (1)
 // except       (output) - set to 1 when we don't recognize an opdcode & funct combination
 // control_type (output) - 00 = fallthrough, 01 = branch_target, 10 = jump_target, 11 = jump_register 
-// mem_read     (output) - the register value written is coming from the memory
 // word_we      (output) - we're writing a word's worth of data
 // byte_we      (output) - we're only writing a byte's worth of data
 // byte_load    (output) - we're doing a byte load
@@ -24,33 +24,34 @@
 // for definitions of the opcodes and functs, see mips_define.v
 `include "src/modules/mips_define.sv"
 import structures::control_type_t;
+import structures::mem_load_type_t;
+import structures::mem_store_type_t;
 
 module mips_decoder (
-    output logic          [ 2:0] alu_op,
-    output logic                 writeenable,
-    output logic                 rd_src,
-    output logic          [ 1:0] alu_src2,
-    output logic                 except,
-    output control_type_t        control_type,
-    output logic                 mem_read,
-    output logic                 word_we,
-    output logic                 byte_we,
-    output logic                 byte_load,
-    output logic                 slt_out,
-    output logic                 lui_out,
-    output logic                 shift_right,
-    output logic          [ 1:0] shifter_plus32,
-    output logic                 alu_shifter_src,
-    output logic                 cut_shifter_out32,
-    output logic                 cut_alu_out32,
-    output logic                 MFC0,
-    output logic                 MTC0,
-    output logic                 ERET,
-    output logic                 beq,
-    output logic                 bne,
-    output logic                 signed_byte,
+    output logic            [ 2:0] alu_op,
+    output logic                   writeenable,
+    output logic                   rd_src,
+    output logic            [ 1:0] alu_src2,
+    output logic                   except,
+    output control_type_t          control_type,
+    output mem_store_type_t        mem_store_type,
+    output mem_load_type_t         mem_load_type,
+    output logic                   slt_out,
+    output logic                   lui_out,
+    output logic                   shift_right,
+    output logic            [ 1:0] shifter_plus32,
+    output logic                   alu_shifter_src,
+    output logic                   cut_shifter_out32,
+    output logic                   cut_alu_out32,
+    output logic                   MFC0,
+    output logic                   MTC0,
+    output logic                   ERET,
+    output logic                   beq,
+    output logic                   bne,
+    output logic                   signed_byte,
+    output logic                   signed_word,
     /* verilator lint_off UNUSEDSIGNAL */
-    input  logic          [31:0] inst
+    input  logic            [31:0] inst
     /* verilator lint_on UNUSEDSIGNAL */
 );
 
@@ -72,7 +73,6 @@ module mips_decoder (
     wire sll = op0 & (funct == `OP0_SLL | funct == `OP0_64_DSLL | funct == `OP0_64_DSLL32);
     wire srl = op0 & (funct == `OP0_SRL | funct == `OP0_64_DSRL | funct == `OP0_64_DSRL32);
 
-
     assign addi_inst = (opcode == `OP_ADDI);
     assign addiu_inst = (opcode == `OP_ADDIU) | (opcode == `OP_64_DADDIU);
     assign andi_inst = (opcode == `OP_ANDI);
@@ -82,30 +82,35 @@ module mips_decoder (
     assign bne = (opcode == `OP_BNE);
     wire j = (opcode == `OP_J);
     wire lui = (opcode == `OP_LUI);
-    wire lw = (opcode == `OP_LW);
+    wire ld = (opcode == `OP_LD);
+    assign signed_word = (opcode == `OP_LW);
+    wire lwu = (opcode == `OP_LWU) | signed_word;
     assign signed_byte = (opcode == `OP_LB);
     wire lbu = (opcode == `OP_LBU) | signed_byte;
+    wire sd = (opcode == `OP_SD);
     wire sw = (opcode == `OP_SW);
     wire sb = (opcode == `OP_SB);
     wire nop = (opcode == 6'h00 && funct == 6'h00);
 
     assign alu_op[0] = sub_inst | or_inst | xor_inst | ori_inst | xori_inst | beq | bne | slt;
-    assign alu_op[1] = add_inst | sub_inst | xor_inst | nor_inst | addi_inst | xori_inst | beq | bne | slt | lw | lbu | sw | sb;
+    assign alu_op[1] = add_inst | sub_inst | xor_inst | nor_inst | addi_inst | xori_inst | beq | bne | slt | lwu | lbu | ld | sw | sb | sd;
     assign alu_op[2] = and_inst | or_inst | xor_inst | nor_inst | andi_inst | ori_inst | xori_inst;
 
-    assign except = ~(add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | beq | bne | j | jr | lui | slt | lw | lbu | sw | sb | nop | sll | srl);
-    assign rd_src = (addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | lw | lbu) & ~MFC0 & ~except;
+    assign except = ~(add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | beq | bne | j | jr | lui | slt | lwu | lbu | ld | sw | sb | sd | nop | sll | srl);
+    assign rd_src = (addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | lwu | lbu | ld) & ~MFC0 & ~except;
 
-    assign alu_src2[0] = (addi_inst | addiu_inst | lw | lbu | sw | sb) & ~except;
+    assign alu_src2[0] = (addi_inst | addiu_inst | lwu | lbu | ld | sw | sb | sd) & ~except;
     assign alu_src2[1] = (andi_inst | ori_inst | xori_inst) & ~except;
 
-    assign writeenable = (add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | slt | lw | lbu) & ~MTC0 & ~ERET & ~beq & ~except;
+    assign writeenable = (add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | slt | lwu | lbu | ld) & ~MTC0 & ~ERET & ~beq & ~except;
     assign control_type[1] = jr & ~except;
     assign control_type[0] = j & ~except;
-    assign mem_read = (lw | lbu) & ~except;
-    assign word_we = sw & ~except;
-    assign byte_we = sb & ~except;
-    assign byte_load = lbu & ~except;
+
+    assign mem_store_type[0] = (sb | sd) & ~except;
+    assign mem_store_type[1] = (sw | sd) & ~except;
+    assign mem_load_type[0] = (lbu | ld) & ~except;
+    assign mem_load_type[1] = (lwu | ld) & ~except;
+
     assign lui_out = lui & ~except;
     assign slt_out = slt & ~except;
     assign alu_shifter_src = sll | srl;

@@ -1,5 +1,6 @@
 import structures::ID_regs_t;
 import structures::EX_regs_t;
+import structures::forward_type_t;
 
 module core_EX (
     input logic clock,
@@ -9,6 +10,9 @@ module core_EX (
     /* verilator lint_on UNUSEDSIGNAL */
     input logic flush,
     input logic [63:0] MEM_data,
+    // -- forward --
+    input forward_type_t forward_A,
+    input forward_type_t forward_B,
     output EX_regs_t EX_regs
 );
     logic negative, overflow, zero;
@@ -33,7 +37,7 @@ module core_EX (
         ID_regs.A_data,
         EX_regs.out,
         MEM_data,
-        ID_regs.forward_A
+        forward_A
     );
 
     mux3v #(64) forward_mux_B (
@@ -41,7 +45,7 @@ module core_EX (
         ID_regs.B_data,
         EX_regs.out,
         MEM_data,
-        ID_regs.forward_B
+        forward_B
     );
 
     // -- ALU --
@@ -120,10 +124,8 @@ module core_EX (
             EX_regs.overflow <= overflow;
             EX_regs.zero <= zero;
             EX_regs.sel <= ID_regs.inst[2:0];
-            EX_regs.mem_read <= ID_regs.mem_read;
-            EX_regs.word_we <= ID_regs.word_we;
-            EX_regs.byte_we <= ID_regs.byte_we;
-            EX_regs.byte_load <= ID_regs.byte_load;
+            EX_regs.mem_load_type <= ID_regs.mem_load_type;
+            EX_regs.mem_store_type <= ID_regs.mem_store_type;
             EX_regs.MFC0 <= ID_regs.MFC0;
             EX_regs.MTC0 <= ID_regs.MTC0;
             EX_regs.ERET <= ID_regs.ERET;
@@ -134,6 +136,7 @@ module core_EX (
             EX_regs.reserved_inst_E <= ID_regs.reserved_inst_E;
             EX_regs.slt_out <= slt_out;
             EX_regs.signed_byte <= ID_regs.signed_byte;
+            EX_regs.signed_word <= ID_regs.signed_word;
         end
     end
 endmodule

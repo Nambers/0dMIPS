@@ -37,17 +37,10 @@ module timer #(
         reset
     );
 
-    /* verilator lint_off PINNOCONNECT */
-    alu #(width) cycle_alu2 (
-        cycle_D,,,,
-        cycle_Q,
-        {{(width - 1) {1'b0}}, 1'b1},
-        3'b010  // ALU_ADD
-    );
-    /* verilator lint_on PINNOCONNECT */
+    assign cycle_D = cycle_Q + 1;
 
     // Tri-state buffer
-    assign cycle = TimerRead ? cycle_Q : {width{1'bz}};
+    assign cycle   = TimerRead ? cycle_Q : 'z;
 
     // -- interrupt cycle --
 

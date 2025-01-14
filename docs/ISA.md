@@ -25,6 +25,8 @@
 - j
 - lui
 - lw
+- lwu
+- lb
 - lbu
 - sw
 - sb
@@ -40,3 +42,5 @@
 - dsll
 - dsrl32
 - dsll32
+- ld
+- sd

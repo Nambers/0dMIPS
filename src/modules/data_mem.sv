@@ -10,6 +10,11 @@
 //
 ////////////////////////////////////////////////////////////////////////
 // this file is modified
+import structures::mem_store_type_t;
+import structures::NO_STORE;
+import structures::STORE_BYTE;
+import structures::STORE_WORD;
+import structures::STORE_DWORD;
 
 module data_mem (
     output logic [63:0] data_out,
@@ -17,8 +22,7 @@ module data_mem (
     input logic [63:0] addr,
     /* verilator lint_on UNUSEDSIGNAL */
     input logic [63:0] data_in,
-    input logic word_we,
-    input logic byte_we,
+    input mem_store_type_t mem_store_type,
     input logic clk,
     input logic reset,
     output logic [31:0] inst,
@@ -59,13 +63,15 @@ module data_mem (
             $readmemh("memory.text.mem", data_seg);
             $readmemh("memory.data.mem", data_seg);
         end else begin
-            if (word_we) begin
-                if (addr[2] == 1'b0) data_seg[index][31:0] <= data_in[31:0];
-                else data_seg[index][63:32] <= data_in[31:0];
-            end else begin
-                if (byte_we)
-                    data_seg[index] <= (d_out & ~(64'hff << (8*(addr[2:0])))) | ((data_in & 64'hff) << (8*(addr[2:0])));
-            end
+            unique case (mem_store_type)
+                STORE_BYTE:
+                data_seg[index] <= (d_out & ~(64'hff << (8*(addr[2:0])))) | ((data_in & 64'hff) << (8*(addr[2:0]))); // sb
+                STORE_WORD:
+                if (addr[2]) data_seg[index][63:32] <= data_in[31:0];
+                else data_seg[index][31:0] <= data_in[31:0];  // sw
+                STORE_DWORD: data_seg[index] <= data_in;  // sd
+                NO_STORE: ;  // we = 0
+            endcase
         end
     end
 

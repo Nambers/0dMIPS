@@ -36,12 +36,22 @@ TEST_F(CoreTest, ReadAndWrite) {
                  "test_tmp/memory.text.mem");
     reloadMemory(inst_->core->MEM_stage->mem->data_seg,
                  "test_tmp/memory.data.mem");
-    while (ctx.time() < 13 * 2) {
+    while (ctx.time() < 50 * 2) {
         // std::cout << "time = " << ctx.time() << "\tpc = " << std::hex
         //           << std::right << std::setfill('0') << std::setw(8)
         //           << inst_->core->pc << "\tinst = " << inst_->core->inst
         //           << std::dec << std::left << std::endl;
         tick();
     }
-    EXPECT_EQ(inst_->core->MEM_stage->mem->data_seg[0xf], 0x00000041deadbeef);
+    auto result_addr = 0xa0 / 8;
+    // word1 result
+    EXPECT_EQ(inst_->core->MEM_stage->mem->data_seg[result_addr], 0x1BADB002);
+    EXPECT_EQ(inst_->core->MEM_stage->mem->data_seg[++result_addr], 0x1BADB002);
+    // word2 result
+    EXPECT_EQ(inst_->core->MEM_stage->mem->data_seg[++result_addr], 0xffffffffDEADBEEF);
+    EXPECT_EQ(inst_->core->MEM_stage->mem->data_seg[++result_addr], 0xDEADBEEF);
+    // byte1 result
+    EXPECT_EQ(inst_->core->MEM_stage->mem->data_seg[++result_addr], 0x3100000031);
+    // byte2 result
+    EXPECT_EQ(inst_->core->MEM_stage->mem->data_seg[++result_addr], 0x000000efffffffef);
 }
