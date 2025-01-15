@@ -2,8 +2,8 @@
 
 #include "common.hpp"
 
-#define CYCLE_ADDR 0xffff001c
-#define ACK_ADDR 0xffff006c
+#define CYCLE_ADDR 0x20000000
+#define ACK_ADDR 0x20000004
 
 class TimerTest : public TestBase<Timer> {};
 

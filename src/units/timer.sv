@@ -1,12 +1,12 @@
+import configurations::TIMER_CNT_ADDR;
+import configurations::TIMER_CRL_ADDR;
 // interrupt after <cycle> cycles
 // What -	How
 // read the current time	lw from `currentTimeAddr
 // request a timer interrupt	sw the desired (future) time to `currentTimeAddr
 // acknowledge a timer interrupt	sw any value to `acknowledgeInterruptAddr
 module timer #(
-    parameter width = 64,
-    parameter currentTimeAddr = 64'hFFFF001C,
-    parameter acknowledgeInterruptAddr = 64'hFFFF006C
+    parameter width = 64
 ) (
     output logic               TimerInterrupt,
     output logic [width - 1:0] cycle,
@@ -64,8 +64,8 @@ module timer #(
 
     // -- lower --
 
-    wire addr_eq1 = address == currentTimeAddr;
-    wire addr_eq2 = address == acknowledgeInterruptAddr;
+    wire addr_eq1 = address == TIMER_CNT_ADDR;
+    wire addr_eq2 = address == TIMER_CRL_ADDR;
     assign TimerAddress = addr_eq1 | addr_eq2;
     assign Acknowledge = addr_eq2 & MemWrite;
     assign TimerRead = addr_eq1 & MemRead;
