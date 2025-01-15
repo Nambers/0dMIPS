@@ -15,7 +15,7 @@ module core_EX (
     input forward_type_t forward_B,
     output EX_regs_t EX_regs
 );
-    logic negative, overflow, zero;
+    logic negative, overflow, zero, borrow_out;
     logic [63:0]
         B_in,
         slt_out,
@@ -54,6 +54,7 @@ module core_EX (
         .overflow(overflow),
         .zero(zero),
         .negative(negative),
+        .borrow_out(borrow_out),
         .a(forwarded_A),
         .b(B_in),
         .alu_op(ID_regs.alu_op)
@@ -65,11 +66,17 @@ module core_EX (
         ZeroExtImm,
         ID_regs.alu_src2
     );
-    mux2v #(64) slt_mux (
+    mux4v #(64) slt_mux (
         slt_out,
         out,
-        {63'b0, (~forwarded_A[63] & B_in[63]) | ((forwarded_A[63] == B_in[63]) & negative)},
-        ID_regs.slt
+        {
+            63'b0,
+            // if different sign, check if A < 0, else check negative flag from alu
+            ((forwarded_A[63] ^ B_in[63]) & forwarded_A[63]) | (~(forwarded_A[63] ^ B_in[63]) & negative)
+        },
+        {63'b0, borrow_out},
+        'z,
+        ID_regs.slt_type
     );
     mux2v #(64) cut_alu_out (
         alu_out,
@@ -131,6 +138,7 @@ module core_EX (
             EX_regs.ERET <= ID_regs.ERET;
             EX_regs.BEQ <= ID_regs.BEQ;
             EX_regs.BNE <= ID_regs.BNE;
+            EX_regs.BC <= ID_regs.BC;
             EX_regs.pc_branch <= ID_regs.pc_branch;
             EX_regs.write_enable <= ID_regs.write_enable;
             EX_regs.reserved_inst_E <= ID_regs.reserved_inst_E;

@@ -106,7 +106,9 @@
 `define OP_SWR      6'h2e
 `define OP_LWC0     6'h30
 `define OP_LWC1     6'h31
-`define OP_LWC2     6'h32
+`define OP_BC       6'h32
+// pre r6
+// `define OP_LWC2     6'h32
 `define OP_LWC3     6'h33
 `define OP_LD       6'h37
 `define OP_SWC0     6'h38

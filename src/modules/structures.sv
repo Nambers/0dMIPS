@@ -25,6 +25,12 @@ package structures;
         STORE_DWORD
     } mem_store_type_t;
 
+    typedef enum bit [1:0] {
+        NO_SLT = 0,
+        SLT,
+        SLTU
+    } slt_type_t;
+
     typedef struct packed {
         logic [31:0] inst;
         logic [63:0] pc4,  pc;
@@ -39,15 +45,16 @@ package structures;
         control_type_t control_type;
         mem_load_type_t mem_load_type;
         mem_store_type_t mem_store_type;
+        slt_type_t slt_type;
         logic reserved_inst_E,
             write_enable,
-            slt,
             cut_shifter_out32,
             cut_alu_out32,
             shift_right,
             alu_shifter_src,
             BEQ,
             BNE,
+            BC,
             lui,
             signed_byte,
             signed_word,
@@ -73,6 +80,7 @@ package structures;
             write_enable,
             BEQ,
             BNE,
+            BC,
             signed_byte,
             signed_word
         ;

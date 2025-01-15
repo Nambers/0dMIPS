@@ -13,6 +13,7 @@
 - nor
 - jr
 - slt
+- sltu
 - sll
 - srl
 - addi
@@ -22,6 +23,7 @@
 - xori
 - beq
 - bne
+- bc
 - j
 - lui
 - lw

@@ -26,7 +26,9 @@ module core_branch (
         if (|fd) begin
             $fscanf(fd, "@%h", interrupeHandlerAddr);  // skip the first line
             $fscanf(fd, "%h", interrupeHandlerAddr);
-            interrupeHandlerAddr = {interrupeHandlerAddr[31:0], interrupeHandlerAddr[63:32]};
+            interrupeHandlerAddr = {
+                interrupeHandlerAddr[31:0], interrupeHandlerAddr[63:32]
+            };
             $fclose(fd);
         end
     end
@@ -39,7 +41,7 @@ module core_branch (
             next_pc = EPC;
             flush   = 1'b1;
             // branch resolve in EX stage
-        end else if ((EX_regs.BEQ && EX_regs.zero) || (EX_regs.BNE && !EX_regs.zero)) begin
+        end else if (EX_regs.BC | (EX_regs.BEQ & EX_regs.zero) | (EX_regs.BNE & ~EX_regs.zero)) begin
             next_pc = EX_regs.pc_branch;
             flush   = 1'b1;
         end else

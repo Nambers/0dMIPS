@@ -7,7 +7,8 @@ module au #(
     output logic [width-1:0] out,
     output logic negative,
     output logic zero,
-    output logic overflow
+    output logic overflow,
+    output logic borrow_out
 );
     logic [width-1:0] c_out;
     // adder adder_0 (
@@ -53,4 +54,5 @@ module au #(
     assign negative = out[width-1];
     assign zero = ~|out;
     assign overflow = c_out[width-1] ^ c_out[width-2];
+    assign borrow_out = ~c_out[width-1];
 endmodule

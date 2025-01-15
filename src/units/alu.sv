@@ -12,6 +12,7 @@ module alu #(
     output logic overflow,
     output logic zero,
     output logic negative,
+    output logic borrow_out,
     input logic [width-1:0] a,
     input logic [width-1:0] b,
     input logic [2:0] alu_op
@@ -30,7 +31,8 @@ module alu #(
         au_out,
         negative,
         zero,
-        overflow
+        overflow,
+        borrow_out
     );
 
     mux2v #(width) mux2v_0 (

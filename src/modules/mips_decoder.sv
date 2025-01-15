@@ -26,6 +26,7 @@
 import structures::control_type_t;
 import structures::mem_load_type_t;
 import structures::mem_store_type_t;
+import structures::slt_type_t;
 
 module mips_decoder (
     output logic            [ 2:0] alu_op,
@@ -36,7 +37,7 @@ module mips_decoder (
     output control_type_t          control_type,
     output mem_store_type_t        mem_store_type,
     output mem_load_type_t         mem_load_type,
-    output logic                   slt_out,
+    output slt_type_t              slt_type,
     output logic                   lui_out,
     output logic                   shift_right,
     output logic            [ 1:0] shifter_plus32,
@@ -48,6 +49,7 @@ module mips_decoder (
     output logic                   ERET,
     output logic                   beq,
     output logic                   bne,
+    output logic                   bc,
     output logic                   signed_byte,
     output logic                   signed_word,
     /* verilator lint_off UNUSEDSIGNAL */
@@ -55,8 +57,15 @@ module mips_decoder (
     /* verilator lint_on UNUSEDSIGNAL */
 );
 
-    logic op0, addu_inst, add_inst, sub_inst, and_inst, or_inst, xor_inst, nor_inst;
-    logic addi_inst, addiu_inst, andi_inst, ori_inst, xori_inst;
+    logic
+        op0,
+        addu_inst,
+        add_inst,
+        sub_inst,
+        and_inst,
+        or_inst,
+        xor_inst,
+        nor_inst;
     wire [5:0] opcode = inst[31:26];
     wire [5:0] funct = inst[5:0];
 
@@ -69,50 +78,59 @@ module mips_decoder (
     assign xor_inst = op0 & (funct == `OP0_XOR);
     assign nor_inst = op0 & (funct == `OP0_NOR);
     wire jr = op0 & (funct == `OP0_JR);
+    wire sltu = op0 & (funct == `OP0_SLTU);
     wire slt = op0 & (funct == `OP0_SLT);
+    wire slt_inst = slt | sltu;
     wire sll = op0 & (funct == `OP0_SLL | funct == `OP0_64_DSLL | funct == `OP0_64_DSLL32);
     wire srl = op0 & (funct == `OP0_SRL | funct == `OP0_64_DSRL | funct == `OP0_64_DSRL32);
 
-    assign addi_inst = (opcode == `OP_ADDI);
-    assign addiu_inst = (opcode == `OP_ADDIU) | (opcode == `OP_64_DADDIU);
-    assign andi_inst = (opcode == `OP_ANDI);
-    assign ori_inst = (opcode == `OP_ORI);
-    assign xori_inst = (opcode == `OP_XORI);
+    wire addi_inst = (opcode == `OP_ADDI);
+    wire addiu_inst = (opcode == `OP_ADDIU) | (opcode == `OP_64_DADDIU);
+    wire andi_inst = (opcode == `OP_ANDI);
+    wire ori_inst = (opcode == `OP_ORI);
+    wire xori_inst = (opcode == `OP_XORI);
     assign beq = (opcode == `OP_BEQ);
     assign bne = (opcode == `OP_BNE);
+    assign bc  = (opcode == `OP_BC);
     wire j = (opcode == `OP_J);
     wire lui = (opcode == `OP_LUI);
     wire ld = (opcode == `OP_LD);
+    // lw
     assign signed_word = (opcode == `OP_LW);
-    wire lwu = (opcode == `OP_LWU) | signed_word;
+    wire lwu = (opcode == `OP_LWU);
+    wire lw_inst = lwu | signed_word;
+    // lb
     assign signed_byte = (opcode == `OP_LB);
-    wire lbu = (opcode == `OP_LBU) | signed_byte;
+    wire lbu = (opcode == `OP_LBU);
+    wire lb_inst = lbu | signed_byte;
     wire sd = (opcode == `OP_SD);
     wire sw = (opcode == `OP_SW);
     wire sb = (opcode == `OP_SB);
     wire nop = (opcode == 6'h00 && funct == 6'h00);
 
-    assign alu_op[0] = sub_inst | or_inst | xor_inst | ori_inst | xori_inst | beq | bne | slt;
-    assign alu_op[1] = add_inst | sub_inst | xor_inst | nor_inst | addi_inst | xori_inst | beq | bne | slt | lwu | lbu | ld | sw | sb | sd;
+    assign alu_op[0] = sub_inst | or_inst | xor_inst | ori_inst | xori_inst | beq | bne | bc | slt_inst;
+    assign alu_op[1] = add_inst | sub_inst | xor_inst | nor_inst | addi_inst | xori_inst | beq | bne | bc | slt_inst | lw_inst | lb_inst | ld | sw | sb | sd;
     assign alu_op[2] = and_inst | or_inst | xor_inst | nor_inst | andi_inst | ori_inst | xori_inst;
 
-    assign except = ~(add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | beq | bne | j | jr | lui | slt | lwu | lbu | ld | sw | sb | sd | nop | sll | srl);
-    assign rd_src = (addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | lwu | lbu | ld) & ~MFC0 & ~except;
+    assign except = ~(add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | beq | bne | bc | j | jr | lui | slt_inst | lw_inst | lb_inst | ld | sw | sb | sd | nop | sll | srl);
+    assign rd_src = (addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | lw_inst | lb_inst | ld) & ~MFC0 & ~except;
 
-    assign alu_src2[0] = (addi_inst | addiu_inst | lwu | lbu | ld | sw | sb | sd) & ~except;
-    assign alu_src2[1] = (andi_inst | ori_inst | xori_inst) & ~except;
+    // signed immediate
+    assign alu_src2[0] = (addi_inst | addiu_inst | ori_inst | xori_inst | lw_inst | lb_inst | ld | sw | sb | sd) & ~except;
+    // unsigned immediate
+    assign alu_src2[1] = (addiu_inst) & ~except;
 
-    assign writeenable = (add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | slt | lwu | lbu | ld) & ~MTC0 & ~ERET & ~beq & ~except;
+    assign writeenable = (add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | slt_inst | lw_inst | lb_inst | ld) & ~MTC0 & ~ERET & ~beq & ~except;
     assign control_type[1] = jr & ~except;
     assign control_type[0] = j & ~except;
 
     assign mem_store_type[0] = (sb | sd) & ~except;
     assign mem_store_type[1] = (sw | sd) & ~except;
-    assign mem_load_type[0] = (lbu | ld) & ~except;
-    assign mem_load_type[1] = (lwu | ld) & ~except;
+    assign mem_load_type[0] = (lb_inst | ld) & ~except;
+    assign mem_load_type[1] = (lw_inst | ld) & ~except;
 
     assign lui_out = lui & ~except;
-    assign slt_out = slt & ~except;
+    assign slt_type[1:0] = {sltu & ~except, slt & ~except};
     assign alu_shifter_src = sll | srl;
     assign shift_right = srl;
 
