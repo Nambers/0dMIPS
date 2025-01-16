@@ -1,12 +1,30 @@
 #include <Core.h>
 #include <Core_core.h>
+#include <Core_core_ID.h>
 #include <Core_core_MEM.h>
 #include <Core_data_mem__D40.h>
+#include <Core_regfile__W40.h>
 
 #include <fstream>
 #include <iomanip>
 
 #include "common.hpp"
+
+#define MASK5 0b11111
+#define MASK6 0b111111
+#define MASK32 0xffffffff
+#define WORD_SIGN_MASK 0x80000000
+#define WORD_HIGH_FULL 0xffffffff00000000
+#define BYTE_HIGH_FULL 0xffffffffffffff00
+
+#define MASKED(val, mask) ((val##mask) & (MASK##mask))
+#define u64(a, b) ((uint64_t(a) << 32) | uint64_t(b))
+
+const uint64_t common_boundary_cases[] = {
+    0, 1, 0x7fffffffffffffff, 0x8000000000000000, 0xffffffffffffffff};
+
+#define MEM_SEG inst_->core->MEM_stage->mem->data_seg
+#define RF inst_->core->ID_stage->rf
 
 template <std::size_t T>
 void reloadMemory(VlUnpacked<QData, T> &mem, const char *filename) {
@@ -19,39 +37,132 @@ void reloadMemory(VlUnpacked<QData, T> &mem, const char *filename) {
     file.ignore(1, '@');
     file >> std::hex >> startAddr;
     while (!file.eof()) {
+        if (startAddr >= mem.size()) {
+            std::cerr << "Memory size exceeded!" << std::endl;
+            break;
+        }
         file >> std::hex >> mem[startAddr++];
     }
     file.close();
 }
 
+bool test_add_overflow(int32_t a, int32_t b) {
+    const int64_t result = (int64_t)a + b;
+    return (result > INT32_MAX || result < INT32_MIN);
+}
+
 class CoreTest : public TestBase<Core> {
-    void customSetUp() override { std::system("mkdir -p test_tmp"); }
+    void customSetUp() override {
+        std::system("mkdir -p test_tmp >> /dev/null");
+    }
 };
 
-TEST_F(CoreTest, ReadAndWrite) {
-    std::system(
-        "cd test_tmp && make -f ../example_asm/Makefile "
-        "../example_asm/test_read_write -B");
-    reloadMemory(inst_->core->MEM_stage->mem->data_seg,
-                 "test_tmp/memory.text.mem");
-    reloadMemory(inst_->core->MEM_stage->mem->data_seg,
-                 "test_tmp/memory.data.mem");
-    while (ctx.time() < 50 * 2) {
-        // std::cout << "time = " << ctx.time() << "\tpc = " << std::hex
-        //           << std::right << std::setfill('0') << std::setw(8)
-        //           << inst_->core->pc << "\tinst = " << inst_->core->inst
-        //           << std::dec << std::left << std::endl;
-        tick();
-    }
-    auto result_addr = 0xa0 / 8;
-    // word1 result
-    EXPECT_EQ(inst_->core->MEM_stage->mem->data_seg[result_addr], 0x1BADB002);
-    EXPECT_EQ(inst_->core->MEM_stage->mem->data_seg[++result_addr], 0x1BADB002);
-    // word2 result
-    EXPECT_EQ(inst_->core->MEM_stage->mem->data_seg[++result_addr], 0xffffffffDEADBEEF);
-    EXPECT_EQ(inst_->core->MEM_stage->mem->data_seg[++result_addr], 0xDEADBEEF);
-    // byte1 result
-    EXPECT_EQ(inst_->core->MEM_stage->mem->data_seg[++result_addr], 0x3100000031);
-    // byte2 result
-    EXPECT_EQ(inst_->core->MEM_stage->mem->data_seg[++result_addr], 0x000000efffffffef);
+uint32_t build_R_inst(uint8_t opcode6, uint8_t rs5, uint8_t rt5, uint8_t rd5,
+                      uint8_t shift5, uint8_t funct6) {
+    return (MASKED(opcode, 6) << 26) | (MASKED(rs, 5) << 21) |
+           (MASKED(rt, 5) << 16) | (MASKED(rd, 5) << 11) |
+           (MASKED(shift, 5) << 6) | MASKED(funct, 6);
 }
+
+uint32_t build_I_inst(uint8_t opcode6, uint8_t rs5, uint8_t rt5,
+                      int16_t imm16) {
+    return (MASKED(opcode, 6) << 26) | (MASKED(rs, 5) << 21) |
+           (MASKED(rt, 5) << 16) | imm16;
+}
+
+#define TestGen(name, init_test, pre_test, check_result) \
+    TEST_F(CoreTest, name) {                             \
+        init_test;                                       \
+        for (const auto val : common_boundary_cases) {   \
+            pre_test;                                    \
+            inst_->core->pc = 0;                         \
+            tick(); /* IF Stage */                       \
+            tick(); /* ID Stage */                       \
+            tick(); /* EX Stage */                       \
+            tick(); /* MEM Stage */                      \
+            check_result                                 \
+        }                                                \
+    }
+
+/* #region read test */
+#define TestGenRead(name, opcode, check_W_data)          \
+    TestGen(                                             \
+        name,                                            \
+        {                                                \
+            MEM_SEG[0] = build_I_inst(opcode, 0, 1, 16); \
+            MEM_SEG[1] = 0;                              \
+        },                                               \
+        { MEM_SEG[2] = val; },                           \
+        {                                                \
+            EXPECT_TRUE(RF->wr_enable);                  \
+            EXPECT_EQ(RF->W_addr, 1);                    \
+            EXPECT_EQ(RF->W_data, check_W_data);         \
+        })
+
+TestGenRead(LB, 0x20, (val & 0xff) | ((val & 0x80) ? BYTE_HIGH_FULL : 0));
+TestGenRead(LBU, 0x24, val & 0xff);
+TestGenRead(LW, 0x23,
+            (val & MASK32) | ((val & WORD_SIGN_MASK) ? WORD_HIGH_FULL : 0));
+TestGenRead(LWU, 0x27, val &MASK32);
+TestGenRead(LD, 0x37, val);
+/* #endregion */
+
+/* #region write test */
+#define TestGenWrite(name, opcode, check_mem)           \
+    TestGen(                                            \
+        name, { MEM_SEG[2] = 0; },                      \
+        {                                               \
+            MEM_SEG[0] = 0;                             \
+            RF->W_data = val;                           \
+            RF->wr_enable = 1;                          \
+            RF->W_addr = 1;                             \
+            tick(); /* store val into reg $1*/          \
+            MEM_SEG[0] = build_I_inst(opcode, 0, 1, 8); \
+            MEM_SEG[1] = 0;                             \
+        },                                              \
+        { EXPECT_EQ(MEM_SEG[1], check_mem); })
+
+TestGenWrite(SW, 0x2b, val &MASK32);
+TestGenWrite(SB, 0x28, val & 0xff);
+TestGenWrite(SD, 0x3f, val);
+/* #endregion */
+
+/* #region R type arithemtic operations test */
+#define TestGenArithR(name, funct, check_W_data, overflow_cond, fixed_val) \
+    TestGen(                                                               \
+        name,                                                              \
+        {                                                                  \
+            MEM_SEG[0] = 0;                                                \
+            RF->W_data = fixed_val;                                        \
+            RF->wr_enable = 1;                                             \
+            RF->W_addr = 1;                                                \
+            inst_->core->pc = 0;                                           \
+            tick(); /* store 1 into reg $1*/                               \
+            /* 3 = 1 <OP> 2 */                                             \
+            MEM_SEG[0] = build_R_inst(0, 1, 2, 3, 0, funct);               \
+            MEM_SEG[1] = 0;                                                \
+        },                                                                 \
+        {                                                                  \
+            RF->W_data = val;                                              \
+            RF->wr_enable = 1;                                             \
+            RF->W_addr = 2;                                                \
+            inst_->core->pc = 0;                                           \
+            tick(); /* store val into reg $2*/                             \
+        },                                                                 \
+        {                                                                  \
+            EXPECT_TRUE(RF->wr_enable);                                    \
+            EXPECT_EQ(RF->W_addr, 3);                                      \
+            if (!overflow_cond) EXPECT_EQ(RF->W_data, check_W_data);       \
+        })
+#define TestGenArithR2(func_name, expr) \
+    func_name(Pos, (expr 1), 1);        \
+    func_name(Neg, (expr(-1)), -1)
+
+#define TestAdd(AName, expr, num)                                      \
+    TestGenArithR(                                                     \
+        ADD##AName, 0x20,                                              \
+        expr &MASK32 | ((expr & WORD_SIGN_MASK) ? WORD_HIGH_FULL : 0), \
+        test_add_overflow(num, val), num);
+
+TestGenArithR2(TestAdd, val +);
+/* #endregion */

@@ -17,7 +17,15 @@ module core_MEM (
     output MEM_regs_t MEM_regs
 );
     logic [63:0]
-        data_out, mem_out, alu_mem_out, alu_mem_d_out, byte_out, word_out, EPC, c0_rd_data, W_data;
+        data_out,
+        mem_out,
+        alu_mem_out,
+        alu_mem_d_out,
+        byte_out,
+        word_out,
+        EPC,
+        c0_rd_data,
+        W_data;
     logic [31:0] raw_word_out;
     logic [7:0] byte_load_out;
     logic takenHandler  /* verilator public */;
@@ -119,12 +127,16 @@ module core_MEM (
     );
 
     always_ff @(posedge clock, posedge reset) begin
+`ifdef DEBUG
         if (|EX_regs.mem_load_type) begin
-            $display("read addr: %h, data: %h, final: %h", EX_regs.out, data_out, W_data);
+            $display("read addr: %h, data: %h, final: %h", EX_regs.out,
+                     data_out, W_data);
         end
-        if(|EX_regs.mem_store_type) begin
-            $display("write addr: %h, data: %h, type: %d", EX_regs.out, EX_regs.B_data, EX_regs.mem_store_type);
+        if (|EX_regs.mem_store_type) begin
+            $display("write addr: %h, data: %h, type: %d", EX_regs.out,
+                     EX_regs.B_data, EX_regs.mem_store_type);
         end
+`endif
         if (reset) begin
             MEM_regs <= '0;
         end else begin

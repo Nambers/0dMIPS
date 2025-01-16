@@ -5,15 +5,20 @@ __attribute__((section(
     (unsigned long long)(void *)&exception_handler;
 __attribute__((section(".data"))) volatile const unsigned int step = 6;
 
+__asm__(
+    ".section .text\n"
+    "lui $sp, %hi(_stack_top)\n"
+    "ori $sp, $sp, %lo(_stack_top)\n");
+
 void __start() {
     unsigned int prev = 0, curr = 1, sum = 0;
-    for (unsigned int i = 0; i < step; i++) {
+    for (unsigned int i = step; i > 0; i--) {
         sum = prev + curr;
         prev = curr;
         curr = sum;
     }
     // should be 8
-    *(unsigned int *)0 = sum;
+    *(unsigned long long *)0 = sum;
     while (1);
 }
 

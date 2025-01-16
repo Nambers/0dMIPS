@@ -31,6 +31,12 @@ package structures;
         SLTU
     } slt_type_t;
 
+    typedef enum bit [1:0] {
+        NO_CUT = 0,
+        SIGNED_CUT,
+        UNSIGNED_CUT
+    } alu_cut_t;
+
     typedef struct packed {
         logic [31:0] inst;
         logic [63:0] pc4,  pc;
@@ -46,10 +52,10 @@ package structures;
         mem_load_type_t mem_load_type;
         mem_store_type_t mem_store_type;
         slt_type_t slt_type;
+        alu_cut_t cut_alu_out32;
         logic reserved_inst_E,
             write_enable,
             cut_shifter_out32,
-            cut_alu_out32,
             shift_right,
             alu_shifter_src,
             BEQ,
@@ -58,6 +64,7 @@ package structures;
             lui,
             signed_byte,
             signed_word,
+            ignore_overflow,
             // -- CP0 --
             MFC0,
             MTC0,

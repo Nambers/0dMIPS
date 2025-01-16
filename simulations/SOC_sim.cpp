@@ -34,10 +34,10 @@ struct AppState {
     unsigned char VGA_cnt : 3;
 };
 
-#define TICK                                                           \
-    as->top->clk = !as->top->clk;                                      \
+#define TICK                                                            \
+    as->top->clk = !as->top->clk;                                       \
     if (as->ctx->time() % 4 == 0) as->top->VGA_clk = !as->top->VGA_clk; \
-    as->ctx->timeInc(1);                                               \
+    as->ctx->timeInc(1);                                                \
     as->top->eval()
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
@@ -93,6 +93,9 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
                            color4to8(as->top->VGA_g), color4to8(as->top->VGA_b),
                            SDL_ALPHA_OPAQUE);
     SDL_RenderPoint(as->renderer, as->top->SOC->vga->h, as->top->SOC->vga->v);
+    if (as->top->SOC->stdout->stdout_taken) {
+        printf("stdout: %0.8s \n", (const char *)&as->top->SOC->stdout->buffer);
+    }
     TICK;
     TICK;
     return SDL_APP_CONTINUE;

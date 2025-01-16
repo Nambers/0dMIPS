@@ -4,8 +4,8 @@ core_sim: src/units/core.sv ${CORE_DEPS} simulations/core_sim.cpp
 	-Mdir build/core_sim --prefix Core_sim \
 	--exe simulations/core_sim.cpp \
 	-o Core_sim \
-	-CFLAGS "-std=c++20"
-	@$(MAKE) -C build/core_sim -j 8 -f Core_sim.mk
+	-CFLAGS "-std=c++20" +define+DEBUG
+	@$(MAKE) -C build/core_sim -j 8 -f Core_sim.mk --silent 
 	@mkdir -p bin
 	@cp build/core_sim/Core_sim bin/
 	@cp ./memory.*.mem ./bin/
@@ -19,7 +19,7 @@ SOC_sim: src/SOC.sv src/modules/configurations.sv src/units/core.sv ${CORE_DEPS}
 	-CFLAGS "-I/usr/include/SDL3/ -D_REENTRANT -std=c++20" \
 	-LDFLAGS "-L/usr/lib -lSDL3" \
 	-Wno-WIDTHEXPAND -Wno-WIDTHTRUNC
-	@$(MAKE) -C build/SOC_sim -j 8 -f SOC_sim.mk
+	@$(MAKE) -C build/SOC_sim -j 8 -f SOC_sim.mk --silent 
 	@mkdir -p bin
 	@cp build/SOC_sim/SOC_sim bin/
 	@cp ./memory.*.mem ./bin/
@@ -35,7 +35,7 @@ VGA_sim:
 	-CFLAGS "-I/usr/include/SDL3/ -D_REENTRANT -std=c++20" \
 	-LDFLAGS "-L/usr/lib -lSDL3" \
 	-Wno-WIDTHEXPAND -Wno-WIDTHTRUNC
-	@$(MAKE) -C build/$@ -j 8 -f $@.mk
+	@$(MAKE) -C build/$@ -j 8 -f $@.mk --silent 
 	@mkdir -p bin
 	@cp build/$@/$@ bin/
 	@./bin/$@

@@ -15,7 +15,8 @@ module SOC (
     logic [63:0] d_addr, d_wdata, d_rdata, timer_out;
     logic [7:0] interrupt_sources;
     mem_store_type_t d_store_type;
-    logic d_valid, d_ready, timer_taken, timer_interrupt, VGA_taken;
+    logic
+        d_valid, d_ready, timer_taken, timer_interrupt, VGA_taken, stdout_taken;
 
     assign interrupt_sources = {timer_interrupt, 7'b0};
 
@@ -58,6 +59,15 @@ module SOC (
         .VGA_b(VGA_b)
     );
 
+    stdout stdout (
+        .clock(clk),
+        .reset(reset),
+        .addr(d_addr),
+        .mem_store_type(d_store_type),
+        .w_data(d_wdata),
+        .stdout_taken(stdout_taken)
+    );
+
     always_comb begin
         unique case (1'b1)
             timer_taken & ~reset: d_rdata = timer_out;
@@ -69,7 +79,7 @@ module SOC (
         if (reset) begin
             d_ready <= '0;
         end else begin
-            d_ready <= d_valid & (timer_taken | VGA_taken);
+            d_ready <= d_valid & (timer_taken | VGA_taken | stdout_taken);
         end
     end
 

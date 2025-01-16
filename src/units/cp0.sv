@@ -1,6 +1,6 @@
 module cp0 #(
     parameter [4:0] STATUS_REGISTER = 5'd12,
-    parameter [4:0] CAUSE_REGISTER  = 5'd13,
+    parameter [4:0] CAUSE_REGISTER = 5'd13,
     parameter [4:0] EPC_REGISTER    = 5'd14 // register for resuming execution after interrupt
 ) (
     output logic [63:0] rd_data,
@@ -20,7 +20,7 @@ module cp0 #(
     input  logic        syscall,
     input  logic        break_
 );
-    logic [4:0] exc_code, next_exc_code;
+    logic [4:0] exc_code  /* verilator public */, next_exc_code;
     /* verilator lint_off UNUSEDSIGNAL */
     logic [31:0] user_status;
     /* verilator lint_on UNUSEDSIGNAL */
@@ -68,7 +68,9 @@ module cp0 #(
         exc_code,  // ExcCode
         2'b0  // reserved
     };
-    wire [31:0] status_reg = {user_status[31:2], exception_level, user_status[0]};
+    wire [31:0] status_reg = {
+        user_status[31:2], exception_level, user_status[0]
+    };
 
     wire takenInterrupt = ((|(cause_reg[15:8] & status_reg[15:8])) & // if enabled interrupt sources
     (~(|exc_code)) &  // ExcCode = 0

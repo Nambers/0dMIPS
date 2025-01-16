@@ -25,12 +25,12 @@ module core (
     // input  logic        i_ready,  // 
 
     // // --- data ---
-    output logic            [63:0] d_addr,        // peripheral data addr
-    output logic            [63:0] d_wdata,       // peripheral data W_data send
-    input  logic            [63:0] d_rdata,       // peripheral data R_data return
-    output mem_store_type_t        d_store_type,  // peripheral data store type
-    output logic                   d_valid,       // ask for peripheral data
-    input  logic                   d_ready,       // peripheral data ready
+    output logic [63:0] d_addr,  // peripheral data addr
+    output logic [63:0] d_wdata,  // peripheral data W_data send
+    input logic [63:0] d_rdata,  // peripheral data R_data return
+    output mem_store_type_t d_store_type,  // peripheral data store type
+    output logic d_valid,  // ask for peripheral data
+    input logic d_ready,  // peripheral data ready
 
     // // --- outside interrupt source ---
     input logic [7:0] interrupt_sources
@@ -44,7 +44,8 @@ module core (
 
     logic [63:0] pc  /* verilator public */, next_pc;
     logic [31:0] inst  /* verilator public */;
-    forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
+    forward_type_t
+        forward_A  /* verilator public */, forward_B  /* verilator public */;
 
     core_forward forward_unit (
         .ID_rs(ID_regs.inst[25:21]),
@@ -133,25 +134,4 @@ module core (
     assign d_store_type = EX_regs.mem_store_type;
     assign d_addr = EX_regs.out;
     assign d_wdata = EX_regs.B_data;
-
-    // // TODO peripheral device
-    // // -- timer --
-    // timer #(64) t (
-    //     TimerInterrupt,
-    //     cycle,
-    //     TimerAddress,
-    //     B_data,
-    //     out,
-    //     1'b1,
-    //     word_we | byte_we,
-    //     clock,
-    //     reset
-    // );
-    // mux2v #(64) alu_mem_timer_mux (
-    //     alu_mem_timer_out,
-    //     alu_mem_out,
-    //     cycle,
-    //     TimerAddress
-    // );
-
 endmodule  // core

@@ -6,9 +6,9 @@
 include Makefile.macros
 
 VLCOVFLAGS = --annotate logs/annotate --annotate-all --annotate-min 1
-export PERIPHERALS := VGA|timer
+export PERIPHERALS := VGA|timer|stdout
 export PERIPHERAL_DEPS := $(shell find ./src -name "*.sv" | grep -E "($(PERIPHERALS)).sv")
-export CORE_DEPS := ./src/modules/structures.sv $(shell find ./src -name "*.sv" | grep -Ev "(core|mips_define|structures|configurations|SOC|$(PERIPHERALS)).sv")
+export CORE_DEPS := ./src/modules/structures.sv ./src/modules/mips_define.sv $(shell find ./src -name "*.sv" | grep -Ev "(core|mips_define|structures|configurations|mips_define|SOC|$(PERIPHERALS)).sv")
 
 # User only needs to edit below
 MODULES = 

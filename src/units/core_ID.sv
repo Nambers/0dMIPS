@@ -5,6 +5,7 @@ import structures::control_type_t;
 import structures::mem_load_type_t;
 import structures::mem_store_type_t;
 import structures::slt_type_t;
+import structures::alu_cut_t;
 
 module core_ID (
     input logic clock,
@@ -22,17 +23,17 @@ module core_ID (
     logic [4:0] W_regnum;
     logic [2:0] alu_op;
     logic [1:0] alu_src2, shifter_plus32;
-    control_type_t   control_type;
-    mem_load_type_t  mem_load_type;
+    control_type_t control_type;
+    mem_load_type_t mem_load_type;
     mem_store_type_t mem_store_type;
     slt_type_t slt_type;
+    alu_cut_t alu_cut;
     logic
         reserved_inst_E,
         write_enable,
         rd_src,
         lui,
         cut_shifter_out32,
-        cut_alu_out32,
         shift_right,
         alu_shifter_src,
         MFC0,
@@ -42,7 +43,8 @@ module core_ID (
         BNE,
         BC,
         signed_byte,
-        signed_word;
+        signed_word,
+        ignore_overflow;
 
     // -- decoder --
     mips_decoder decoder (
@@ -60,7 +62,7 @@ module core_ID (
         shifter_plus32,
         alu_shifter_src,
         cut_shifter_out32,
-        cut_alu_out32,
+        alu_cut,
         MFC0,
         MTC0,
         ERET,
@@ -69,6 +71,7 @@ module core_ID (
         BC,
         signed_byte,
         signed_word,
+        ignore_overflow,
         IF_regs.inst
     );
 
@@ -123,15 +126,16 @@ module core_ID (
     );
 
     always_ff @(posedge clock, posedge reset) begin
-        // $display("writeback regnum = %d, data = %h, enable = %h", MEM_regs.W_regnum,
-        //          MEM_regs.W_data, MEM_regs.write_enable);
+`ifdef DEBUG
         if (MEM_regs.write_enable) begin
             $display("writeback regnum = %d, data = %h", MEM_regs.W_regnum,
                      MEM_regs.W_data);
         end
-        if(reserved_inst_E) begin
-            $display("reserved instruction detected op=%d", IF_regs.inst[5:0]);
+        if (reserved_inst_E) begin
+            $display("reserved instruction detected op=0x%h, inst=0x%h",
+                     IF_regs.inst[31:26], IF_regs.inst);
         end
+`endif
         if (reset || flush || stall) begin
             ID_regs <= '0;
         end else begin
@@ -143,7 +147,7 @@ module core_ID (
             ID_regs.mem_load_type <= mem_load_type;
             ID_regs.slt_type <= slt_type;
             ID_regs.cut_shifter_out32 <= cut_shifter_out32;
-            ID_regs.cut_alu_out32 <= cut_alu_out32;
+            ID_regs.cut_alu_out32 <= alu_cut;
             ID_regs.shift_right <= shift_right;
             ID_regs.alu_shifter_src <= alu_shifter_src;
             ID_regs.MFC0 <= MFC0;
@@ -164,6 +168,7 @@ module core_ID (
             ID_regs.lui <= lui;
             ID_regs.signed_byte <= signed_byte;
             ID_regs.signed_word <= signed_word;
+            ID_regs.ignore_overflow <= ignore_overflow;
         end
     end
 endmodule

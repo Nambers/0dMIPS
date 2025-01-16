@@ -1,6 +1,7 @@
 #include <Core_sim.h>
 #include <Core_sim_core.h>
 #include <Core_sim_core_MEM.h>
+#include <Core_sim_cp0.h>
 #include <Core_sim_data_mem__D40.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
@@ -76,7 +77,8 @@ int main(int argc, char **argv) {
     machine->reset = 0;
     std::cout << "flags: I - interrupt, S - stall, F - flush, A - forward A, B "
                  "-forward B, R - reset, D - "
-                 "ask peripheral data access"
+                 "ask peripheral data access\n"
+              << "IE - instruction exception, OE - operation exception"
               << std::endl;
     std::cout << "simulation starting" << std::endl;
     while (ctx->time() < cycle_max * 2) {
@@ -94,12 +96,22 @@ int main(int argc, char **argv) {
         if (machine->core->forward_A == 2) flags += "AM|";
         if (machine->core->forward_B == 1) flags += "BA|";
         if (machine->core->forward_B == 2) flags += "BM|";
+        switch (machine->core->MEM_stage->cp->exc_code) {
+            case 0:
+                break;
+            case 0xc:
+                flags += "IE|";
+                break;
+            case 0xa:
+                flags += "OE|";
+                break;
+        }
 
         if (!flags.empty()) {
             flags.pop_back();
         }
 
-        std::cout << std::left << std::setfill(' ') << std::setw(12) << flags;
+        std::cout << std::left << std::setfill(' ') << std::setw(15) << flags;
         std::cout << "IF_inst = " << inst_map[machine->core->inst];
         if (machine->core->d_valid) {
             std::cout << "\td_addr = " << std::hex << std::right

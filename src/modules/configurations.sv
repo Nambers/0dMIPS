@@ -17,10 +17,12 @@ package configurations;
     localparam TIMER_CNT_ADDR = TIMER_BASE_ADDR;
     localparam TIMER_CRL_ADDR = TIMER_BASE_ADDR + 64'h4;
     // --- VGA ---
-    localparam VGA_BASE_ADDR = TIMER_BASE_ADDR + 64'h8;
+    localparam VGA_BASE_ADDR = TIMER_BASE_ADDR + 64'h8; // start from 0x2000_0008
     localparam VGA_COLOR_ADDR = VGA_BASE_ADDR;
+    // --- simulation output ---
+    localparam STDOUT_BASE_ADDR = VGA_BASE_ADDR + 64'h8; // start from 0x2000_0010
     // --- Keyboard ---
-    // localparam KB_BASE_ADDR = VGA_BASE_ADDR + 64'h8;
+    // localparam KB_BASE_ADDR = STDOUT_BASE_ADDR + 64'h8;
 
     // === VGA config ===
     // more timing config check https://martin.hinner.info/vga/timing.html

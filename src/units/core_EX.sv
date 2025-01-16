@@ -78,10 +78,11 @@ module core_EX (
         'z,
         ID_regs.slt_type
     );
-    mux2v #(64) cut_alu_out (
+    mux3v #(64) cut_alu_out (
         alu_out,
         alu_tmp_out,
         {{32{alu_tmp_out[31]}}, alu_tmp_out[31:0]},
+        {32'b0, alu_tmp_out[31:0]},
         ID_regs.cut_alu_out32
     );
 
@@ -128,7 +129,7 @@ module core_EX (
             EX_regs.B_data <= forwarded_B;
             EX_regs.W_regnum <= ID_regs.W_regnum;
             EX_regs.pc4 <= ID_regs.pc4;
-            EX_regs.overflow <= overflow;
+            EX_regs.overflow <= overflow & ~ID_regs.ignore_overflow;
             EX_regs.zero <= zero;
             EX_regs.sel <= ID_regs.inst[2:0];
             EX_regs.mem_load_type <= ID_regs.mem_load_type;

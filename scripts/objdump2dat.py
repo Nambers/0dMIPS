@@ -1,4 +1,4 @@
-import re
+import re, os
 
 
 def parse_objdump(objdump_output, addr_dividor=1):
@@ -41,9 +41,10 @@ formatted_output = parse_objdump(objdump_output, 8)
 with open("memory.text.mem", "w") as f:
     f.write(formatted_output)
 
-with open("memory_dump.data.dat", "r") as f:
-    objdump_output = f.read()
-
-formatted_output = parse_objdump(objdump_output, 8)
-with open("memory.data.mem", "w") as f:
-    f.write(formatted_output)
+# check file existence
+if os.path.exists("memory_dump.data.dat"):
+    with open("memory_dump.data.dat", "r") as f:
+        objdump_output = f.read()
+    formatted_output = parse_objdump(objdump_output, 8)
+    with open("memory.data.mem", "w") as f:
+        f.write(formatted_output)

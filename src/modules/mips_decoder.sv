@@ -1,32 +1,8 @@
-// mips_decode: a decoder for MIPS arithmetic instructions
-// TODO doc
-//
-// alu_op       (output) - control signal to be sent to the ALU
-// writeenable  (output) - should a new value be captured by the register file
-// rd_src       (output) - should the destination register be rd (0) or rt (1)
-// alu_src2     (output) - should the 2nd ALU source be a register (0) or an immediate (1)
-// except       (output) - set to 1 when we don't recognize an opdcode & funct combination
-// control_type (output) - 00 = fallthrough, 01 = branch_target, 10 = jump_target, 11 = jump_register 
-// word_we      (output) - we're writing a word's worth of data
-// byte_we      (output) - we're only writing a byte's worth of data
-// byte_load    (output) - we're doing a byte load
-// slt          (output) - the instruction is an slt
-// lui          (output) - the instruction is a lui
-// shift_right  (output) - the instruction is a right shift
-// shifter_plus32(output) - the shifter output should be added to 32
-// alu_shifter_src (output) - the shifter source is the ALU output
-// cut_shifter_out32(output) - the shifter output should be cut to 32 bits
-// cut_alu_out32(output) - the ALU output should be cut to 32 bits then sign extended
-// opcode        (input) - the opcode field from the instruction
-// funct         (input) - the function field from the instruction
-// zero          (input) - from the ALU
-//
-// for definitions of the opcodes and functs, see mips_define.v
-`include "src/modules/mips_define.sv"
 import structures::control_type_t;
 import structures::mem_load_type_t;
 import structures::mem_store_type_t;
 import structures::slt_type_t;
+import structures::alu_cut_t;
 
 module mips_decoder (
     output logic            [ 2:0] alu_op,
@@ -43,7 +19,7 @@ module mips_decoder (
     output logic            [ 1:0] shifter_plus32,
     output logic                   alu_shifter_src,
     output logic                   cut_shifter_out32,
-    output logic                   cut_alu_out32,
+    output alu_cut_t               cut_alu_out32,
     output logic                   MFC0,
     output logic                   MTC0,
     output logic                   ERET,
@@ -52,96 +28,146 @@ module mips_decoder (
     output logic                   bc,
     output logic                   signed_byte,
     output logic                   signed_word,
+    output logic                   ignore_overflow,
     /* verilator lint_off UNUSEDSIGNAL */
     input  logic            [31:0] inst
     /* verilator lint_on UNUSEDSIGNAL */
 );
+    import mips_define::*;
 
-    logic
-        op0,
-        addu_inst,
-        add_inst,
-        sub_inst,
-        and_inst,
-        or_inst,
-        xor_inst,
-        nor_inst;
-    wire [5:0] opcode = inst[31:26];
-    wire [5:0] funct = inst[5:0];
-
-    assign op0 = (opcode == `OP_OTHER0);
-    assign addu_inst = op0 & (funct == `OP0_ADDU | funct == `OP0_64_DADDU);
-    assign add_inst = op0 & (funct == `OP0_ADD);
-    assign sub_inst = op0 & (funct == `OP0_SUB);
-    assign and_inst = op0 & (funct == `OP0_AND);
-    assign or_inst = op0 & (funct == `OP0_OR);
-    assign xor_inst = op0 & (funct == `OP0_XOR);
-    assign nor_inst = op0 & (funct == `OP0_NOR);
-    wire jr = op0 & (funct == `OP0_JR);
-    wire sltu = op0 & (funct == `OP0_SLTU);
-    wire slt = op0 & (funct == `OP0_SLT);
-    wire slt_inst = slt | sltu;
-    wire sll = op0 & (funct == `OP0_SLL | funct == `OP0_64_DSLL | funct == `OP0_64_DSLL32);
-    wire srl = op0 & (funct == `OP0_SRL | funct == `OP0_64_DSRL | funct == `OP0_64_DSRL32);
-
-    wire addi_inst = (opcode == `OP_ADDI);
-    wire addiu_inst = (opcode == `OP_ADDIU) | (opcode == `OP_64_DADDIU);
-    wire andi_inst = (opcode == `OP_ANDI);
-    wire ori_inst = (opcode == `OP_ORI);
-    wire xori_inst = (opcode == `OP_XORI);
-    assign beq = (opcode == `OP_BEQ);
-    assign bne = (opcode == `OP_BNE);
-    assign bc  = (opcode == `OP_BC);
-    wire j = (opcode == `OP_J);
-    wire lui = (opcode == `OP_LUI);
-    wire ld = (opcode == `OP_LD);
-    // lw
-    assign signed_word = (opcode == `OP_LW);
-    wire lwu = (opcode == `OP_LWU);
-    wire lw_inst = lwu | signed_word;
-    // lb
-    assign signed_byte = (opcode == `OP_LB);
-    wire lbu = (opcode == `OP_LBU);
-    wire lb_inst = lbu | signed_byte;
-    wire sd = (opcode == `OP_SD);
-    wire sw = (opcode == `OP_SW);
-    wire sb = (opcode == `OP_SB);
-    wire nop = (opcode == 6'h00 && funct == 6'h00);
-
-    assign alu_op[0] = sub_inst | or_inst | xor_inst | ori_inst | xori_inst | beq | bne | bc | slt_inst;
-    assign alu_op[1] = add_inst | sub_inst | xor_inst | nor_inst | addi_inst | xori_inst | beq | bne | bc | slt_inst | lw_inst | lb_inst | ld | sw | sb | sd;
-    assign alu_op[2] = and_inst | or_inst | xor_inst | nor_inst | andi_inst | ori_inst | xori_inst;
-
-    assign except = ~(add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | beq | bne | bc | j | jr | lui | slt_inst | lw_inst | lb_inst | ld | sw | sb | sd | nop | sll | srl);
-    assign rd_src = (addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | lw_inst | lb_inst | ld) & ~MFC0 & ~except;
-
-    // signed immediate
-    assign alu_src2[0] = (addi_inst | addiu_inst | ori_inst | xori_inst | lw_inst | lb_inst | ld | sw | sb | sd) & ~except;
-    // unsigned immediate
-    assign alu_src2[1] = (addiu_inst) & ~except;
-
-    assign writeenable = (add_inst | addu_inst | sub_inst | and_inst | or_inst | xor_inst | nor_inst | addi_inst | addiu_inst | andi_inst | ori_inst | xori_inst | lui | slt_inst | lw_inst | lb_inst | ld) & ~MTC0 & ~ERET & ~beq & ~except;
-    assign control_type[1] = jr & ~except;
-    assign control_type[0] = j & ~except;
-
-    assign mem_store_type[0] = (sb | sd) & ~except;
-    assign mem_store_type[1] = (sw | sd) & ~except;
-    assign mem_load_type[0] = (lb_inst | ld) & ~except;
-    assign mem_load_type[1] = (lw_inst | ld) & ~except;
-
-    assign lui_out = lui & ~except;
-    assign slt_type[1:0] = {sltu & ~except, slt & ~except};
-    assign alu_shifter_src = sll | srl;
-    assign shift_right = srl;
-
-    assign cut_alu_out32 = ~(opcode == `OP_64_DADDIU | (op0 & funct == `OP0_64_DADDU)) & ~except;
-    assign cut_shifter_out32 = ~(op0 & (funct == `OP0_64_DSRL | funct == `OP0_64_DSLL | funct == `OP0_64_DSRL32)) & ~except;
-    assign shifter_plus32[0] = op0 & (funct == `OP0_64_DSLL32) & ~except;
-    assign shifter_plus32[1] = op0 & (funct == `OP0_64_DSRL32) & ~except;
-
+    wire [5:0] opcode = inst[31:26], funct = inst[5:0];
     wire [4:0] rs = inst[25:21];
-    wire co = inst[25];
-    assign MFC0 = opcode == `OP_Z0 && rs == `OPZ_MFCZ;
-    assign MTC0 = opcode == `OP_Z0 && rs == `OPZ_MTCZ;
-    assign ERET = opcode == `OP_Z0 && co == `OP_CO && funct == `OPC_ERET;
+    wire op0 = (opcode == OP_OTHER0), co = inst[25];
+
+    // the family means these instruction share same datapath in most stages
+    // but only differ in rare places
+
+    // add family
+    wire daddu_inst = op0 & (funct == OP0_DADDU);
+    wire dadd_inst = op0 & (funct == OP0_DADD);
+    wire addu_inst = op0 & (funct == OP0_ADDU);
+    wire add_inst = op0 & (funct == OP0_ADD);
+    wire add_family = add_inst | addu_inst | dadd_inst | daddu_inst;
+    // addi family
+    wire daddiu_inst = (opcode == OP_DADDIU);
+    wire addiu_inst = (opcode == OP_ADDIU);
+    wire daddi_inst = (opcode == OP_DADDI);
+    wire addi_inst = (opcode == OP_ADDI);
+    wire addi_family = addi_inst | addiu_inst | daddi_inst | daddiu_inst;
+    // sub family
+    wire sub_inst = op0 & (funct == OP0_SUB);
+    wire subu_inst = op0 & (funct == OP0_SUBU);
+    wire dsub_inst = op0 & (funct == OP0_DSUB);
+    wire sub_family = sub_inst | subu_inst | dsub_inst;
+    // LU operations
+    wire or_inst = op0 & (funct == OP0_OR);
+    wire ori_inst = (opcode == OP_ORI);
+    wire xori_inst = (opcode == OP_XORI);
+    wire xor_inst = op0 & (funct == OP0_XOR);
+    wire and_inst = op0 & (funct == OP0_AND);
+    wire nor_inst = op0 & (funct == OP0_NOR);
+    // slt family
+    wire sltu_inst = op0 & (funct == OP0_SLTU);
+    wire slt_inst = op0 & (funct == OP0_SLT);
+    wire slti_inst = (opcode == OP_SLTI);
+    wire sltiu_inst = (opcode == OP_SLTIU);
+    wire slt_family = slt_inst | sltu_inst | slti_inst | sltiu_inst;
+    // sll family
+    wire dsll32_inst = op0 & (funct == OP0_DSLL32);
+    wire dsll_inst = op0 & (funct == OP0_DSLL);
+    wire sll_inst = op0 & (funct == OP0_SLL);
+    wire sll_family = dsll_inst | dsll32_inst | sll_inst;
+    // srl family
+    wire dsrl_inst = op0 & (funct == OP0_DSRL);
+    wire dsrl32_inst = op0 & (funct == OP0_DSRL32);
+    wire srl_inst = op0 & (funct == OP0_SRL);
+    wire srl_family = dsrl_inst | dsrl32_inst | srl_inst;
+
+    wire jr_inst = op0 & (funct == OP0_JR);
+    wire j_inst = (opcode == OP_J);
+    wire lui_inst = (opcode == OP_LUI);
+    wire ld_inst = (opcode == OP_LD);
+
+    // lw family
+    wire lw_inst = (opcode == OP_LW);
+    wire lwu_inst = (opcode == OP_LWU);
+    wire lw_family = ld_inst | lwu_inst | lw_inst;
+    // lb family
+    wire lb_inst = (opcode == OP_LB);
+    wire lbu_inst = (opcode == OP_LBU);
+    wire lb_family = lbu_inst | lb_inst;
+
+    wire sd_inst = (opcode == OP_SD);
+    wire sw_inst = (opcode == OP_SW);
+    wire sb_inst = (opcode == OP_SB);
+    wire store_family = sd_inst | sw_inst | sb_inst;
+
+    wire nop_inst = (opcode == 6'h00 && funct == 6'h00);
+
+    // branch family
+    wire beq_inst = (opcode == OP_BEQ);
+    wire bne_inst = (opcode == OP_BNE);
+    wire bc_inst = (opcode == OP_BC);
+    wire branch_family = beq_inst | bne_inst | bc_inst;
+
+    // CP0
+    wire MFC0_inst = opcode == OP_Z0 && rs == OPZ_MFCZ;
+    wire MTC0_inst = opcode == OP_Z0 && rs == OPZ_MTCZ;
+    wire ERET_inst = opcode == OP_Z0 && co == OP_CO && funct == OPC_ERET;
+
+    always_comb begin
+        // --- stage ID ---
+        except = ~(add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst  | ori_inst | xori_inst | branch_family | j_inst | jr_inst | lui_inst | slt_family| lw_family | lb_family | ld_inst | store_family | nop_inst | sll_family | srl_family);
+        // branch unit resolved in ID stage
+        control_type[1] = jr_inst & ~except;
+        control_type[0] = j_inst & ~except;
+
+        // --- stage EX ---
+        // branch unit resolved in EX stage
+        beq = beq_inst & ~except;
+        bne = bne_inst & ~except;
+        bc = bc_inst & ~except;
+
+        signed_byte = lb_inst & ~except;
+        signed_word = lw_inst & ~except;
+
+        alu_op[0] = sub_family | or_inst | xor_inst | ori_inst | xori_inst | branch_family | slt_inst;
+        alu_op[1] = sub_family | xor_inst | nor_inst | add_family | addi_family | xori_inst | branch_family | slt_family | lw_family | lb_family | ld_inst | store_family;
+        // lu switch
+        alu_op[2] = and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst;
+
+        rd_src = (addi_family | ori_inst | xori_inst | lui_inst | lw_family | lb_family | ld_inst) & ~MFC0_inst & ~except;
+
+        // signed immediate
+        alu_src2[0] = (addiu_inst | daddiu_inst | sltiu_inst | addi_inst | daddi_inst | slti_inst | lw_family | lb_family | ld_inst | store_family) & ~except;
+        // unsigned immediate
+        alu_src2[1] = (and_inst | ori_inst | xori_inst) & ~except;
+        ignore_overflow = (addu_inst | addiu_inst | subu_inst | daddu_inst | daddiu_inst | sltu_inst | sltiu_inst) & ~except;
+
+        lui_out = lui_inst & ~except;
+        slt_type[1:0] = {sltu_inst & ~except, slt_inst & ~except};
+        alu_shifter_src = sll_inst | srl_inst;
+        shift_right = srl_inst;
+
+        cut_alu_out32[0] = (add_inst | addi_inst | sub_inst) & ~except;
+        cut_alu_out32[1] = (addu_inst | addiu_inst | subu_inst) & ~except;
+
+        cut_shifter_out32 = ~(dsrl32_inst | dsrl_inst | dsll32_inst | dsll_inst) & ~except;
+        shifter_plus32[0] = op0 & dsll32_inst & ~except;
+        shifter_plus32[1] = op0 & dsrl32_inst & ~except;
+
+        // --- stage MEM ---
+        mem_store_type[0] = (sb_inst | sd_inst) & ~except;
+        mem_store_type[1] = (sw_inst | sd_inst) & ~except;
+        mem_load_type[0] = (lb_family | ld_inst) & ~except;
+        mem_load_type[1] = (lw_family | ld_inst) & ~except;
+        // cp0
+        MFC0 = MFC0_inst & ~except;
+        MTC0 = MTC0_inst & ~except;
+        ERET = ERET_inst & ~except;
+
+        // --- stage WB ---
+        writeenable = (add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst  | ori_inst | xori_inst | lui_inst | slt_family | lw_family | lb_family | ld_inst) & ~MTC0_inst & ~ERET_inst & ~beq_inst & ~except;
+    end
+
 endmodule  // mips_decode
