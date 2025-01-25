@@ -46,11 +46,6 @@ void reloadMemory(VlUnpacked<QData, T> &mem, const char *filename) {
     file.close();
 }
 
-bool test_add_overflow(int32_t a, int32_t b) {
-    const int64_t result = (int64_t)a + b;
-    return (result > INT32_MAX || result < INT32_MIN);
-}
-
 class CoreTest : public TestBase<Core> {
     void customSetUp() override {
         std::system("mkdir -p test_tmp >> /dev/null");
@@ -154,15 +149,42 @@ TestGenWrite(SD, 0x3f, val);
             EXPECT_EQ(RF->W_addr, 3);                                      \
             if (!overflow_cond) EXPECT_EQ(RF->W_data, check_W_data);       \
         })
+
+// test both positive and negative 1
 #define TestGenArithR2(func_name, expr) \
     func_name(Pos, (expr 1), 1);        \
     func_name(Neg, (expr(-1)), -1)
 
-#define TestAdd(AName, expr, num)                                      \
+#define TEST32OVERFLOW(expr) ((expr) > INT32_MAX || (expr) < INT32_MIN)
+
+/*
+@args:
+    name: test name
+    opcode: funct field in R type instruction from mips_define.sv
+    overflow_expr: overflow condition
+    expr: expected result expr
+    num: resevered arg for TestGenArithR2
+*/
+#define Arith32(name, opcode, overflow_expr, expr, num)                \
     TestGenArithR(                                                     \
-        ADD##AName, 0x20,                                              \
+        name, opcode,                                                  \
         expr &MASK32 | ((expr & WORD_SIGN_MASK) ? WORD_HIGH_FULL : 0), \
-        test_add_overflow(num, val), num);
+        TEST32OVERFLOW(overflow_expr), num);
+
+#define TestAdd(AName, expr, num) \
+    Arith32(ADD##AName, 0x20, (int64_t)num + val, expr, num)
+#define TestAddU(AName, expr, num) \
+    Arith32(ADDU##AName, 0x21, (int64_t)num + val, expr, num);
 
 TestGenArithR2(TestAdd, val +);
+TestGenArithR2(TestAddU, val +);
+
+#define TestSub(AName, expr, num) \
+    Arith32(SUB##AName, 0x22, (int64_t)num - val, expr, num);
+
+#define TestSubU(AName, expr, num) \
+    Arith32(SUBU##AName, 0x23, (int64_t)num - val, expr, num);
+
+TestGenArithR2(TestSub, val -);
+TestGenArithR2(TestSubU, val -);
 /* #endregion */
