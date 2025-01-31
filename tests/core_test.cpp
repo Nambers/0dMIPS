@@ -26,6 +26,14 @@ const uint64_t common_boundary_cases[] = {
 #define MEM_SEG inst_->core->MEM_stage->mem->data_seg
 #define RF inst_->core->ID_stage->rf
 
+#define WRITE_RF(addr, data) \
+    RF->W_data = data;       \
+    RF->wr_enable = 1;       \
+    RF->W_addr = addr;       \
+    tick()
+
+#define RESET_PC() inst_->core->pc = 0
+
 template <std::size_t T>
 void reloadMemory(VlUnpacked<QData, T> &mem, const char *filename) {
     std::ifstream file(filename);
@@ -67,17 +75,18 @@ uint32_t build_I_inst(uint8_t opcode6, uint8_t rs5, uint8_t rt5,
 
 #define TestGen(name, init_test, pre_test, check_result) \
     TEST_F(CoreTest, name) {                             \
+        MEM_SEG[0] = 0;                                  \
+        MEM_SEG[1] = 0;                                  \
         init_test;                                       \
         for (const auto val : common_boundary_cases) {   \
             pre_test;                                    \
-            inst_->core->pc = 0;                         \
+            RESET_PC();                                  \
             tick(); /* IF Stage */                       \
             /* all reset to pc = 4 so it will do nop*/   \
-            inst_->core->pc = 4;                         \
             tick(); /* ID Stage */                       \
-            inst_->core->pc = 4;                         \
+            inst_->core->pc -= 4;                        \
             tick(); /* EX Stage */                       \
-            inst_->core->pc = 4;                         \
+            inst_->core->pc -= 4;                        \
             tick(); /* MEM Stage */                      \
             check_result                                 \
         }                                                \
@@ -106,15 +115,10 @@ TestGenRead(LD, 0x37, val);
 #define TestGenWrite(name, opcode, check_mem)           \
     TestGen(                                            \
         name,                                           \
+        ,                                               \
         {                                               \
-            MEM_SEG[0] = 0;                             \
-            MEM_SEG[1] = 0;                             \
-        },                                              \
-        {                                               \
-            RF->W_data = val;                           \
-            RF->wr_enable = 1;                          \
-            RF->W_addr = 1;                             \
-            tick(); /* store val into reg $1*/          \
+            RESET_PC();                                 \
+            WRITE_RF(1, val);/* store val into reg $1*/ \
             MEM_SEG[0] = build_I_inst(opcode, 0, 1, 8); \
         },                                              \
         { EXPECT_EQ(MEM_SEG[1], check_mem); })
@@ -129,20 +133,14 @@ TestGenWrite(SD, 0x3f, val);
     TestGen(                                                               \
         name,                                                              \
         {                                                                  \
-            RF->W_data = fixed_val;                                        \
-            RF->wr_enable = 1;                                             \
-            RF->W_addr = 1;                                                \
-            inst_->core->pc = 0;                                           \
-            tick(); /* store 1 into reg $1*/                               \
-            /* 3 = 1 <OP> 2 */                                             \
+            RESET_PC();                                                    \
+            WRITE_RF(1, fixed_val); /* store 1 into reg $1*/               \
+            /* $3 = $1 <OP> $2 */                                             \
             MEM_SEG[0] = build_R_inst(0, 1, 2, 3, 0, funct);               \
         },                                                                 \
         {                                                                  \
-            RF->W_data = val;                                              \
-            RF->wr_enable = 1;                                             \
-            RF->W_addr = 2;                                                \
-            inst_->core->pc = 0;                                           \
-            tick(); /* store val into reg $2*/                             \
+            RESET_PC();                                                    \
+            WRITE_RF(2, val); /* store val into reg $2*/                   \
         },                                                                 \
         {                                                                  \
             EXPECT_TRUE(RF->wr_enable);                                    \
@@ -187,4 +185,21 @@ TestGenArithR2(TestAddU, val +);
 
 TestGenArithR2(TestSub, val -);
 TestGenArithR2(TestSubU, val -);
+/* #endregion */
+
+/* #region branching test */
+TestGen(
+    BEQ,
+    {
+        // beq $1, $2, 8
+        MEM_SEG[0] = build_I_inst(0x4, 1, 2, 16);
+    },
+    {
+        RESET_PC();
+        WRITE_RF(1, val);
+        RESET_PC();
+        WRITE_RF(2, val);
+    },
+    { EXPECT_EQ(inst_->core->pc, 16); }
+)
 /* #endregion */
