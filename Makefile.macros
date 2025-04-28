@@ -29,6 +29,6 @@ build/$(1)/$(1).mk: src/$(2)/$(1).sv $(call process_sv_path,$(3)) tests/$(1)_tes
 							-o $(1)Test \
 	            -LDFLAGS "-L../../googletest/build/lib -lgtest -lpthread" \
 	            -CFLAGS "-std=c++20" \
-	            -CFLAGS "-I../../googletest/googletest/include/"
-	@make -C build/$(1) -j 8 -f $(call capitalize_first,$(1)).mk --silent && cp build/$(1)/$(1)Test bin
+	            -CFLAGS "-I../../googletest/googletest/include/" +define+DEBUG
+	@make -C build/$(1) -j$(( $(nproc) - 1)) -f $(call capitalize_first,$(1)).mk --silent && cp build/$(1)/$(1)Test bin
 endef

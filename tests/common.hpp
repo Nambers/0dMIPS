@@ -45,6 +45,11 @@ class TestBase : public TestBaseI<T> {
         inst_->final();
         delete inst_;
     };
+    void reset() {
+        inst_->reset = 1;
+        tick();
+        inst_->reset = 0;
+    }
 };
 
 int main(int argc, char **argv) {

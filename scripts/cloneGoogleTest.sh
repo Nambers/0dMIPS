@@ -5,4 +5,4 @@ cd googletest
 mkdir build
 cd build
 cmake ..
-make -j7
+make -j$(( $(nproc) - 1)) 
