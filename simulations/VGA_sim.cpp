@@ -175,4 +175,5 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
         SDL_DestroyWindow(as->window);
         SDL_free(as);
     }
+    Verilated::defaultContextp()->statsPrintSummary();
 }

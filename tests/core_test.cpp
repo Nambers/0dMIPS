@@ -207,4 +207,17 @@ TestGen(
         std::cout << "val: " << val << std::endl;
     },
     { EXPECT_EQ(inst_->core->pc, 16); })
+    TestGen(
+        BEQ_F,
+        {
+            // beq $1, $2, 8
+            SET_INST(build_I_inst(0x4, 1, 2, 16));
+        },
+        {
+            RESET_PC();
+            WRITE_RF(1, val);
+            RESET_PC();
+            WRITE_RF(2, val + 1);
+        },
+        { EXPECT_EQ(inst_->core->pc, 4); })
     /* #endregion */

@@ -1,42 +1,27 @@
 # -- start full simulation --
-core_sim: src/units/core.sv ${CORE_DEPS} simulations/core_sim.cpp
-	@verilator -Wall --trace -cc ${CORE_DEPS} ./src/units/core.sv -y . \
-	-Mdir build/core_sim --prefix Core_sim \
-	--exe simulations/core_sim.cpp \
-	-o Core_sim \
-	-CFLAGS "-std=c++20" +define+DEBUG
-	@$(MAKE) -C build/core_sim -j$(( $(nproc) - 1)) -f Core_sim.mk --silent 
+define make_sim_target
+$(1): $(2)
+	@mkdir -p build
+	@verilator -Wall --trace -cc $(2) -y . \
+	-Mdir build/$(1) --prefix $(call capitalize_first,$(1)) \
+	--exe simulations/$(1).cpp \
+	-o $(call capitalize_first,$(1)) \
+	-CFLAGS "-std=c++20 -march=native -flto=auto $(3)" \
+	-LDFLAGS "$(4)" \
+	-Wno-WIDTHEXPAND -Wno-WIDTHTRUNC \
+	-O3 \
+	--threads 1
+	$(MAKE) -C build/$(1) -j$(( $(nproc) - 1)) -f $(call capitalize_first,$(1)).mk --silent 
 	@mkdir -p bin
-	@cp build/core_sim/Core_sim bin/
+	@cp build/$(1)/$(call capitalize_first,$(1)) bin/
 	@cp ./memory.*.mem ./bin/
-	@./bin/Core_sim
+	@./bin/$(call capitalize_first,$(1))
 
-SOC_sim: src/SOC.sv src/modules/configurations.sv src/units/core.sv ${CORE_DEPS} simulations/SOC_sim.cpp
-	@verilator -Wall --trace -cc ./src/modules/configurations.sv ${CORE_DEPS} ${PERIPHERAL_DEPS} src/units/core.sv src/SOC.sv -y . \
-	-Mdir build/$@ --prefix $@ \
-	--exe simulations/$@.cpp \
-	-o $@ \
-	-CFLAGS "-I/usr/include/SDL3/ -D_REENTRANT -std=c++20" \
-	-LDFLAGS "-L/usr/lib -lSDL3" \
-	-Wno-WIDTHEXPAND -Wno-WIDTHTRUNC
-	@$(MAKE) -C build/$@ -j$(( $(nproc) - 1))  -f $@.mk --silent 
-	@mkdir -p bin
-	@cp build/$@/$@ bin/
-	@cp ./memory.*.mem ./bin/
-	@./bin/$@
 
+endef
+
+$(eval $(call make_sim_target,core_sim,${CORE_DEPS} ./src/units/core.sv,,))
+$(eval $(call make_sim_target,SOC_sim,src/modules/configurations.sv ${CORE_DEPS} ${PERIPHERAL_DEPS} src/units/core.sv src/SOC.sv,-I/usr/include/SDL3/ -D_REENTRANT,-L/usr/lib -lSDL3))
 
 # -- individual VGA sim --
-VGA_sim: src/modules/configurations.sv src/units/VGA.sv
-	@verilator -Wall -cc src/modules/configurations.sv src/units/VGA.sv -y . \
-	-Mdir build/$@ --prefix $@ \
-	--exe simulations/$@.cpp \
-	-o $@ \
-	-CFLAGS "-I/usr/include/SDL3/ -D_REENTRANT -std=c++20 -O3" \
-	-LDFLAGS "-L/usr/lib -lSDL3" \
-	-Wno-WIDTHEXPAND -Wno-WIDTHTRUNC \
-	--threads 1
-	@$(MAKE) -C build/$@ -j$(( $(nproc) - 1)) -f $@.mk --silent 
-	@mkdir -p bin
-	@cp build/$@/$@ bin/
-	@./bin/$@
+$(eval $(call make_sim_target,VGA_sim,src/modules/configurations.sv src/units/VGA.sv, -I/usr/include/SDL3/ -D_REENTRANT,-L/usr/lib -lSDL3))
