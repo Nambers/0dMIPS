@@ -136,5 +136,6 @@ int main(int argc, char **argv) {
     delete machine;
     ctx->gotFinish(1);
     delete ctx;
+    Verilated::defaultContextp()->statsPrintSummary();
     return 0;
 }

@@ -9,6 +9,16 @@
 
 constexpr int SCREEN_WIDTH = 640;
 constexpr int SCREEN_HEIGHT = 480;
+constexpr int SCALE_FACTOR = 5;
+constexpr int BUF_WIDTH = 640 / SCALE_FACTOR;
+constexpr int BUF_HEIGHT = 480 / SCALE_FACTOR;
+constexpr size_t VGA_COLOR_ADDR = 0x20000008;
+// VGA clk speed vs system clk speed
+constexpr unsigned int VGA_CLK_V_CLK = 4;
+
+uint32_t fps_lasttime = SDL_GetTicks();
+uint32_t fps_current;
+uint32_t fps_frames = 0;
 
 inline uint8_t color4to8(uint8_t c) { return c << 4 | c; }
 
@@ -19,25 +29,22 @@ class Pixel {
     uint8_t g;
     uint8_t b;
     Pixel() = default;
-    Pixel(uint8_t r, uint8_t g, uint8_t b) : r(r), g(g), b(b) {}
+    Pixel(uint8_t r, uint8_t g, uint8_t b) : a(255), r(r), g(g), b(b) {}
     static const SDL_PixelFormat FORMAT = SDL_PIXELFORMAT_ARGB8888;
 };
 
 struct AppState {
-    Pixel pixels[SCREEN_HEIGHT][SCREEN_WIDTH];
     SDL_Window *window;
     SDL_Renderer *renderer;
     SOC_sim *top;
     VerilatedContext *ctx;
-    uint16_t test_pixel;
-    // VGA clk mock as system clock full tick twice per VGA clock
-    unsigned char VGA_cnt : 3;
 };
 
-#define TICK                                                            \
-    as->top->clk = !as->top->clk;                                       \
-    if (as->ctx->time() % 4 == 0) as->top->VGA_clk = !as->top->VGA_clk; \
-    as->ctx->timeInc(1);                                                \
+#define TICK                                  \
+    as->top->clk = !as->top->clk;             \
+    if (as->ctx->time() % VGA_CLK_V_CLK == 0) \
+        as->top->VGA_clk = !as->top->VGA_clk; \
+    as->ctx->timeInc(1);                      \
     as->top->eval()
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
@@ -76,23 +83,36 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     TICK;
     as->top->reset = 0;
 
-    std::cout << "simulation starting, press 'q' to quit" << std::endl;
+    std::cout << "simulation starting, press 'q' to quit, 'r' to reset." << std::endl;
 
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate) {
     AppState *as = (AppState *)appstate;
-    if (as->top->SOC->vga->h == 0 && as->top->SOC->vga->v == 0) {
-        SDL_RenderPresent(as->renderer);
-        SDL_SetRenderDrawColor(as->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
-        SDL_RenderClear(as->renderer);
-        as->test_pixel++;
+    static uint32_t frame_counter = 0;
+
+    if (as->ctx->time() % VGA_CLK_V_CLK == 0 && as->top->VGA_clk &&
+        as->top->SOC->vga->h < SCREEN_WIDTH &&
+        as->top->SOC->vga->v < SCREEN_HEIGHT) {
+        SDL_SetRenderDrawColor(as->renderer, color4to8(as->top->VGA_r),
+                               color4to8(as->top->VGA_g),
+                               color4to8(as->top->VGA_b), SDL_ALPHA_OPAQUE);
+        SDL_RenderPoint(as->renderer, as->top->SOC->vga->h,
+                        as->top->SOC->vga->v);
+
+        if (as->top->SOC->vga->h == 0 && as->top->SOC->vga->v == 0) {
+            SDL_RenderPresent(as->renderer);
+            fps_frames++;
+            frame_counter++;
+            if (fps_lasttime < SDL_GetTicks() - 1000) {
+                fps_lasttime = SDL_GetTicks();
+                fps_current = fps_frames;
+                std::cout << "current FPS: " << fps_current << std::endl;
+                fps_frames = 0;
+            }
+        }
     }
-    SDL_SetRenderDrawColor(as->renderer, color4to8(as->top->VGA_r),
-                           color4to8(as->top->VGA_g), color4to8(as->top->VGA_b),
-                           SDL_ALPHA_OPAQUE);
-    SDL_RenderPoint(as->renderer, as->top->SOC->vga->h, as->top->SOC->vga->v);
     if (as->top->SOC->stdout->stdout_taken) {
         printf("stdout: %0.8s \n", (const char *)&as->top->SOC->stdout->buffer);
     }
@@ -132,4 +152,5 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
         SDL_DestroyWindow(as->window);
         SDL_free(as);
     }
+    Verilated::defaultContextp()->statsPrintSummary();
 }

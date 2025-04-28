@@ -18,6 +18,8 @@ constexpr int SCALE_FACTOR = 5;
 constexpr int BUF_WIDTH = 640 / SCALE_FACTOR;
 constexpr int BUF_HEIGHT = 480 / SCALE_FACTOR;
 constexpr size_t VGA_COLOR_ADDR = 0x20000008;
+// VGA clk speed vs system clk speed
+constexpr unsigned int VGA_CLK_V_CLK = 1;
 
 uint32_t fps_lasttime = SDL_GetTicks();
 uint32_t fps_current;
@@ -40,12 +42,15 @@ struct AppState {
     SDL_Window *window;
     SDL_Renderer *renderer;
     VGA_sim *top;
+    VerilatedContext *ctx;
     uint32_t test_pixel = 0;
 };
 
-#define TICK                              \
-    as->top->clk = !as->top->clk;         \
-    as->top->VGA_clk = !as->top->VGA_clk; \
+#define TICK                                  \
+    as->top->clk = !as->top->clk;             \
+    if (as->ctx->time() % VGA_CLK_V_CLK == 0) \
+        as->top->VGA_clk = !as->top->VGA_clk; \
+    as->ctx->timeInc(1);                      \
     as->top->eval()
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
@@ -79,7 +84,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     SDL_SetWindowTitle(as->window, "VGA Simulator");
 
     // Initialize the VGA module
-    as->top = new VGA_sim;
+    as->ctx = new VerilatedContext;
+    as->top = new VGA_sim{as->ctx};
     as->top->rst = 1;
     as->top->clk = 1;
     as->top->VGA_clk = 1;
@@ -120,23 +126,24 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         as->top->w_data = (y << 22) | (x << 12) | color;
     }
 
-    if (as->top->VGA->h < SCREEN_WIDTH && as->top->VGA->v < SCREEN_HEIGHT) {
+    if (as->ctx->time() % VGA_CLK_V_CLK == 0 && as->top->VGA_clk &&
+        as->top->VGA->h < SCREEN_WIDTH && as->top->VGA->v < SCREEN_HEIGHT) {
         SDL_SetRenderDrawColor(as->renderer, color4to8(as->top->VGA_r),
                                color4to8(as->top->VGA_g),
                                color4to8(as->top->VGA_b), SDL_ALPHA_OPAQUE);
         SDL_RenderPoint(as->renderer, as->top->VGA->h, as->top->VGA->v);
-    }
 
-    if (as->top->VGA->h == 0 && as->top->VGA->v == 0) {
-        buffered = false;
-        SDL_RenderPresent(as->renderer);
-        fps_frames++;
-        frame_counter++;
-        if (fps_lasttime < SDL_GetTicks() - 1000) {
-            fps_lasttime = SDL_GetTicks();
-            fps_current = fps_frames;
-            std::cout << "current FPS: " << fps_current << std::endl;
-            fps_frames = 0;
+        if (as->top->VGA->h == 0 && as->top->VGA->v == 0) {
+            buffered = false;
+            SDL_RenderPresent(as->renderer);
+            fps_frames++;
+            frame_counter++;
+            if (fps_lasttime < SDL_GetTicks() - 1000) {
+                fps_lasttime = SDL_GetTicks();
+                fps_current = fps_frames;
+                std::cout << "current FPS: " << fps_current << std::endl;
+                fps_frames = 0;
+            }
         }
     }
     TICK;
@@ -171,6 +178,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
     if (appstate != NULL) {
         AppState *as = (AppState *)appstate;
         delete as->top;
+        delete as->ctx;
         SDL_DestroyRenderer(as->renderer);
         SDL_DestroyWindow(as->window);
         SDL_free(as);
