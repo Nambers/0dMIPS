@@ -12,14 +12,12 @@ TEST_F(TimerTest, ReadCycleTest) {
     inst_->MemRead = 1;
     inst_->MemWrite = 0;
     std::uniform_int_distribution<int> dist{0, 10};
-    int clockCnt = 0;
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < dist(rng); j++) {
             tick();
-            clockCnt++;
             EXPECT_FALSE(inst_->TimerInterrupt);
         }
-        EXPECT_EQ(inst_->cycle, clockCnt);
+        EXPECT_EQ(inst_->cycle, this->ctx.time() / 2);
     }
 }
 
@@ -28,17 +26,19 @@ TEST_F(TimerTest, InterruptTest) {
     inst_->address = CYCLE_ADDR;
     inst_->MemRead = 0;
     inst_->MemWrite = 1;
-    auto interruptCycle = dist(rng);
+    const auto interruptCycle = dist(rng);
     inst_->data = interruptCycle;
     tick();
     inst_->MemWrite = 0;
     inst_->MemRead = 1;
-    for (int i = 0; i < interruptCycle; i++) {
+    const auto realCycle = interruptCycle - this->ctx.time() / 2;
+    for (int i = 0; i < realCycle; i++) {
         EXPECT_FALSE(inst_->TimerInterrupt);
         tick();
     }
     // currect cycle is one behind the interrupt cycle
-    EXPECT_EQ(inst_->cycle, interruptCycle + 1);
+    EXPECT_EQ(inst_->cycle, interruptCycle);
+    tick(); // will delay one more cycle
     EXPECT_TRUE(inst_->TimerInterrupt);
 }
 

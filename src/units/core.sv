@@ -80,6 +80,7 @@ module core (
         .pc4(IF_regs.pc4),
         .EPC(MEM_regs.EPC),
         .takenHandler(MEM_regs.takenHandler),
+        .reset(reset),
         .next_pc(next_pc),
         .flush(flush)
     );

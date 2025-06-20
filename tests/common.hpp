@@ -31,10 +31,8 @@ template <class T> class TestBase : public TestBaseI<T> {
     }
     void SetUp() override {
         this->inst_ = new T{&this->ctx};
-        this->inst_->clock = 1;
-        this->inst_->reset = 1;
-        tick();
-        this->inst_->reset = 0;
+        this->inst_->clock = 0;
+        reset();
     }
     void TearDown() override {
         this->inst_->final();
@@ -43,7 +41,9 @@ template <class T> class TestBase : public TestBaseI<T> {
     void reset() {
         this->inst_->reset = 1;
         tick();
+        tick();
         this->inst_->reset = 0;
+        this->ctx.time(0);
     }
 };
 

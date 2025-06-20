@@ -26,6 +26,7 @@ module timer #(
     logic [width - 1:0] icycle_Q;
     // lower
     logic Acknowledge, TimerWrite, TimerRead;
+    logic armed_Q;
 
     // -- cycle counter --
 
@@ -44,6 +45,14 @@ module timer #(
 
     // -- interrupt cycle --
 
+    register #(1) armed(
+        armed_Q,
+        1'b1,
+        clock,
+        TimerWrite,
+        Acknowledge | reset
+    );
+
     register #(width, {width{1'b1}}) interrupt_cycle (
         icycle_Q,
         data,
@@ -58,7 +67,7 @@ module timer #(
         TimerInterrupt,
         1'b1,
         clock,
-        icycle_Q == cycle_Q,
+        (icycle_Q == cycle_Q) && armed_Q,
         reset | Acknowledge
     );
 

@@ -39,7 +39,7 @@ package structures;
 
     typedef struct packed {
         logic [31:0] inst;
-        logic [63:0] pc4,  pc;
+        logic [63:0] pc4, pc;
     } IF_regs_t;
 
     typedef struct packed {

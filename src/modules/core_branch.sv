@@ -13,6 +13,7 @@ module core_branch (
     input logic [63:0] pc4,
     input logic [63:0] EPC,
     input logic takenHandler,
+    input logic reset,
     output logic [63:0] next_pc,
     output logic flush
 );
@@ -34,7 +35,10 @@ module core_branch (
     end
 
     always_comb begin
-        if (takenHandler) begin
+        if(reset) begin
+            next_pc = 64'd0;
+            flush   = 1'b1;
+        end else if (takenHandler) begin
             next_pc = interrupeHandlerAddr;
             flush   = 1'b1;
         end else if (ID_regs.ERET) begin
