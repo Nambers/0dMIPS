@@ -11,10 +11,10 @@ TEST_F(TimerTest, ReadCycleTest) {
     inst_->address = CYCLE_ADDR;
     inst_->MemRead = 1;
     inst_->MemWrite = 0;
-    DIST_TYPE dist(0, 10);
+    std::uniform_int_distribution<int> dist{0, 10};
     int clockCnt = 0;
     for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < getRandomInt(dist); j++) {
+        for (int j = 0; j < dist(rng); j++) {
             tick();
             clockCnt++;
             EXPECT_FALSE(inst_->TimerInterrupt);
@@ -24,11 +24,11 @@ TEST_F(TimerTest, ReadCycleTest) {
 }
 
 TEST_F(TimerTest, InterruptTest) {
-    DIST_TYPE dist(1, 20);
+    std::uniform_int_distribution<int> dist{1, 20};
     inst_->address = CYCLE_ADDR;
     inst_->MemRead = 0;
     inst_->MemWrite = 1;
-    auto interruptCycle = getRandomInt(dist);
+    auto interruptCycle = dist(rng);
     inst_->data = interruptCycle;
     tick();
     inst_->MemWrite = 0;
@@ -43,7 +43,6 @@ TEST_F(TimerTest, InterruptTest) {
 }
 
 TEST_F(TimerTest, AcknowledgeTest) {
-    DIST_TYPE dist(1, 20);
     inst_->address = CYCLE_ADDR;
     inst_->MemRead = 0;
     inst_->MemWrite = 1;

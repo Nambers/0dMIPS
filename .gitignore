@@ -10,8 +10,7 @@
 !simulations
 !simulations/**
 !example_asm
-!Makefile
-!Makefile.macros
+!CMakeLists.txt
 !.gitignore
 !LICENSE
 !README.md

@@ -5,6 +5,7 @@
 #include <Core_data_mem__D40.h>
 #include <Core_regfile__W40.h>
 
+#include <array>
 #include <fstream>
 #include <iomanip>
 
@@ -20,8 +21,13 @@
 #define MASKED(val, mask) ((val##mask) & (MASK##mask))
 #define u64(a, b) ((uint64_t(a) << 32) | uint64_t(b))
 
-const uint64_t common_boundary_cases[] = {
-    0, 1, 0x7fffffffffffffff, 0x8000000000000000, 0xffffffffffffffff};
+template <class T, class... U>
+constexpr std::array<T, sizeof...(U)> make_array(U &&...u) {
+    return {static_cast<T>(u)...};
+};
+
+constexpr static auto common_boundary_cases = make_array<uint64_t>(
+    0, 1, 0x7fffffffffffffff, 0x8000000000000000, 0xffffffffffffffff);
 
 #define MEM_SEG inst_->core->MEM_stage->mem->data_seg
 #define RF inst_->core->ID_stage->rf
@@ -57,8 +63,13 @@ void reloadMemory(VlUnpacked<QData, T> &mem, const char *filename) {
 }
 
 class CoreTest : public TestBase<Core> {
-    void customSetUp() override {
+    void SetUp() override {
         std::system("mkdir -p test_tmp >> /dev/null");
+        this->inst_ = new Core{&this->ctx};
+        this->inst_->clock = 1;
+        this->inst_->reset = 1;
+        tick();
+        this->inst_->reset = 0;
     }
 };
 
@@ -154,8 +165,8 @@ TestGenWrite(SD, 0x3f, val);
         })
 
 // test both positive and negative 1
-#define TestGenArithR2(func_name, expr) \
-    func_name(Pos, (expr 1), 1);        \
+#define TestGenArithR2(func_name, expr)                                        \
+    func_name(Pos, (expr 1), 1);                                               \
     func_name(Neg, (expr(-1)), -1)
 
 #define TEST32OVERFLOW(expr) ((expr) > INT32_MAX || (expr) < INT32_MIN)
@@ -168,24 +179,24 @@ TestGenWrite(SD, 0x3f, val);
     expr: expected result expr
     num: resevered arg for TestGenArithR2
 */
-#define Arith32(name, opcode, overflow_expr, expr, num)                \
-    TestGenArithR(                                                     \
-        name, opcode,                                                  \
-        expr &MASK32 | ((expr & WORD_SIGN_MASK) ? WORD_HIGH_FULL : 0), \
-        TEST32OVERFLOW(overflow_expr), num);
+#define Arith32(name, opcode, overflow_expr, expr, num)                        \
+    TestGenArithR(name, opcode,                                                \
+                  expr &MASK32 |                                               \
+                      ((expr & WORD_SIGN_MASK) ? WORD_HIGH_FULL : 0),          \
+                  TEST32OVERFLOW(overflow_expr), num);
 
-#define TestAdd(AName, expr, num) \
+#define TestAdd(AName, expr, num)                                              \
     Arith32(ADD##AName, 0x20, (int64_t)num + val, expr, num)
-#define TestAddU(AName, expr, num) \
+#define TestAddU(AName, expr, num)                                             \
     Arith32(ADDU##AName, 0x21, (int64_t)num + val, expr, num);
 
 TestGenArithR2(TestAdd, val +);
 TestGenArithR2(TestAddU, val +);
 
-#define TestSub(AName, expr, num) \
+#define TestSub(AName, expr, num)                                              \
     Arith32(SUB##AName, 0x22, (int64_t)num - val, expr, num);
 
-#define TestSubU(AName, expr, num) \
+#define TestSubU(AName, expr, num)                                             \
     Arith32(SUBU##AName, 0x23, (int64_t)num - val, expr, num);
 
 TestGenArithR2(TestSub, val -);
@@ -200,9 +211,7 @@ TestGen(
         SET_INST(build_I_inst(0x4, 1, 2, 16));
     },
     {
-        RESET_PC();
         WRITE_RF(1, val);
-        RESET_PC();
         WRITE_RF(2, val);
         std::cout << "val: " << val << std::endl;
     },

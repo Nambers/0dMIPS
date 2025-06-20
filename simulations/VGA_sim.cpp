@@ -28,7 +28,7 @@ uint32_t fps_frames = 0;
 inline uint8_t color4to8(uint8_t c) { return c << 4 | c; }
 
 class Pixel {
-   public:
+  public:
     uint8_t a;
     uint8_t r;
     uint8_t g;

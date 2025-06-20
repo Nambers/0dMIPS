@@ -1,62 +1,57 @@
+#ifndef TESTS_COMMON_HPP
+#define TESTS_COMMON_HPP
+
 #include <gtest/gtest.h>
+#include <limits>
+#include <random>
 #include <verilated.h>
 #include <verilated_cov.h>
 
-#include <random>
-
-template <class T>
-class TestBaseI : public testing::Test {
-   protected:
-    using DIST_TYPE = std::uniform_int_distribution<std::mt19937::result_type>;
-    TestBaseI() : rng(dev()), ctx() {};
+template <class T> class TestBaseI : public testing::Test {
+  protected:
+    TestBaseI() : rng(std::random_device{}()), ctx() {}
     virtual void tick() = 0;
-    virtual void SetUp() = 0;
-    virtual void TearDown() = 0;
-    inline int getRandomInt(DIST_TYPE dist) { return dist(rng); }
+    virtual void SetUp() override = 0;
+    virtual void TearDown() override = 0;
 
     T *inst_ = nullptr;
-    std::random_device dev;
     std::mt19937 rng;
     VerilatedContext ctx;
 };
 
-template <class T>
-class TestBase : public TestBaseI<T> {
-   protected:
-    T *inst_;
-    virtual void customSetUp() {};
+template <class T> class TestBase : public TestBaseI<T> {
+  protected:
     void tick() override {
-        inst_->clock = !inst_->clock;
-        inst_->eval();
+        this->inst_->clock = !this->inst_->clock;
+        this->inst_->eval();
         this->ctx.timeInc(1);
-        inst_->clock = !inst_->clock;
-        inst_->eval();
+        this->inst_->clock = !this->inst_->clock;
+        this->inst_->eval();
         this->ctx.timeInc(1);
-    };
+    }
     void SetUp() override {
-        inst_ = new T{&this->ctx};
-        inst_->clock = 1;
-        inst_->reset = 1;
+        this->inst_ = new T{&this->ctx};
+        this->inst_->clock = 1;
+        this->inst_->reset = 1;
         tick();
-        inst_->reset = 0;
-        customSetUp();
-    };
+        this->inst_->reset = 0;
+    }
     void TearDown() override {
-        inst_->final();
-        delete inst_;
+        this->inst_->final();
+        delete this->inst_;
     };
     void reset() {
-        inst_->reset = 1;
+        this->inst_->reset = 1;
         tick();
-        inst_->reset = 0;
+        this->inst_->reset = 0;
     }
 };
 
-int main(int argc, char **argv) {
-    Verilated::commandArgs(argc, argv);
-    testing::InitGoogleTest(&argc, argv);
-    auto res = RUN_ALL_TESTS();
-    Verilated::mkdir("logs");
-    VerilatedCov::write("logs/coverage.dat");
-    return res;
-}
+template <class T, class Param>
+class TestBaseWithParamI : public ::testing::WithParamInterface<Param>,
+                           public TestBaseI<T> {};
+template <class T, class Param>
+class TestBaseWithParam : public ::testing::WithParamInterface<Param>,
+                          public TestBase<T> {};
+
+#endif // TESTS_COMMON_HPP

@@ -1,3 +1,4 @@
 !*.s
 !*.c
 !script.ld
+!CMakeLists.txt

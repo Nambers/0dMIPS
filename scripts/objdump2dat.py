@@ -1,4 +1,8 @@
-import re, os
+import re
+import os
+import sys
+
+CWD = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
 
 
 def parse_objdump(objdump_output, addr_dividor=1):
@@ -33,18 +37,18 @@ def parse_objdump(objdump_output, addr_dividor=1):
     return "\n".join(memory)
 
 
-with open("memory_dump.text.dat", "r") as f:
+with open(f"{CWD}/memory_dump.text.dat", "r") as f:
     objdump_output = f.read()
 
 # rebasing text section may have problem in direct jump
 formatted_output = parse_objdump(objdump_output, 8)
-with open("memory.text.mem", "w") as f:
+with open(f"{CWD}/memory.text.mem", "w") as f:
     f.write(formatted_output)
 
 # check file existence
-if os.path.exists("memory_dump.data.dat"):
-    with open("memory_dump.data.dat", "r") as f:
+if os.path.exists(f"{CWD}/memory_dump.data.dat"):
+    with open(f"{CWD}/memory_dump.data.dat", "r") as f:
         objdump_output = f.read()
     formatted_output = parse_objdump(objdump_output, 8)
-    with open("memory.data.mem", "w") as f:
+    with open(f"{CWD}/memory.data.mem", "w") as f:
         f.write(formatted_output)

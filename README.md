@@ -8,9 +8,8 @@
 - \[OPTIONAL\] `sdl3` <https://github.com/libsdl-org/SDL> for any simulation with VGA output.
 
 ## How to run
-
-1. `./scripts/cloneGoogleTest.sh` to build gTest.
-2. `make runtest` to run all tests.
-3. `make <TEST FILE NAME>` (e.g. `make alu`) to run specific test under tests folder, or `make runtest` to run all tests.
-4. `make example_asm/<ASSEMBLY FILE NAME>` (e.g. `make example_asm/fabonacci`) to compile assembly into binary.
-5. `make <SIMULATION FILE NAME>` (e.g. `make core`) to run the simulation of compiled binary.
+1. `cmake -B build .`
+2. `cmake --build build -j ${$(nproc)-1}` to build all. All binaries are placed under `build/bin`
+3. `cmake --build build --target help` to list all targets
+4. `./runAllTest.sh` to run all generated tests under `build/bin`
+5. `cmake --build build --target <script_name>` to compile script into memory.dat, e.g. `fabonacci`
