@@ -89,7 +89,11 @@ uint32_t build_R_inst(uint8_t opcode6, uint8_t rs5, uint8_t rt5, uint8_t rd5,
 uint32_t build_I_inst(uint8_t opcode6, uint8_t rs5, uint8_t rt5,
                       int16_t imm16) {
     return (MASKED(opcode, 6) << 26) | (MASKED(rs, 5) << 21) |
-           (MASKED(rt, 5) << 16) | imm16;
+           (MASKED(rt, 5) << 16) | static_cast<uint16_t>(imm16);
+}
+
+uint32_t build_J_inst(uint8_t opcode6, uint32_t addr26) {
+    return (MASKED(opcode, 6) << 26) | (addr26 & 0x03ffffff);
 }
 
 // the inst should be in pc=0x4 to avoid pipeline polution
@@ -210,7 +214,7 @@ TestGenArithR2(TestSubU, val -);
 TestGenMem(
     BEQ,
     {
-        // beq $1, $2, 16
+        // beq $1, $2, +512
         SET_INST(build_I_inst(0x4, 1, 2, 512 >> 2));
     },
     {
@@ -221,10 +225,32 @@ TestGenMem(
         // 4 for inst addr
         EXPECT_EQ(inst_->core->pc, 4 + 512);
     });
+// test sequence branch
 TestGenMem(
-    BEQ_F,
+    BEQ_Multi,
     {
-        // beq $1, $2, 16
+        // beq $1, $2, +32
+        SET_INST(build_I_inst(0x4, 1, 2, 32 >> 2));
+        // beq $1, $2, -12
+        MEM_SEG[4] = static_cast<int64_t>(build_I_inst(0x4, 1, 2, -(24 >> 2)))
+                     << 32;
+    },
+    {
+        WRITE_RF(1, val);
+        WRITE_RF(2, val);
+    },
+    {
+        tick();
+        tick();
+        tick();
+        tick();
+        // 4 for inst addr
+        EXPECT_EQ(inst_->core->pc, 4 + 32 - 24 + 4);
+    });
+TestGenMem(
+    BEQ_Fail,
+    {
+        // beq $1, $2, +512
         SET_INST(build_I_inst(0x4, 1, 2, 512 >> 2));
     },
     {
@@ -234,5 +260,59 @@ TestGenMem(
     {
         // 5 stages
         EXPECT_EQ(inst_->core->pc, 4 * 5);
+    });
+TestGenMem(
+    BNE,
+    {
+        // bne $1, $2, +512
+        SET_INST(build_I_inst(0x5, 1, 2, 512 >> 2));
+    },
+    {
+        WRITE_RF(1, val);
+        WRITE_RF(2, val + 1);
+    },
+    {
+        // 4 for inst addr
+        EXPECT_EQ(inst_->core->pc, 4 + 512);
+    });
+TestGenMem(
+    BNE_Fail,
+    {
+        // bne $1, $2, +512
+        SET_INST(build_I_inst(0x5, 1, 2, 512 >> 2));
+    },
+    {
+        WRITE_RF(1, val);
+        WRITE_RF(2, val);
+    },
+    {
+        // 5 stages
+        EXPECT_EQ(inst_->core->pc, 4 * 5);
+    });
+TestGenMem(
+    BC,
+    {
+        // bc $1, +512
+        SET_INST(build_J_inst(0x32, 512 >> 2));
+    },
+    {},
+    {
+        // 4 for inst addr
+        EXPECT_EQ(inst_->core->pc, 4 + 512);
+        // don't do cases
+        break;
+    });
+TestGenMem(
+    J,
+    {
+        // j +512
+        SET_INST(build_J_inst(0x2, 512 >> 2));
+    },
+    {},
+    {
+        // 4 for inst addr
+        EXPECT_EQ(inst_->core->pc, 4 + 512);
+        // don't do cases
+        break;
     });
 /* #endregion */
