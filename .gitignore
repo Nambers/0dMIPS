@@ -12,5 +12,6 @@
 !example_asm
 !CMakeLists.txt
 !.gitignore
+!runAllTests.sh
 !LICENSE
 !README.md
