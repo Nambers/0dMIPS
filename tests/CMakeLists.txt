@@ -23,7 +23,9 @@ foreach(target IN LISTS UNITS)
     set(_name "${target}")
     capitalize_first(_name unitCap)
 
-    add_executable(${target}Test ${TEST_DIR}/${target}_test.cpp ${TEST_DIR}/test.cpp)
+    file(GLOB cpps ${TEST_DIR}/${target}_test*.cpp)
+
+    add_executable(${target}Test ${cpps} ${TEST_DIR}/test.cpp)
     verilate(${target}Test
         SOURCES ${${target}_SRCS}
         TOP_MODULE ${target}
@@ -35,4 +37,3 @@ foreach(target IN LISTS UNITS)
     target_link_libraries(${target}Test PRIVATE GTest::GTest GTest::Main Threads::Threads)
     target_include_directories(${target}Test PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${target})
 endforeach()
-enable_testing()

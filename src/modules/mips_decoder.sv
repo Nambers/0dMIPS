@@ -167,7 +167,7 @@ module mips_decoder (
         ERET = ERET_inst & ~except;
 
         // --- stage WB ---
-        writeenable = (add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst  | ori_inst | xori_inst | lui_inst | slt_family | lw_family | lb_family | ld_inst) & ~MTC0_inst & ~ERET_inst & ~beq_inst & ~except;
+        writeenable = (add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst | lui_inst | slt_family | lw_family | lb_family | ld_inst) & ~MTC0_inst & ~ERET_inst & ~beq_inst & ~except;
     end
 
 endmodule  // mips_decode

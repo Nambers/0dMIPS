@@ -12,23 +12,21 @@ module core_IF (
     output IF_regs_t IF_regs
 );
     always_ff @(posedge clock, posedge reset) begin
-        if (reset || flush) begin
-            if (reset) begin
-                pc <= 64'd0;
-                IF_regs.pc <= 64'd0;
-                IF_regs.pc4 <= 64'd4;
-            end else begin
+        if (reset) begin
+            pc <= 'd0;
+            IF_regs.pc <= 'd0;
+            IF_regs.pc4 <= 'd4;
+            IF_regs.inst <= 'd0;
+        end else if (!stall || flush) begin
+            if(flush) begin
                 // when flush, keep pc
-                pc <= next_pc;
-                IF_regs.pc <= next_pc;
-                IF_regs.pc4 <= next_pc + 64'd4;
+                IF_regs.inst <= 'd0;
+            end else begin
+                IF_regs.inst <= inst;
             end
-            IF_regs.inst <= 32'd0;
-        end else if (!stall) begin
-            IF_regs.inst <= inst;
-            pc <= pc + 64'd4;
-            IF_regs.pc <= IF_regs.pc + 64'd4;
-            IF_regs.pc4 <= IF_regs.pc4 + 64'd4;
+            pc <= next_pc;
+            IF_regs.pc <= next_pc;
+            IF_regs.pc4 <= next_pc + 'd4;
         end
     end
 endmodule

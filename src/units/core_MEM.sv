@@ -25,7 +25,8 @@ module core_MEM (
         word_out,
         EPC,
         c0_rd_data,
-        W_data;
+        W_data,
+        W_data_lui;
     logic [31:0] raw_word_out;
     logic [7:0] byte_load_out;
     logic takenHandler  /* verilator public */;
@@ -126,6 +127,13 @@ module core_MEM (
         EX_regs.MFC0
     );
 
+    mux2v #(64) EPC_mux (
+        W_data_lui,
+        W_data,
+        EX_regs.out,
+        EX_regs.lui
+    );
+
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
         if (|EX_regs.mem_load_type) begin
@@ -141,7 +149,7 @@ module core_MEM (
             MEM_regs <= '0;
         end else begin
             MEM_regs.EPC <= EPC;
-            MEM_regs.W_data <= W_data;
+            MEM_regs.W_data <= W_data_lui;
             MEM_regs.W_regnum <= EX_regs.W_regnum;
             MEM_regs.write_enable <= EX_regs.write_enable;
             MEM_regs.takenHandler <= takenHandler;

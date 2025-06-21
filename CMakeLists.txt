@@ -40,6 +40,7 @@ list(REMOVE_ITEM core_other_SRCS
 )
 list(APPEND core_SRCS ${core_other_SRCS})
 
-add_subdirectory(tests)
 add_subdirectory(simulations)
 add_subdirectory(example_asm)
+enable_testing()
+add_subdirectory(tests)

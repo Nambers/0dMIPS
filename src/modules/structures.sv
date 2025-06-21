@@ -89,7 +89,8 @@ package structures;
             BNE,
             BC,
             signed_byte,
-            signed_word
+            signed_word,
+            lui
         ;
     } EX_regs_t;
 

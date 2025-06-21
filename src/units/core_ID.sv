@@ -121,7 +121,7 @@ module core_ID (
     mux2v #(64) BranchAddr_mux (
         BranchAddrFinal,
         IF_regs.pc + BranchAddr,
-        IF_regs.pc4 + CompactBranchAddr,
+        IF_regs.pc + CompactBranchAddr,
         BC
     );
 

@@ -146,6 +146,7 @@ module core_EX (
             EX_regs.slt_out <= slt_out;
             EX_regs.signed_byte <= ID_regs.signed_byte;
             EX_regs.signed_word <= ID_regs.signed_word;
+            EX_regs.lui <= ID_regs.lui;
         end
     end
 endmodule
