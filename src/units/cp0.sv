@@ -28,6 +28,7 @@ module cp0 #(
     logic exception_level;
 
     // TODO reset BEV, ERL should be 1
+    // but can't rlly set BEV to 1, because I don't use boot vector yet.
     // when reset:
     // - enable all exception interrupts
     // - enable IE
@@ -45,7 +46,7 @@ module cp0 #(
         takenHandler | (MTC0 & regnum == STATUS_REGISTER & sel == 0),
         ERET | reset
     );
-
+    // TODO control reg $k1 $k0 for ack addr
     // TODO EPC won't work under pipeline
     mux2v #(64) m (
         EPC_D,
@@ -69,7 +70,10 @@ module cp0 #(
         2'b0  // reserved
     };
     wire [31:0] status_reg = {
-        user_status[31:2], exception_level, user_status[0]
+        user_status[31:3],
+        user_status[2],  // ERL
+        exception_level, // EXL
+        user_status[0]   // IE
     };
 
     wire takenInterrupt = ((|(cause_reg[15:8] & status_reg[15:8])) & // if enabled interrupt sources
@@ -105,6 +109,17 @@ module cp0 #(
     end
 
     always_ff @(posedge clock, posedge reset) begin
+`ifdef DEBUG
+        if (takenHandler) begin
+            $display("CP0: taken handler, ExcCode = %h", exc_code);
+        end
+        if (MTC0 & regnum == CAUSE_REGISTER & sel == 0) begin
+            $display("CP0: write Cause register, ExcCode = %h", wr_data[4:0]);
+        end
+        if (ERET) begin
+            $display("CP0: ERET, EPC = %h", EPC);
+        end
+`endif
         if (reset) begin
             exc_code <= 5'h00;
         end else begin

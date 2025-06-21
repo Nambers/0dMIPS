@@ -16,8 +16,8 @@ foreach(script IN LISTS ASM_SCRIPTS)
         COMMAND python ${SCRIPT_DIR}/objdump2dat.py ${CMAKE_SOURCE_DIR}
         DEPENDS ${script}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        EXCLUDE_FROM_ALL
     )
+    set_target_properties(${script_name} PROPERTIES EXCLUDE_FROM_ALL TRUE)
 endforeach()
 
 foreach(script IN LISTS C_SCRIPTS)
@@ -31,6 +31,6 @@ foreach(script IN LISTS C_SCRIPTS)
         COMMAND python ${SCRIPT_DIR}/objdump2dat.py ${CMAKE_SOURCE_DIR}
         DEPENDS ${script}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        EXCLUDE_FROM_ALL
     )
+    set_target_properties(${script_name}_c PROPERTIES EXCLUDE_FROM_ALL TRUE)
 endforeach()

@@ -1,13 +1,4 @@
 // core: execute a series of MIPS instructions from an instruction cache
-//
-// clock   (input) - the clock signal
-// reset   (input) - set to 1 to set all registers to zero, set to 0 for normal execution.
-`define ALU_ADD 3'b010
-// these didn't limit by ROM size bc they are virtually mapped
-`define currentTimeAddr 63'hFFFF001C
-`define acknowledgeInterruptAddr 63'hFFFF006C
-// need to < ROM size
-`define interrupeHandlerAddr 64'h200
 
 import structures::IF_regs_t;
 import structures::ID_regs_t;
@@ -15,7 +6,9 @@ import structures::EX_regs_t;
 import structures::MEM_regs_t;
 import structures::forward_type_t;
 
-module core (
+module core #(
+    parameter PERIPHERAL_BASE = 64'h2000_0000
+)(
     input logic clock,
     input logic reset,
     // // --- inst ---
@@ -24,7 +17,7 @@ module core (
     // output logic        i_valid,  // sent req
     // input  logic        i_ready,  // 
 
-    // // --- data ---
+    // --- data ---
     output logic [63:0] d_addr,  // peripheral data addr
     output logic [63:0] d_wdata,  // peripheral data W_data send
     input logic [63:0] d_rdata,  // peripheral data R_data return
@@ -32,7 +25,7 @@ module core (
     output logic d_valid,  // ask for peripheral data
     input logic d_ready,  // peripheral data ready
 
-    // // --- outside interrupt source ---
+    // --- outside interrupt source ---
     input logic [7:0] interrupt_sources
 );
     // pipeline
@@ -58,8 +51,7 @@ module core (
         .forward_B(forward_B)
     );
 
-    // TODO in mem stage, redirect d_data to WB
-    core_hazard hazard_unit (
+    core_hazard #(PERIPHERAL_BASE) hazard_unit (
         .IF_rs(IF_regs.inst[25:21]),
         .IF_rt(IF_regs.inst[20:16]),
         .ID_W_regnum(ID_regs.W_regnum),

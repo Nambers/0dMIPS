@@ -97,7 +97,7 @@ module core_MEM (
         alu_mem_d_out,
         alu_mem_out,
         d_rdata,
-        d_valid && d_ready
+        d_valid
     );
 
     // -- cp0 --
@@ -137,8 +137,8 @@ module core_MEM (
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
         if (|EX_regs.mem_load_type) begin
-            $display("read addr: %h, data: %h, final: %h", EX_regs.out,
-                     data_out, W_data);
+            $display("read addr: %h, data: %h, final: %h, reg=$%d", EX_regs.out,
+                     data_out, W_data_lui, EX_regs.W_regnum);
         end
         if (|EX_regs.mem_store_type) begin
             $display("write addr: %h, data: %h, type: %d", EX_regs.out,

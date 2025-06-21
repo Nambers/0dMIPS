@@ -24,6 +24,9 @@ foreach(target IN LISTS UNITS)
     capitalize_first(_name unitCap)
 
     file(GLOB cpps ${TEST_DIR}/${target}_test*.cpp)
+    if(NOT cpps)
+        message(FATAL_ERROR "No test files found for target ${target}. Please add test files in ${TEST_DIR}.")
+    endif()
 
     add_executable(${target}Test ${cpps} ${TEST_DIR}/test.cpp)
     verilate(${target}Test

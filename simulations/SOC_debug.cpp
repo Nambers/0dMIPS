@@ -1,11 +1,14 @@
-#include <Core_sim.h>
-#include <Core_sim_core.h>
-#include <Core_sim_core_MEM.h>
-#include <Core_sim_cp0.h>
-#include <Core_sim_data_mem__D40.h>
+#include <SOC_debug.h>
+#include <SOC_debug_core.h>
+#include <SOC_debug_SOC.h>
+#include <SOC_debug_stdout.h>
+#include <SOC_debug_core_MEM.h>
+#include <SOC_debug_data_mem__D40.h>
+#include <SOC_debug_cp0.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 
+#include <termios.h>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -13,7 +16,7 @@
 
 #define TICK_HALF                                                                                  \
     do {                                                                                           \
-        machine->clock = !machine->clock;                                                          \
+        machine->clk = !machine->clk;                                                              \
         machine->eval();                                                                           \
         tfp->dump(ctx->time());                                                                    \
         ctx->timeInc(1);                                                                           \
@@ -46,10 +49,17 @@ std::unordered_map<uint32_t, std::string> parseInst(FILE* f) {
 
 // ./Core_sim [cycle_max]
 int main(int argc, char** argv) {
+
+    termios oldt, newt;
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
     Verilated::commandArgs(argc, argv);
     unsigned int      cycle_max = argc > 1 ? std::stoi(argv[1]) : 200;
     VerilatedContext* ctx       = new VerilatedContext;
-    Core_sim*         machine   = new Core_sim{ctx};
+    SOC_debug*        machine   = new SOC_debug{ctx};
     VerilatedVcdC*    tfp       = new VerilatedVcdC;
     ctx->debug(0);
     ctx->randReset(2);
@@ -72,7 +82,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    machine->clock = 1;
+    machine->clk   = 1;
     machine->reset = 1;
     TICK;
     machine->reset = 0;
@@ -82,20 +92,23 @@ int main(int argc, char** argv) {
               << "IE - instruction exception, OE - operation exception" << std::endl;
     std::cout << "simulation starting" << std::endl;
     while (ctx->time() < cycle_max * 2) {
+        if (machine->SOC->stdout->stdout_taken) {
+            printf("stdout: %0.8s \n", (const char*)&machine->SOC->stdout->buffer);
+        }
         std::cout << "time = " << ctx->time() << "\tpc = " << std::hex << std::right
-                  << std::setfill('0') << std::setw(8) << machine->core->pc << std::dec << std::left
-                  << "\t flags = ";
+                  << std::setfill('0') << std::setw(8) << machine->SOC->core->pc << std::dec
+                  << std::left << "\t flags = ";
         std::string flags;
-        if (machine->core->MEM_stage->takenHandler) flags += "I|";
-        if (machine->core->stall) flags += "S|";
-        if (machine->core->flush) flags += "F|";
-        if (machine->core->reset) flags += "R|";
-        if (machine->core->d_valid) flags += "D|";
-        if (machine->core->forward_A == 1) flags += "AA|";
-        if (machine->core->forward_A == 2) flags += "AM|";
-        if (machine->core->forward_B == 1) flags += "BA|";
-        if (machine->core->forward_B == 2) flags += "BM|";
-        switch (machine->core->MEM_stage->cp->exc_code) {
+        if (machine->SOC->interrupt_sources) flags += "I|";
+        if (machine->SOC->core->stall) flags += "S|";
+        if (machine->SOC->core->flush) flags += "F|";
+        if (machine->SOC->reset) flags += "R|";
+        if (machine->SOC->core->__PVT__d_valid) flags += "D|";
+        if (machine->SOC->core->forward_A == 1) flags += "AA|";
+        if (machine->SOC->core->forward_A == 2) flags += "AM|";
+        if (machine->SOC->core->forward_B == 1) flags += "BA|";
+        if (machine->SOC->core->forward_B == 2) flags += "BM|";
+        switch (machine->SOC->core->MEM_stage->cp->exc_code) {
         case 0:
             break;
         case 0xc:
@@ -111,17 +124,22 @@ int main(int argc, char** argv) {
         }
 
         std::cout << std::left << std::setfill(' ') << std::setw(15) << flags;
-        std::cout << "IF_inst = " << inst_map[machine->core->pc];
-        if (machine->core->d_valid) {
+        std::cout << "IF_inst = " << inst_map[machine->SOC->core->pc];
+        if (machine->SOC->d_valid) {
             std::cout << "\td_addr = " << std::hex << std::right << std::setfill('0')
-                      << std::setw(8) << machine->core->d_addr << std::dec << std::left;
+                      << std::setw(8) << machine->SOC->d_addr << std::dec << std::left;
+        }
+        if (machine->SOC->interrupt_sources) {
+            std::cout << "\tinterrupt_sources = " << std::hex << std::right << std::setfill('0')
+                      << std::setw(2) << (int)machine->SOC->interrupt_sources << std::dec;
         }
         std::cout << std::endl;
         TICK;
+        getchar(); // press anykey to continue
     }
 
     std::ofstream mem_out("memory_after.txt");
-    auto&         mem = machine->core->MEM_stage->mem->data_seg;
+    auto&         mem = machine->SOC->core->MEM_stage->mem->data_seg;
     for (size_t i = 0; i < mem.size(); ++i) {
         mem_out << std::hex << std::setfill('0') << std::setw(16) << mem[i] << "\n";
     }
@@ -135,5 +153,6 @@ int main(int argc, char** argv) {
     ctx->gotFinish(1);
     delete ctx;
     Verilated::defaultContextp()->statsPrintSummary();
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
     return 0;
 }

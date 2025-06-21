@@ -6,16 +6,15 @@
 
 #define INST_COMB(a, b) ((static_cast<uint64_t>(b) << 32) | a)
 
-#define TestGenMem(name, init_test, check_result, cycle)                       \
-    TEST_F(CoreTest, name) {                                                   \
-        for (const auto val : common_boundary_cases) {                         \
-            reset();                                                           \
-            init_test;                                                         \
-            RESET_PC();                                                        \
-            for (auto i = 0; i < cycle; ++i)                                   \
-                tick();                                                        \
-            check_result;                                                      \
-        }                                                                      \
+#define TestGenMem(name, init_test, check_result, cycle)                                           \
+    TEST_F(CoreTest, name) {                                                                       \
+        for (const auto val : common_boundary_cases) {                                             \
+            reset();                                                                               \
+            init_test;                                                                             \
+            RESET_PC();                                                                            \
+            for (auto i = 0; i < cycle; ++i) tick();                                               \
+            check_result;                                                                          \
+        }                                                                                          \
     }
 
 TestGenMem(
@@ -28,8 +27,7 @@ TestGenMem(
         MEM_SEG[0] = build_I_inst(0x4, 1, 2, 32 >> 2);
         // beq $1, $2, -12
         // 36 / 8 = 4.5, so 2nd inst in the slot
-        MEM_SEG[(32 + 4) / 8] =
-            INST_COMB(0, build_I_inst(0x4, 1, 2, -(24 >> 2)));
+        MEM_SEG[(32 + 4) / 8] = INST_COMB(0, build_I_inst(0x4, 1, 2, -(24 >> 2)));
     },
     {
         // 4 for inst addr
@@ -49,18 +47,14 @@ TestGenMem(
         // 1: ori $1, $0, 0xabcd --> skiped
         // 2: sw $1, 0($0)
         // 3: lw $3, 0($0)
-        MEM_SEG[0] = INST_COMB(build_I_inst(0x4, 1, 2, 4 >> 2),
-                               build_I_inst(0xd, 0, 1, 0xabcd));
-        MEM_SEG[1] =
-            INST_COMB(build_I_inst(0x2b, 0, 1, 0), build_I_inst(0x23, 0, 3, 0));
+        MEM_SEG[0] = INST_COMB(build_I_inst(0x4, 1, 2, 4 >> 2), build_I_inst(0xd, 0, 1, 0xabcd));
+        MEM_SEG[1] = INST_COMB(build_I_inst(0x2b, 0, 1, 0), build_I_inst(0x23, 0, 3, 0));
     },
     {
         EXPECT_EQ(MEM_SEG[0] & MASK32, val & MASK32);
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 3);
-        EXPECT_EQ(RF->W_data,
-                  (val & MASK32) |
-                      ((val & WORD_SIGN_MASK) ? WORD_HIGH_FULL : 0));
+        EXPECT_EQ(RF->W_data, (val & MASK32) | ((val & WORD_SIGN_MASK) ? WORD_HIGH_FULL : 0));
     },
     // 3rd cycle jump
     // 4th IF stage of sw (flushed)

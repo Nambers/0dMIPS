@@ -1,156 +1,148 @@
-#define SDL_MAIN_USE_CALLBACKS
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
 #include <SOC_sim.h>
-#include <SOC_sim__Syms.h>
+#include <SOC_sim_core.h>
+#include <SOC_sim_SOC.h>
+#include <SOC_sim_stdout.h>
+#include <SOC_sim_core_MEM.h>
+#include <SOC_sim_data_mem__D40.h>
+#include <SOC_sim_cp0.h>
 #include <verilated.h>
+#include <verilated_vcd_c.h>
 
+#include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <unordered_map>
 
-constexpr int SCREEN_WIDTH = 640;
-constexpr int SCREEN_HEIGHT = 480;
-constexpr int SCALE_FACTOR = 5;
-constexpr int BUF_WIDTH = 640 / SCALE_FACTOR;
-constexpr int BUF_HEIGHT = 480 / SCALE_FACTOR;
-constexpr size_t VGA_COLOR_ADDR = 0x20000008;
-// VGA clk speed vs system clk speed
-constexpr unsigned int VGA_CLK_V_CLK = 4;
+#define TICK_HALF                                                                                  \
+    do {                                                                                           \
+        machine->clk = !machine->clk;                                                              \
+        machine->eval();                                                                           \
+        tfp->dump(ctx->time());                                                                    \
+        ctx->timeInc(1);                                                                           \
+    } while (0)
+#define TICK                                                                                       \
+    TICK_HALF;                                                                                     \
+    TICK_HALF
 
-uint32_t fps_lasttime = SDL_GetTicks();
-uint32_t fps_current;
-uint32_t fps_frames = 0;
+// first is addr, second is instruction format string
+std::unordered_map<uint32_t, std::string> parseInst(FILE* f) {
+    std::unordered_map<uint32_t, std::string> insts;
+    char                                      buffer[256];
 
-inline uint8_t color4to8(uint8_t c) { return c << 4 | c; }
+    while (fgets(buffer, sizeof(buffer), f)) {
+        uint32_t addr;
+        uint32_t inst;
+        char     mnemonic[128];
 
-class Pixel {
-   public:
-    uint8_t a;
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    Pixel() = default;
-    Pixel(uint8_t r, uint8_t g, uint8_t b) : a(255), r(r), g(g), b(b) {}
-    static const SDL_PixelFormat FORMAT = SDL_PIXELFORMAT_ARGB8888;
-};
-
-struct AppState {
-    SDL_Window *window;
-    SDL_Renderer *renderer;
-    SOC_sim *top;
-    VerilatedContext *ctx;
-};
-
-#define TICK                                  \
-    as->top->clk = !as->top->clk;             \
-    if (as->ctx->time() % VGA_CLK_V_CLK == 0) \
-        as->top->VGA_clk = !as->top->VGA_clk; \
-    as->ctx->timeInc(1);                      \
-    as->top->eval()
-
-SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
-    if (!SDL_SetAppMetadata("VOC_sim", nullptr, nullptr)) {
-        return SDL_APP_FAILURE;
-    }
-
-    Verilated::commandArgs(argc, argv);
-
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError()
-                  << std::endl;
-        return SDL_APP_FAILURE;
-    }
-
-    AppState *as = (AppState *)SDL_calloc(1, sizeof(AppState));
-    if (!as) {
-        return SDL_APP_FAILURE;
-    }
-
-    *appstate = as;
-
-    if (!SDL_CreateWindowAndRenderer(nullptr, SCREEN_WIDTH, SCREEN_HEIGHT, 0,
-                                     &as->window, &as->renderer)) {
-        std::cerr << "Window could not be created! SDL_Error: "
-                  << SDL_GetError() << std::endl;
-        return SDL_APP_FAILURE;
-    }
-
-    as->ctx = new VerilatedContext;
-    as->top = new SOC_sim{as->ctx};
-    as->top->reset = 1;
-    as->top->clk = 1;
-    as->top->VGA_clk = 1;
-    TICK;
-    TICK;
-    as->top->reset = 0;
-
-    std::cout << "simulation starting, press 'q' to quit, 'r' to reset." << std::endl;
-
-    return SDL_APP_CONTINUE;
-}
-
-SDL_AppResult SDL_AppIterate(void *appstate) {
-    AppState *as = (AppState *)appstate;
-    static uint32_t frame_counter = 0;
-
-    if (as->ctx->time() % VGA_CLK_V_CLK == 0 && as->top->VGA_clk &&
-        as->top->SOC->vga->h < SCREEN_WIDTH &&
-        as->top->SOC->vga->v < SCREEN_HEIGHT) {
-        SDL_SetRenderDrawColor(as->renderer, color4to8(as->top->VGA_r),
-                               color4to8(as->top->VGA_g),
-                               color4to8(as->top->VGA_b), SDL_ALPHA_OPAQUE);
-        SDL_RenderPoint(as->renderer, as->top->SOC->vga->h,
-                        as->top->SOC->vga->v);
-
-        if (as->top->SOC->vga->h == 0 && as->top->SOC->vga->v == 0) {
-            SDL_RenderPresent(as->renderer);
-            fps_frames++;
-            frame_counter++;
-            if (fps_lasttime < SDL_GetTicks() - 1000) {
-                fps_lasttime = SDL_GetTicks();
-                fps_current = fps_frames;
-                std::cout << "current FPS: " << fps_current << std::endl;
-                fps_frames = 0;
+        if (sscanf(buffer, " %x: %x %[^\n]", &addr, &inst, mnemonic) == 3) {
+            std::string fmtStr(mnemonic);
+            for (char& c : fmtStr) {
+                if (c == '\t') c = ' ';
             }
+            insts[addr] = fmtStr;
         }
     }
-    if (as->top->SOC->stdout->stdout_taken) {
-        printf("stdout: %0.8s \n", (const char *)&as->top->SOC->stdout->buffer);
-    }
-    TICK;
-    TICK;
-    return SDL_APP_CONTINUE;
+
+    return insts;
 }
 
-SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
-    AppState *as = (AppState *)appstate;
-    switch (event->type) {
-        case SDL_EVENT_QUIT:
-            return SDL_APP_SUCCESS;
-        case SDL_EVENT_KEY_DOWN:
-            switch (event->key.scancode) {
-                case SDL_SCANCODE_Q:
-                    return SDL_APP_SUCCESS;
-                case SDL_SCANCODE_R: {
-                    as->top->reset = 1;
-                    TICK;
-                    TICK;
-                    as->top->reset = 0;
-                    std::cout << "reset done" << std::endl;
-                    break;
-                }
-            }
-    }
-    return SDL_APP_CONTINUE;
-}
+// ./Core_sim [cycle_max]
+int main(int argc, char** argv) {
+    Verilated::commandArgs(argc, argv);
+    unsigned int      cycle_max = argc > 1 ? std::stoi(argv[1]) : 200;
+    VerilatedContext* ctx       = new VerilatedContext;
+    SOC_sim*          machine   = new SOC_sim{ctx};
+    VerilatedVcdC*    tfp       = new VerilatedVcdC;
+    ctx->debug(0);
+    ctx->randReset(2);
+    ctx->timeunit(-9);
+    ctx->timeprecision(-12);
 
-void SDL_AppQuit(void *appstate, SDL_AppResult result) {
-    if (appstate != NULL) {
-        AppState *as = (AppState *)appstate;
-        delete as->top;
-        delete as->ctx;
-        SDL_DestroyRenderer(as->renderer);
-        SDL_DestroyWindow(as->window);
-        SDL_free(as);
+    FILE* text_seg = fopen("memory_dump.text.dat", "r");
+    if (!text_seg) {
+        std::cerr << "Failed to open memory_dump.text.dat!" << std::endl;
+        return -1;
     }
+    auto inst_map = parseInst(text_seg);
+    fclose(text_seg);
+
+    Verilated::traceEverOn(true);
+    machine->trace(tfp, 99);
+    tfp->open("core.vcd");
+    if (!tfp->isOpen()) {
+        std::cerr << "Failed to create VCD file!" << std::endl;
+        return -1;
+    }
+
+    machine->clk   = 1;
+    machine->reset = 1;
+    TICK;
+    machine->reset = 0;
+    std::cout << "flags: I - interrupt, S - stall, F - flush, A - forward A, B "
+                 "-forward B, R - reset, D - "
+                 "ask peripheral data access\n"
+              << "IE - instruction exception, OE - operation exception" << std::endl;
+    std::cout << "simulation starting" << std::endl;
+    while (ctx->time() < cycle_max * 2) {
+        if (machine->SOC->stdout->stdout_taken) {
+            printf("stdout: %0.8s \n", (const char*)&machine->SOC->stdout->buffer);
+        }
+        std::cout << "time = " << ctx->time() << "\tpc = " << std::hex << std::right
+                  << std::setfill('0') << std::setw(8) << machine->SOC->core->pc << std::dec
+                  << std::left << "\t flags = ";
+        std::string flags;
+        if (machine->SOC->interrupt_sources) flags += "I|";
+        if (machine->SOC->core->stall) flags += "S|";
+        if (machine->SOC->core->flush) flags += "F|";
+        if (machine->SOC->reset) flags += "R|";
+        if (machine->SOC->core->__PVT__d_valid) flags += "D|";
+        if (machine->SOC->core->forward_A == 1) flags += "AA|";
+        if (machine->SOC->core->forward_A == 2) flags += "AM|";
+        if (machine->SOC->core->forward_B == 1) flags += "BA|";
+        if (machine->SOC->core->forward_B == 2) flags += "BM|";
+        switch (machine->SOC->core->MEM_stage->cp->exc_code) {
+        case 0:
+            break;
+        case 0xc:
+            flags += "IE|";
+            break;
+        case 0xa:
+            flags += "OE|";
+            break;
+        }
+
+        if (!flags.empty()) {
+            flags.pop_back();
+        }
+
+        std::cout << std::left << std::setfill(' ') << std::setw(15) << flags;
+        std::cout << "IF_inst = " << inst_map[machine->SOC->core->pc];
+        if (machine->SOC->d_valid) {
+            std::cout << "\td_addr = " << std::hex << std::right << std::setfill('0')
+                      << std::setw(8) << machine->SOC->d_addr << std::dec << std::left;
+        }
+        if (machine->SOC->interrupt_sources) {
+            std::cout << "\tinterrupt_sources = " << std::hex << std::right << std::setfill('0')
+                      << std::setw(2) << (int)machine->SOC->interrupt_sources << std::dec;
+        }
+        std::cout << std::endl;
+        TICK;
+    }
+
+    std::ofstream mem_out("memory_after.txt");
+    auto&         mem = machine->SOC->core->MEM_stage->mem->data_seg;
+    for (size_t i = 0; i < mem.size(); ++i) {
+        mem_out << std::hex << std::setfill('0') << std::setw(16) << mem[i] << "\n";
+    }
+    mem_out.close();
+
+    tfp->flush();
+    tfp->close();
+    delete tfp;
+    machine->final();
+    delete machine;
+    ctx->gotFinish(1);
+    delete ctx;
     Verilated::defaultContextp()->statsPrintSummary();
+    return 0;
 }

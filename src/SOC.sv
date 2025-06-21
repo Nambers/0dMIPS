@@ -1,4 +1,5 @@
 import structures::mem_store_type_t;
+import configurations::PERIPHERAL_BASE;
 
 module SOC (
     input logic clk,
@@ -12,15 +13,15 @@ module SOC (
     output logic Hsync,
     output logic Vsync
 );
-    logic [63:0] d_addr, d_wdata, d_rdata, timer_out;
-    logic [7:0] interrupt_sources;
+    logic [63:0] d_addr /* verilator public */, d_wdata, d_rdata, timer_out;
+    logic [7:0] interrupt_sources /* verilator public */;
     mem_store_type_t d_store_type;
     logic
-        d_valid, d_ready, timer_taken, timer_interrupt, VGA_taken, stdout_taken;
+        d_valid /* verilator public */, d_ready, timer_taken, timer_interrupt, VGA_taken, stdout_taken;
 
     assign interrupt_sources = {timer_interrupt, 7'b0};
 
-    core core (
+    core #(PERIPHERAL_BASE) core (
         .clock(clk),
         .reset(reset),
         .d_addr(d_addr),

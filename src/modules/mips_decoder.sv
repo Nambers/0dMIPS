@@ -37,7 +37,8 @@ module mips_decoder (
 
     wire [5:0] opcode = inst[31:26], funct = inst[5:0];
     wire [4:0] rs = inst[25:21];
-    wire op0 = (opcode == OP_OTHER0), co = inst[25];
+    // co = inst[25];
+    wire op0 = (opcode == OP_OTHER0), co = rs[4];
 
     // the family means these instruction share same datapath in most stages
     // but only differ in rare places
@@ -114,10 +115,11 @@ module mips_decoder (
     wire MFC0_inst = opcode == OP_Z0 && rs == OPZ_MFCZ;
     wire MTC0_inst = opcode == OP_Z0 && rs == OPZ_MTCZ;
     wire ERET_inst = opcode == OP_Z0 && co == OP_CO && funct == OPC_ERET;
+    wire CP0_family = MFC0_inst | MTC0_inst | ERET_inst;
 
     always_comb begin
         // --- stage ID ---
-        except = ~(add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst  | ori_inst | xori_inst | branch_family | j_inst | jr_inst | lui_inst | slt_family| lw_family | lb_family | ld_inst | store_family | nop_inst | sll_family | srl_family);
+        except = ~(add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst  | ori_inst | xori_inst | branch_family | j_inst | jr_inst | lui_inst | slt_family| lw_family | lb_family | ld_inst | store_family | nop_inst | sll_family | srl_family | CP0_family);
         // branch unit resolved in ID stage
         control_type[1] = jr_inst & ~except;
         control_type[0] = j_inst & ~except;

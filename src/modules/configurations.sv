@@ -12,8 +12,9 @@ package configurations;
     /* verilator lint_off UNUSEDPARAM */
     // peripheral base address started from 0x2000_0000, every component base should be aligin by double word(8bytes)
     // and port aligned by word(4bytes)
+    localparam PERIPHERAL_BASE = ROM_BASE_ADDR + 64'h1000_0000; // start from 0x2000_0000
     // --- Timer ---
-    localparam TIMER_BASE_ADDR = ROM_BASE_ADDR + 64'h1000_0000; // start from 0x2000_0000
+    localparam TIMER_BASE_ADDR = PERIPHERAL_BASE;
     localparam TIMER_CNT_ADDR = TIMER_BASE_ADDR;
     localparam TIMER_CRL_ADDR = TIMER_BASE_ADDR + 64'h4;
     // --- VGA ---

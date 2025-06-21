@@ -2,9 +2,9 @@ import configurations::TIMER_CNT_ADDR;
 import configurations::TIMER_CRL_ADDR;
 // interrupt after <cycle> cycles
 // What -	How
-// read the current time	lw from `currentTimeAddr
-// request a timer interrupt	sw the desired (future) time to `currentTimeAddr
-// acknowledge a timer interrupt	sw any value to `acknowledgeInterruptAddr
+// read the current time	lw from `TIMER_CNT_ADDR
+// request a timer interrupt	sw the desired (future) time to `TIMER_CNT_ADDR
+// acknowledge a timer interrupt	sw any value to `TIMER_CRL_ADDR
 module timer #(
     parameter width = 64
 ) (
@@ -79,5 +79,22 @@ module timer #(
     assign Acknowledge = addr_eq2 & MemWrite;
     assign TimerRead = addr_eq1 & MemRead;
     assign TimerWrite = addr_eq1 & MemWrite;
+
+    always_ff @(posedge clock or posedge reset) begin
+`ifdef DEBUG
+        if (reset) begin
+            $display("Timer reset");
+        end else if (TimerWrite) begin
+            $display("Timer write: %h to %h", data, address);
+        end else if (TimerRead) begin
+            $display("Timer read from %h = %h", address, cycle_Q);
+        end else if (Acknowledge) begin
+            $display("Timer acknowledge at %h", address);
+        end
+        if (TimerInterrupt) begin
+            $display("Timer interrupt at cycle %h", cycle_Q);
+        end
+`endif
+    end
 
 endmodule
