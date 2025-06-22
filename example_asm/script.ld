@@ -12,6 +12,7 @@ SECTIONS
         _stack_bottom = .;
         . += 0x100;  /* stack size */
         _stack_top = .;
+        PROVIDE(_stack_top = .);
     }
 }
    

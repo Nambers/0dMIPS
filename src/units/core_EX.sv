@@ -122,7 +122,7 @@ module core_EX (
     );
 
     always_ff @(posedge clock, posedge reset) begin
-        if (reset || flush) begin
+        if (reset || (flush & !ID_regs.linkpc)) begin
             EX_regs <= '0;
         end else begin
             EX_regs.out <= lui_out;
@@ -140,6 +140,7 @@ module core_EX (
             EX_regs.BEQ <= ID_regs.BEQ;
             EX_regs.BNE <= ID_regs.BNE;
             EX_regs.BC <= ID_regs.BC;
+            EX_regs.BAL <= ID_regs.BAL;
             EX_regs.pc_branch <= ID_regs.pc_branch;
             EX_regs.write_enable <= ID_regs.write_enable;
             EX_regs.reserved_inst_E <= ID_regs.reserved_inst_E;
@@ -147,6 +148,7 @@ module core_EX (
             EX_regs.signed_byte <= ID_regs.signed_byte;
             EX_regs.signed_word <= ID_regs.signed_word;
             EX_regs.lui <= ID_regs.lui;
+            EX_regs.linkpc <= ID_regs.linkpc;
         end
     end
 endmodule

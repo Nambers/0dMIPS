@@ -26,7 +26,8 @@ module core_MEM (
         EPC,
         c0_rd_data,
         W_data,
-        W_data_lui;
+        W_data_lui,
+        W_data_lui_linkpc;
     logic [31:0] raw_word_out;
     logic [7:0] byte_load_out;
     logic takenHandler  /* verilator public */;
@@ -37,7 +38,7 @@ module core_MEM (
         data_out,
         EX_regs.out,
         EX_regs.B_data,
-        EX_regs.mem_store_type & {2{~d_valid}},
+        EX_regs.mem_store_type & {2{~(d_valid | d_ready)}},
         clock,
         reset,
         inst,
@@ -127,18 +128,25 @@ module core_MEM (
         EX_regs.MFC0
     );
 
-    mux2v #(64) EPC_mux (
+    mux2v #(64) lui_mux (
         W_data_lui,
         W_data,
         EX_regs.out,
         EX_regs.lui
     );
 
+    mux2v #(64) linkpc_mux (
+        W_data_lui_linkpc,
+        W_data_lui,
+        EX_regs.pc4,
+        EX_regs.linkpc
+    );
+
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
         if (|EX_regs.mem_load_type) begin
             $display("read addr: %h, data: %h, final: %h, reg=$%d", EX_regs.out,
-                     data_out, W_data_lui, EX_regs.W_regnum);
+                     data_out, W_data_lui_linkpc, EX_regs.W_regnum);
         end
         if (|EX_regs.mem_store_type) begin
             $display("write addr: %h, data: %h, type: %d", EX_regs.out,
@@ -149,7 +157,7 @@ module core_MEM (
             MEM_regs <= '0;
         end else begin
             MEM_regs.EPC <= EPC;
-            MEM_regs.W_data <= W_data_lui;
+            MEM_regs.W_data <= W_data_lui_linkpc;
             MEM_regs.W_regnum <= EX_regs.W_regnum;
             MEM_regs.write_enable <= EX_regs.write_enable;
             MEM_regs.takenHandler <= takenHandler;

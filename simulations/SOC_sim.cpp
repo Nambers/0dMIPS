@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
     std::cout << "simulation starting" << std::endl;
     while (ctx->time() < cycle_max * 2) {
         if (machine->SOC->stdout->stdout_taken) {
-            printf("stdout: %0.8s \n", (const char*)&machine->SOC->stdout->buffer);
+            printf("stdout: %s \n", (const char*)&machine->SOC->stdout->buffer);
         }
         std::cout << "time = " << ctx->time() << "\tpc = " << std::hex << std::right
                   << std::setfill('0') << std::setw(8) << machine->SOC->core->pc << std::dec

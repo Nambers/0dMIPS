@@ -30,6 +30,9 @@ module stdout (
                 STORE_DWORD: buffer <= w_data;
                 default: ;
             endcase
+            stdout_taken <= 1'b1;
+        end else begin
+            stdout_taken <= 1'b0;
         end
     end
 endmodule

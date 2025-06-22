@@ -61,7 +61,9 @@ package structures;
             BEQ,
             BNE,
             BC,
+            BAL,
             lui,
+            linkpc,
             signed_byte,
             signed_word,
             ignore_overflow,
@@ -88,9 +90,11 @@ package structures;
             BEQ,
             BNE,
             BC,
+            BAL,
             signed_byte,
             signed_word,
-            lui
+            lui,
+            linkpc
         ;
     } EX_regs_t;
 

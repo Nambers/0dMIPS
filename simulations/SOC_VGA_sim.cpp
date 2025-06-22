@@ -110,7 +110,7 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
         }
     }
     if (as->top->SOC->stdout->stdout_taken) {
-        printf("stdout: %0.8s \n", (const char*)&as->top->SOC->stdout->buffer);
+        printf("stdout: %s \n", (const char*)&as->top->SOC->stdout->buffer);
     }
     TICK;
     TICK;

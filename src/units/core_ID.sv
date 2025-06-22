@@ -22,7 +22,7 @@ module core_ID (
         A_data, B_data, A_data_forwarded, B_data_forwarded, BranchAddrFinal;
     logic [4:0] W_regnum;
     logic [2:0] alu_op;
-    logic [1:0] alu_src2, shifter_plus32;
+    logic [1:0] alu_src2, shifter_plus32, rd_src;
     control_type_t control_type;
     mem_load_type_t mem_load_type;
     mem_store_type_t mem_store_type;
@@ -31,8 +31,8 @@ module core_ID (
     logic
         reserved_inst_E,
         write_enable,
-        rd_src,
         lui,
+        linkpc,
         cut_shifter_out32,
         shift_right,
         alu_shifter_src,
@@ -42,6 +42,7 @@ module core_ID (
         BEQ,
         BNE,
         BC,
+        BAL,
         signed_byte,
         signed_word,
         ignore_overflow;
@@ -58,6 +59,7 @@ module core_ID (
         .mem_load_type(mem_load_type),
         .slt_type(slt_type),
         .lui_out(lui),
+        .linkpc(linkpc),
         .shift_right(shift_right),
         .shifter_plus32(shifter_plus32),
         .alu_shifter_src(alu_shifter_src),
@@ -69,6 +71,7 @@ module core_ID (
         .beq(BEQ),
         .bne(BNE),
         .bc(BC),
+        .bal(BAL),
         .signed_byte(signed_byte),
         .signed_word(signed_word),
         .ignore_overflow(ignore_overflow),
@@ -102,10 +105,11 @@ module core_ID (
         MEM_regs.write_enable & (MEM_regs.W_regnum == IF_regs.inst[20:16])
     );
 
-    mux2v #(5) rd_mux (
+    mux4v #(5) rd_mux (
         W_regnum,
         IF_regs.inst[15:11],
         IF_regs.inst[20:16],
+        'h1f, 'h0,
         rd_src
     );
 
@@ -156,6 +160,7 @@ module core_ID (
             ID_regs.BEQ <= BEQ;
             ID_regs.BNE <= BNE;
             ID_regs.BC <= BC;
+            ID_regs.BAL <= BAL;
             ID_regs.alu_src2 <= alu_src2;
             ID_regs.control_type <= control_type;
             ID_regs.shifter_plus32 <= shifter_plus32;
@@ -166,6 +171,7 @@ module core_ID (
             ID_regs.pc_branch <= BranchAddrFinal;
             ID_regs.jumpAddr <= JumpAddr;
             ID_regs.lui <= lui;
+            ID_regs.linkpc <= linkpc;
             ID_regs.signed_byte <= signed_byte;
             ID_regs.signed_word <= signed_word;
             ID_regs.ignore_overflow <= ignore_overflow;

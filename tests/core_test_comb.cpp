@@ -6,18 +6,7 @@
 
 #define INST_COMB(a, b) ((static_cast<uint64_t>(b) << 32) | a)
 
-#define TestGenMem(name, init_test, check_result, cycle)                                           \
-    TEST_F(CoreTest, name) {                                                                       \
-        for (const auto val : common_boundary_cases) {                                             \
-            reset();                                                                               \
-            init_test;                                                                             \
-            RESET_PC();                                                                            \
-            for (auto i = 0; i < cycle; ++i) tick();                                               \
-            check_result;                                                                          \
-        }                                                                                          \
-    }
-
-TestGenMem(
+TestGenMemCycle(
     BEQ_Multi,
     {
         WRITE_RF(1, val);
@@ -38,7 +27,7 @@ TestGenMem(
     // 7th EX stage of 2nd beg
     3 + 4 + 1);
 
-TestGenMem(
+TestGenMemCycle(
     BEQ_StoreLoad,
     {
         WRITE_RF(1, val);

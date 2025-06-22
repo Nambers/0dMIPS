@@ -9,7 +9,9 @@ package mips_define;
 
     // Main opcodes (op field)
     localparam OP_OTHER0 = 6'h00;
+    localparam OP_REGIMM = 6'h01;
     localparam OP_J = 6'h02;
+    localparam OP_JAL = 6'h03;
     localparam OP_BEQ = 6'h04;
     localparam OP_BNE = 6'h05;
     localparam OP_ADDI = 6'h08;
@@ -35,7 +37,9 @@ package mips_define;
     // Secondary opcodes (funct2 field; OP_OTHER0)
     localparam OP0_SLL = 6'h00;
     localparam OP0_SRL = 6'h02;
+    // deprecated in mips64r6, equivalent to JALR (w/ rd=0)
     localparam OP0_JR = 6'h08;
+    localparam OP0_JALR = 6'h09;
     localparam OP0_ADD = 6'h20;
     localparam OP0_ADDU = 6'h21;
     localparam OP0_SUB = 6'h22;
@@ -57,6 +61,9 @@ package mips_define;
     // Secondary opcodes (rs field; OP_Z[0-3])
     localparam OPZ_MFCZ = 5'h00;
     localparam OPZ_MTCZ = 5'h04;
+
+    // 16-20
+    localparam OPR_BAL = 5'h11;
 
     // ERET stuff
     localparam OP_CO = 1'b1;

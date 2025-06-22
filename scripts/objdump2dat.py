@@ -25,14 +25,17 @@ def parse_objdump(objdump_output, addr_dividor=1):
         if match:
             address = int(match.group(1), 16)
             instruction = match.group(2)
-            if address != current_address + 4:
-                assert address % addr_dividor == 0
-                # group every 2 elements in phrase
-                memory.extend(group_mem(phrase))
-                phrase = []
+
+            if (address // addr_dividor) != (current_address // addr_dividor):
+                # Flush old phrase if entering new aligned section
+                if phrase:
+                    memory.extend(group_mem(phrase))
+                    phrase = []
                 memory.append(f"@{(address // addr_dividor):08x}")
+
             current_address = address
             phrase.append(instruction)
+
     memory.extend(group_mem(phrase))
     return "\n".join(memory)
 

@@ -7,7 +7,7 @@ import structures::alu_cut_t;
 module mips_decoder (
     output logic            [ 2:0] alu_op,
     output logic                   writeenable,
-    output logic                   rd_src,
+    output logic            [ 1:0] rd_src,
     output logic            [ 1:0] alu_src2,
     output logic                   except,
     output control_type_t          control_type,
@@ -15,6 +15,7 @@ module mips_decoder (
     output mem_load_type_t         mem_load_type,
     output slt_type_t              slt_type,
     output logic                   lui_out,
+    output logic                   linkpc,
     output logic                   shift_right,
     output logic            [ 1:0] shifter_plus32,
     output logic                   alu_shifter_src,
@@ -26,6 +27,7 @@ module mips_decoder (
     output logic                   beq,
     output logic                   bne,
     output logic                   bc,
+    output logic                   bal,
     output logic                   signed_byte,
     output logic                   signed_word,
     output logic                   ignore_overflow,
@@ -36,9 +38,8 @@ module mips_decoder (
     import mips_define::*;
 
     wire [5:0] opcode = inst[31:26], funct = inst[5:0];
-    wire [4:0] rs = inst[25:21];
-    // co = inst[25];
-    wire op0 = (opcode == OP_OTHER0), co = rs[4];
+    wire [4:0] rs = inst[25:21], op_r = inst[20:16];
+    wire op0 = (opcode == OP_OTHER0), op1 = (opcode == OP_REGIMM), co = inst[25];
 
     // the family means these instruction share same datapath in most stages
     // but only differ in rare places
@@ -84,8 +85,14 @@ module mips_decoder (
     wire srl_inst = op0 & (funct == OP0_SRL);
     wire srl_family = dsrl_inst | dsrl32_inst | srl_inst;
 
+    wire jalr_inst = op0 & (funct == OP0_JALR);
     wire jr_inst = op0 & (funct == OP0_JR);
+    wire jal_inst = (opcode == OP_JAL);
     wire j_inst = (opcode == OP_J);
+    wire j_family = j_inst | jr_inst | jal_inst | jalr_inst;
+
+    wire bal_inst = (opcode == OP_REGIMM) & (rs == 'b0) & (op_r == OPR_BAL);
+
     wire lui_inst = (opcode == OP_LUI);
     wire ld_inst = (opcode == OP_LD);
 
@@ -103,7 +110,7 @@ module mips_decoder (
     wire sb_inst = (opcode == OP_SB);
     wire store_family = sd_inst | sw_inst | sb_inst;
 
-    wire nop_inst = (opcode == 6'h00 && funct == 6'h00);
+    wire nop_inst = (inst == 'b0);
 
     // branch family
     wire beq_inst = (opcode == OP_BEQ);
@@ -112,41 +119,48 @@ module mips_decoder (
     wire branch_family = beq_inst | bne_inst | bc_inst;
 
     // CP0
-    wire MFC0_inst = opcode == OP_Z0 && rs == OPZ_MFCZ;
-    wire MTC0_inst = opcode == OP_Z0 && rs == OPZ_MTCZ;
-    wire ERET_inst = opcode == OP_Z0 && co == OP_CO && funct == OPC_ERET;
+    wire MFC0_inst = (opcode == OP_Z0) & (rs == OPZ_MFCZ);
+    wire MTC0_inst = (opcode == OP_Z0) & (rs == OPZ_MTCZ);
+    wire ERET_inst = (opcode == OP_Z0) & (co == OP_CO) & (funct == OPC_ERET);
     wire CP0_family = MFC0_inst | MTC0_inst | ERET_inst;
 
     always_comb begin
         // --- stage ID ---
-        except = ~(add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst  | ori_inst | xori_inst | branch_family | j_inst | jr_inst | lui_inst | slt_family| lw_family | lb_family | ld_inst | store_family | nop_inst | sll_family | srl_family | CP0_family);
+        except = ~(add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst  | ori_inst | xori_inst | branch_family | j_family | lui_inst | slt_family| lw_family | lb_family | ld_inst | store_family | nop_inst | sll_family | srl_family | CP0_family | bal_inst);
         // branch unit resolved in ID stage
-        control_type[1] = jr_inst & ~except;
-        control_type[0] = j_inst & ~except;
+        // jump to register
+        control_type[1] = (jr_inst | jalr_inst) & ~except;
+        // jump to imm
+        control_type[0] = (j_inst | jal_inst | bal_inst) & ~except;
 
         // --- stage EX ---
         // branch unit resolved in EX stage
         beq = beq_inst & ~except;
         bne = bne_inst & ~except;
         bc = bc_inst & ~except;
+        bal = bal_inst & ~except;
 
         signed_byte = lb_inst & ~except;
         signed_word = lw_inst & ~except;
 
         alu_op[0] = sub_family | or_inst | xor_inst | ori_inst | xori_inst | branch_family | slt_inst;
-        alu_op[1] = sub_family | xor_inst | nor_inst | add_family | addi_family | xori_inst | branch_family | slt_family | lw_family | lb_family | ld_inst | store_family;
+        alu_op[1] = sub_family | xor_inst | nor_inst | add_family | addi_family | xori_inst | branch_family | bal_inst | slt_family | lw_family | lb_family | ld_inst | store_family;
         // lu switch
         alu_op[2] = and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst;
 
-        rd_src = (addi_family | ori_inst | xori_inst | lui_inst | lw_family | lb_family | ld_inst) & ~MFC0_inst & ~except;
+        rd_src[0] = (addi_family | ori_inst | xori_inst | lui_inst | lw_family | lb_family | ld_inst) & ~MFC0_inst & ~except;
+        // W_regnum = 31
+        rd_src[1] = (jal_inst | bal_inst) & ~except;
 
-        // signed immediate
-        alu_src2[0] = (addiu_inst | daddiu_inst | sltiu_inst | addi_inst | daddi_inst | slti_inst | lw_family | lb_family | ld_inst | store_family) & ~except;
-        // unsigned immediate
+        // 1 = signed immediate
+        alu_src2[0] = (addiu_inst | daddiu_inst | sltiu_inst | addi_inst | daddi_inst | slti_inst | lw_family | lb_family | ld_inst | store_family | bal_inst) & ~except;
+        // 2 = unsigned immediate
         alu_src2[1] = (and_inst | ori_inst | xori_inst) & ~except;
         ignore_overflow = (addu_inst | addiu_inst | subu_inst | daddu_inst | daddiu_inst | sltu_inst | sltiu_inst) & ~except;
 
         lui_out = lui_inst & ~except;
+        // write back data = pc4
+        linkpc = (jal_inst | jalr_inst | bal_inst) & ~except;
         slt_type[1:0] = {sltu_inst & ~except, slt_inst & ~except};
         alu_shifter_src = sll_inst | srl_inst;
         shift_right = srl_inst;
@@ -169,7 +183,7 @@ module mips_decoder (
         ERET = ERET_inst & ~except;
 
         // --- stage WB ---
-        writeenable = (add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst | lui_inst | slt_family | lw_family | lb_family | ld_inst) & ~MTC0_inst & ~ERET_inst & ~beq_inst & ~except;
+        writeenable = (add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst | lui_inst | slt_family | lw_family | lb_family | ld_inst | jal_inst | jalr_inst | bal_inst) & ~MTC0_inst & ~ERET_inst & ~beq_inst & ~except;
     end
 
 endmodule  // mips_decode

@@ -41,10 +41,13 @@
 ## Branch and Jump Instructions
 
 - `J` - Jump
+- `JAL` - Jump and Link
 - `JR` - Jump Register
+- `JALR` - Jump and Link Register
 - `BEQ` - Branch if Equal
 - `BNE` - Branch if Not Equal
 - `BC` - Branch, Compact
+- `BAL` - Branch and Link
 
 ## Memory Access Instructions
 

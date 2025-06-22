@@ -45,7 +45,7 @@ module core_branch (
             next_pc = EPC;
             flush   = 1'b1;
             // branch resolve in EX stage
-        end else if (EX_regs.BC | (EX_regs.BEQ & EX_regs.zero) | (EX_regs.BNE & ~EX_regs.zero)) begin
+        end else if (EX_regs.BC | EX_regs.BAL | (EX_regs.BEQ & EX_regs.zero) | (EX_regs.BNE & ~EX_regs.zero)) begin
             next_pc = EX_regs.pc_branch;
             flush   = 1'b1;
         end else
@@ -61,6 +61,7 @@ module core_branch (
                     flush   = 1'b1;
                 end
                 JR: begin
+                    // jalr and jr
                     next_pc = ID_regs.A_data;
                     flush   = 1'b1;
                 end

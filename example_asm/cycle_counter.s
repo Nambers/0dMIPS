@@ -1,3 +1,4 @@
+# should run in SOC
 .data
 exception_handler_addr: .dword interrupt_handler
 num_cycle:	.word 6
