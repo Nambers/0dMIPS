@@ -40,7 +40,18 @@ list(REMOVE_ITEM core_other_SRCS
 )
 list(APPEND core_SRCS ${core_other_SRCS})
 
+set(SOC_SRCS
+    ${core_SRCS}
+    ${SRC_DIR}/modules/configurations.sv
+    ${SRC_DIR}/SOC.sv
+)
+# add peripheral sources to SOC_SRCS
+foreach(peripheral IN LISTS PERIPHERALS)
+    list(APPEND SOC_SRCS ${SRC_DIR}/units/${peripheral}.sv)
+endforeach()
+
 add_subdirectory(simulations)
+add_subdirectory(debugger_tui)
 add_subdirectory(example_asm)
 enable_testing()
 add_subdirectory(tests)

@@ -175,6 +175,9 @@ module core_ID (
             ID_regs.signed_byte <= signed_byte;
             ID_regs.signed_word <= signed_word;
             ID_regs.ignore_overflow <= ignore_overflow;
+`ifdef DEBUGGER
+            ID_regs.pc <= IF_regs.pc;
+`endif
         end
     end
 endmodule

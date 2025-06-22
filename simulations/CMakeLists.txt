@@ -1,15 +1,5 @@
 set(SIM_DIR ${CMAKE_SOURCE_DIR}/simulations)
 
-set(SOC_SRCS
-    ${core_SRCS}
-    ${SRC_DIR}/modules/configurations.sv
-    ${SRC_DIR}/SOC.sv
-)
-# add peripheral sources to SOC_SRCS
-foreach(peripheral IN LISTS PERIPHERALS)
-    list(APPEND SOC_SRCS ${SRC_DIR}/units/${peripheral}.sv)
-endforeach()
-
 set(VGA_SRCS
     ${SRC_DIR}/modules/configurations.sv
     ${SRC_DIR}/units/VGA.sv
@@ -44,7 +34,6 @@ foreach(sim_src IN LISTS SIM_SOURCES)
         DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${target}
         TRACE_VCD
     )
-    target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${target})
     if(target IN_LIST SDL3_ENABLED)
         if(NOT SDL3_FOUND)
             message(FATAL_ERROR "SDL3 not found. Please install SDL3 development files.")

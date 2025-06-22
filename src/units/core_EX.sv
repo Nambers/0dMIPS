@@ -149,6 +149,9 @@ module core_EX (
             EX_regs.signed_word <= ID_regs.signed_word;
             EX_regs.lui <= ID_regs.lui;
             EX_regs.linkpc <= ID_regs.linkpc;
+`ifdef DEBUGGER
+            EX_regs.pc <= ID_regs.pc;
+`endif
         end
     end
 endmodule

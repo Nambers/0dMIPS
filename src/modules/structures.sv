@@ -72,6 +72,9 @@ package structures;
             MTC0,
             ERET
         ;
+`ifdef DEBUGGER
+        logic [63:0] pc;
+`endif
     } ID_regs_t;
 
     typedef struct packed {
@@ -96,11 +99,17 @@ package structures;
             lui,
             linkpc
         ;
+`ifdef DEBUGGER
+        logic [63:0] pc;
+`endif
     } EX_regs_t;
 
     typedef struct packed {
         logic [63:0] EPC, W_data;
         logic [4:0] W_regnum;
         logic write_enable, takenHandler;
+`ifdef DEBUGGER
+        logic [63:0] pc;
+`endif
     } MEM_regs_t;
 endpackage

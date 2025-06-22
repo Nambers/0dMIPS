@@ -9,6 +9,8 @@
 !scripts/**
 !simulations
 !simulations/**
+!debugger_tui
+!debugger_tui/**
 !example_asm
 !CMakeLists.txt
 !.gitignore

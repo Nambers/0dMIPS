@@ -161,6 +161,9 @@ module core_MEM (
             MEM_regs.W_regnum <= EX_regs.W_regnum;
             MEM_regs.write_enable <= EX_regs.write_enable;
             MEM_regs.takenHandler <= takenHandler;
+`ifdef DEBUGGER
+            MEM_regs.pc <= EX_regs.pc;
+`endif
         end
     end
 endmodule

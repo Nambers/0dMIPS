@@ -30,10 +30,10 @@ module core #(
 );
     // pipeline
     logic stall  /* verilator public */, flush  /* verilator public */;
-    IF_regs_t  IF_regs;
-    ID_regs_t  ID_regs;
-    EX_regs_t  EX_regs;
-    MEM_regs_t MEM_regs;
+    IF_regs_t  IF_regs /* verilator public */;
+    ID_regs_t  ID_regs /* verilator public */;
+    EX_regs_t  EX_regs /* verilator public */;
+    MEM_regs_t MEM_regs /* verilator public */;
 
     logic [63:0] pc  /* verilator public */, next_pc;
     logic [31:0] inst  /* verilator public */;
