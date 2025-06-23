@@ -26,22 +26,6 @@ TestGenRead(LBU, 0x24, val & 0xff);
 TestGenRead(LW, 0x23, (val & MASK32) | ((val & WORD_SIGN_MASK) ? WORD_HIGH_FULL : 0));
 TestGenRead(LWU, 0x27, val& MASK32);
 TestGenRead(LD, 0x37, val);
-
-TestGenMem(
-    LUI, { MEM_SEG[0] = build_I_inst(0xf, 0, 1, val & MASK16); },
-    {
-        EXPECT_TRUE(RF->wr_enable);
-        EXPECT_EQ(RF->W_addr, 1);
-        EXPECT_EQ(RF->W_data,
-                  ((val & MASK16) << 16) | ((val & WORD_SIGN_MASK) ? WORD_HIGH_FULL : 0));
-    });
-TestGenMem(
-    ORI, { MEM_SEG[0] = build_I_inst(0xd, 0, 1, val & MASK16); },
-    {
-        EXPECT_TRUE(RF->wr_enable);
-        EXPECT_EQ(RF->W_addr, 1);
-        EXPECT_EQ(RF->W_data, (val & MASK16));
-    });
 /* #endregion */
 
 /* #region write test */
@@ -99,6 +83,10 @@ TestGenWrite(SD, 0x3f, val);
     Arith32(ADD##AName, 0x20, static_cast<int64_t>(num) + val, expr, num)
 #define TestAddU(AName, expr, num)                                                                 \
     Arith32(ADDU##AName, 0x21, static_cast<int64_t>(num) + val, expr, num);
+#define TestAnd(AName, expr, num) Arith32(AND##AName, 0x24, val&(num & MASK16), expr, num);
+#define TestOr(AName, expr, num) Arith32(OR##AName, 0x25, val | (num & MASK16), expr, num);
+#define TestXor(AName, expr, num) Arith32(XOR##AName, 0x26, val ^ (num & MASK16), expr, num);
+#define TestNor(AName, expr, num) Arith32(NOR##AName, 0x27, ~(val | (num & MASK16)), expr, num);
 
 #define Arith64(name, opcode, overflow_expr, expr, num)                                            \
     TestGenArithR(name, opcode, expr, TEST64OVERFLOW(overflow_expr), num);
@@ -106,6 +94,11 @@ TestGenWrite(SD, 0x3f, val);
     Arith64(DADD##AName, 0x2c, static_cast<int64_t>(num) + val, expr, num)
 #define TestDAddU(AName, expr, num)                                                                \
     Arith64(DADDU##AName, 0x2d, static_cast<int64_t>(num) + val, expr, num);
+
+TestGenArith2(TestAnd, val&);
+TestGenArith2(TestOr, val |);
+TestGenArith2(TestXor, val ^);
+// TestGenArith2(TestNor, ~(val |));
 
 TestGenArith2(TestAdd, val +);
 TestGenArith2(TestAddU, val +);
@@ -127,6 +120,14 @@ TestGenArith2(TestDSub, val -);
 /* #endregion */
 
 /* #region I type arithemtics operations test */
+TestGenMem(
+    LUI, { MEM_SEG[0] = build_I_inst(0xf, 0, 1, val & MASK16); },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data,
+                  ((val & MASK16) << 16) | ((val & WORD_SIGN_MASK) ? WORD_HIGH_FULL : 0));
+    });
 #define TestGenArithI(name, funct, check_W_data, overflow_cond, fixed_val)                         \
     TestGenMem(                                                                                    \
         name,                                                                                      \
@@ -147,9 +148,13 @@ TestGenArith2(TestDSub, val -);
     ArithI32(ADDI##AName, 0x8, static_cast<int64_t>(num) + val, expr, num)
 #define TestAddIU(AName, expr, num)                                                                \
     ArithI32(ADDIU##AName, 0x9, static_cast<int64_t>(num) + val, expr, num);
+#define TestOrI(AName, expr, num) ArithI32(ORI##AName, 0xd, val | (num & MASK16), expr, num);
+#define TestXorI(AName, expr, num) ArithI32(XORI##AName, 0xe, val ^ (num & MASK16), expr, num);
 
 TestGenArith2(TestAddI, val +);
 TestGenArith2(TestAddIU, val +);
+TestGenArith2(TestOrI, val |);
+TestGenArith2(TestXorI, val ^);
 
 #define ArithI64(name, opcode, overflow_expr, expr, num)                                           \
     TestGenArithI(name, opcode, expr, TEST64OVERFLOW(overflow_expr), num);

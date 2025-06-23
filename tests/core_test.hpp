@@ -29,24 +29,44 @@ constexpr static auto common_boundary_cases =
 #define RF inst_->core->ID_stage->rf
 
 inline void reset_pc(Core* inst_, uint64_t pc) {
-    inst_->core->pc                = pc;
-    inst_->core->__PVT__next_pc    = pc + 4;
-    inst_->core->__PVT__IF_regs[0] = 0;
-    inst_->core->__PVT__IF_regs[2] = (uint32_t)((pc + 4) & 0xffffffff);
-    inst_->core->__PVT__IF_regs[1] = (uint32_t)(((pc + 4) >> 32) & 0xffffffff);
-    inst_->core->__PVT__IF_regs[4] = (uint32_t)((pc) & 0xffffffff);
-    inst_->core->__PVT__IF_regs[3] = (uint32_t)(((pc) >> 32) & 0xffffffff);
+    inst_->core->pc             = pc;
+    inst_->core->__PVT__next_pc = pc + 4;
+    pc                          = (pc == 0) ? 0 : pc - 4;
+
+    // inst = NOP
+    inst_->core->IF_regs.at(4) = 0;
+
+    // pc4
+    inst_->core->IF_regs.at(2) = (uint32_t)((pc + 4) & 0xffffffff);         // low
+    inst_->core->IF_regs.at(3) = (uint32_t)(((pc + 4) >> 32) & 0xffffffff); // high
+
+    // pc
+    inst_->core->IF_regs.at(0) = (uint32_t)((pc) & 0xffffffff);         // low
+    inst_->core->IF_regs.at(1) = (uint32_t)(((pc) >> 32) & 0xffffffff); // high
 }
 
 #define SET_PC(pc) reset_pc(inst_, pc)
 #define RESET_PC() reset_pc(inst_, 0)
 
+inline VlWide<5> buildMemRegs(int addr, uint64_t data) {
+    VlWide<5> regs{};
+    auto      part1 = 5 + 1 + 1;
+    uint64_t  data1 = data & ((1 << (32 - part1)) - 1);
+    uint64_t  data2 = data >> (32 - part1);
+
+    regs[4] = 0; // EPC
+    regs[3] = 0;
+    regs[2] = (data2 >> 32) & MASK32; // W_data
+    regs[1] = data2 & MASK32;
+
+    regs[0] = 0b10 | ((addr & 0x1f) << 2) | (data1 << part1);
+
+    return regs;
+}
+
 #define WRITE_RF(addr, data)                                                                       \
-    RF->W_data    = data;                                                                          \
-    RF->wr_enable = 1;                                                                             \
-    RF->W_addr    = addr;                                                                          \
-    tick();                                                                                        \
-    RF->wr_enable = 0
+    inst_->core->MEM_regs = buildMemRegs(addr, data);                                              \
+    tick()
 
 #define TestGenMemCycle(name, init_test, check_result, cycle)                                      \
     TEST_F(CoreTest, name) {                                                                       \

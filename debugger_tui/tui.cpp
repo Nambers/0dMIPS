@@ -408,7 +408,6 @@ int main(int argc, char** argv) {
     ctx     = new VerilatedContext;
     machine = new SOC_sim(ctx);
 
-    // 读入指令映射
     FILE* text_seg = fopen("memory_dump.text.dat", "r");
     if (!text_seg) {
         std::cerr << "Failed to open memory_dump.text.dat!" << std::endl;

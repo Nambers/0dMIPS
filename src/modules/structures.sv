@@ -107,7 +107,7 @@ package structures;
     typedef struct packed {
         logic [63:0] EPC, W_data;
         logic [4:0] W_regnum;
-        logic write_enable, takenHandler;
+        logic write_enable, takenHandler; // ofs being used, if change, also change coreTest
 `ifdef DEBUGGER
         logic [63:0] pc;
 `endif
