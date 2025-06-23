@@ -9,7 +9,6 @@ def parse_objdump(objdump_output, addr_dividor=1):
     pattern = r"^[ ]+([0-9a-f]+):\s+([0-9a-f]+)\s+(.*)$"
     lines = objdump_output.split("\n")
     memory = []
-    current_address = 0
     phrase = []
 
     def group_mem(phrase):
@@ -20,20 +19,21 @@ def parse_objdump(objdump_output, addr_dividor=1):
             paired_list.append(f"00000000{phrase[-1]}")
         return paired_list
 
+    next_expected_addr = -1
     for line in lines:
         match = re.match(pattern, line)
         if match:
             address = int(match.group(1), 16)
             instruction = match.group(2)
 
-            if (address // addr_dividor) != (current_address // addr_dividor):
+            if address != next_expected_addr:
                 # Flush old phrase if entering new aligned section
                 if phrase:
                     memory.extend(group_mem(phrase))
                     phrase = []
                 memory.append(f"@{(address // addr_dividor):08x}")
 
-            current_address = address
+            next_expected_addr = address + len(instruction) // 2
             phrase.append(instruction)
 
     memory.extend(group_mem(phrase))

@@ -81,8 +81,8 @@ package structures;
         logic [63:0] out, slt_out, B_data, pc4, pc_branch;
         logic [4:0] W_regnum;
         logic [2:0] sel;
-        mem_load_type_t mem_load_type;
-        mem_store_type_t mem_store_type;
+        mem_load_type_t mem_load_type; // ofs=64 + 15 + 2, if change, also change debugger_tui
+        mem_store_type_t mem_store_type; // ofs=64 + 15, if change, also change debugger_tui
         logic reserved_inst_E,
             overflow,
             zero,

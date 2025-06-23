@@ -26,6 +26,8 @@
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 
+enum class MemType { NO = 0, BYTE, WORD, DWORD };
+
 #define TICK_HALF                                                                                  \
     do {                                                                                           \
         machine->clk = !machine->clk;                                                              \
@@ -38,8 +40,58 @@
 
 using namespace ftxui;
 
-uint64_t mem_center    = 0x0;
-uint64_t last_mem_read = 0, last_mem_write = 0;
+class RingBuffer {
+  public:
+    explicit RingBuffer(size_t capacity)
+        : buffer_(capacity), capacity_(capacity), head_(0), count_(0) {
+        buffer_[0] = ""; // 初始化空行
+    }
+
+    // 追加单字符到最后一行（如果换行则新建）
+    void append_char(char c) {
+        if (c == '\n') {
+            push_line("");
+        } else {
+            if (count_ == 0) {
+                push_line(std::string(1, c));
+            } else {
+                size_t tail = (head_ + count_ - 1) % capacity_;
+                buffer_[tail] += c;
+            }
+        }
+    }
+
+    void push_line(const std::string& line) {
+        if (capacity_ == 0) return;
+        size_t idx   = (head_ + count_) % capacity_;
+        buffer_[idx] = line;
+        if (count_ < capacity_) {
+            ++count_;
+        } else {
+            head_ = (head_ + 1) % capacity_;
+        }
+    }
+
+    std::string str() const {
+        std::ostringstream oss;
+        for (size_t i = 0; i < count_; ++i) {
+            size_t idx = (head_ + i) % capacity_;
+            oss << buffer_[idx] << '\n';
+        }
+        return oss.str();
+    }
+
+  private:
+    std::vector<std::string> buffer_;
+    size_t                   capacity_;
+    size_t                   head_;
+    size_t                   count_;
+};
+
+uint64_t   mem_center    = 0x0;
+uint64_t   last_mem_read = -1, last_mem_write = -1;
+MemType    readType = MemType::NO, writeType = MemType::NO;
+std::array typeBytes = {0, 1, 4, 8}; // NO, BYTE, WORD, DWORD
 
 std::map<std::string, std::string> pipeline;
 
@@ -104,11 +156,19 @@ void update_state_from_sim() {
         RF[i] = vlwide_get(R, i * 64, 64);
     }
 
-    // // TODO
-    // last_mem_read  = 0x2000;
-    // last_mem_write = 0x2004;
+    if (vlwide_get(machine->SOC->core->EX_regs, 64 + 15, 2)) {
+        // load
+        readType = static_cast<MemType>(vlwide_get(machine->SOC->core->EX_regs, 64 + 15, 2));
+        last_mem_read =
+            vlwide_get(machine->SOC->core->EX_regs, 64 + 15 + 2 + 2 + 3 + 5 + 4 * 64, 64);
+    }
+    if (vlwide_get(machine->SOC->core->EX_regs, 64 + 15 + 2, 2)) {
+        // store
+        writeType = static_cast<MemType>(vlwide_get(machine->SOC->core->EX_regs, 64 + 15 + 2, 2));
+        last_mem_write =
+            vlwide_get(machine->SOC->core->EX_regs, 64 + 15 + 2 + 2 + 3 + 5 + 4 * 64, 64);
+    }
 
-    flags.clear();
     flags["I"]  = machine->SOC->interrupt_sources;
     flags["S"]  = machine->SOC->core->stall;
     flags["F"]  = machine->SOC->core->flush;
@@ -119,21 +179,14 @@ void update_state_from_sim() {
     flags["BA"] = (machine->SOC->core->forward_B == 1);
     flags["BM"] = (machine->SOC->core->forward_B == 2);
     flags["DR"] = machine->SOC->__PVT__d_ready;
-    switch (machine->SOC->core->MEM_stage->cp->exc_code) {
-    case 0:
-        break;
-    case 0xc:
-        flags["IE"] = true;
-        break;
-    case 0xa:
-        flags["OE"] = true;
-        break;
-    }
+    flags["IE"] = (machine->SOC->core->MEM_stage->cp->exc_code == 0xc);
+    flags["OE"] = (machine->SOC->core->MEM_stage->cp->exc_code == 0xa);
 }
 
 Element render_pipeline() {
     std::vector<Element> lines;
     lines.push_back(text("🚀 Pipeline") | bold);
+
     for (const auto& stage : std::array<std::string, 5>{"IF", "ID", "EX", "MEM", "WB"}) {
         std::string inst_str = pipeline.count(stage) ? pipeline[stage] : "N/A";
         lines.push_back(hbox({text(stage + ": ") | bold, text(inst_str)}));
@@ -161,7 +214,27 @@ Element render_pipeline() {
 
     lines.push_back(hbox(flag_elems));
 
-    return vbox(lines) | border | flex | size(WIDTH, GREATER_THAN, 30);
+    auto left_panel = vbox(lines) | border | flex;
+
+    // Timer peripheral
+    auto timer_panel =
+        vbox({
+            text("⏱ Peripheral: Timer") | bold,
+            text("Cycle: " + std::to_string(machine->SOC->__PVT__timer__DOT__cycle_D)),
+        }) |
+        border | size(WIDTH, EQUAL, 22);
+
+    // PC indicator
+    std::ostringstream pc_hex;
+    pc_hex << "0x" << std::hex << std::setw(8) << std::setfill('0') << machine->SOC->core->pc;
+
+    auto pc_panel = vbox({
+                        text("📍 PC") | bold,
+                        text("Value: " + pc_hex.str()),
+                    }) |
+                    border | size(WIDTH, EQUAL, 22);
+
+    return hbox({left_panel, vbox({timer_panel, pc_panel})}) | flex;
 }
 
 Element render_registers() {
@@ -194,6 +267,10 @@ Element render_memory(uint64_t center_addr) {
     const int bytes_per_row = 16;
     const int row_radius    = 8;
     uint64_t  base_row      = (center_addr / bytes_per_row) * bytes_per_row;
+
+    uint64_t sp       = RF[29];
+    uint64_t stack_lo = (sp >= 128 ? sp - 128 : 0);
+    uint64_t stack_hi = sp + 128;
 
     auto load_byte = [&](uint64_t addr) -> uint8_t {
         uint32_t word     = machine->SOC->core->MEM_stage->mem->data_seg[addr >> 2];
@@ -231,10 +308,25 @@ Element render_memory(uint64_t center_addr) {
             h << std::hex << std::setw(2) << std::setfill('0') << (int)val;
             auto cell = text(h.str());
 
-            if (addr == center_addr) cell |= bgcolor(Color::Blue) | color(Color::White);
+            // stack background highlight
+            if (addr >= stack_lo && addr < stack_hi) {
+                cell |= bgcolor(Color::GrayDark);
+            }
+
+            if (addr == center_addr) {
+                cell |= bgcolor(Color::Blue) | color(Color::White);
+            } else if (writeType != MemType::NO && addr >= last_mem_write &&
+                       addr < last_mem_write + typeBytes[static_cast<int>(writeType)]) {
+                cell |= color(Color::Cyan);
+            } else if (readType != MemType::NO && addr >= last_mem_read &&
+                       addr < last_mem_read + typeBytes[static_cast<int>(readType)]) {
+                cell |= color(Color::Yellow);
+            }
 
             hex_cells.push_back(cell);
+
             ascii += (val >= 32 && val <= 126) ? char(val) : '.';
+
             if ((b + 1) % 4 == 0 && b != 7 && b != 15) {
                 hex_cells.push_back(text(" "));
             }
@@ -278,9 +370,36 @@ std::unordered_map<uint32_t, std::string> parseInst(FILE* f) {
 }
 
 Element render_perip() {
+    static RingBuffer    stdoutBuffer(6);
     std::vector<Element> lines;
-    lines.push_back(text("🔌 Peripherals") | bold);
-    lines.push_back(text(" TODO ") | dim | border);
+    lines.push_back(text("🔌 Peripheral: STDOUT") | bold);
+    static size_t lastCheck = 0;
+
+    if (ctx->time() > lastCheck && machine->SOC->stdout->stdout_taken) {
+        lastCheck  = ctx->time();
+        QData& buf = machine->SOC->stdout->buffer;
+
+        for (int i = 0; i < 8; ++i) {
+            char c = static_cast<char>((buf >> (i * 8)) & 0xFF);
+            if (c != 0) {
+                stdoutBuffer.append_char(c);
+            }
+        }
+    }
+
+    std::string output = stdoutBuffer.str();
+    if (output.empty()) {
+        output = "No output yet.";
+    }
+
+    std::istringstream iss(output);
+    std::string        line;
+    while (std::getline(iss, line)) {
+        if (!line.empty()) {
+            lines.push_back(text(line) | dim);
+        }
+    }
+
     return vbox(lines) | border | flex | size(WIDTH, GREATER_THAN, 30);
 }
 
