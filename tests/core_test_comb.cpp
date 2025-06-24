@@ -18,14 +18,11 @@ TestGenMemCycle(
         // 36 / 8 = 4.5, so 2nd inst in the slot
         MEM_SEG[(32 + 4) / 8] = INST_COMB(0, build_I_inst(0x4, 1, 2, -(24 >> 2)));
     },
-    {
-        // 4 for inst addr
-        EXPECT_EQ(inst_->core->pc, (32 + 4) - 24 + 4);
-    },
-    // 3rd cycle jump
+    { EXPECT_EQ(inst_->core->pc, (32 + 4) - 24 + 4); },
+    // 3rd cycle EX stage jump
     // 4th IF stage of 2nd beq (flushed)
-    // 7th EX stage of 2nd beg
-    3 + 4 + 1);
+    // 6th EX stage of 2nd beg
+    3 + 3);
 
 TestGenMemCycle(
     BEQ_StoreLoad,
@@ -48,4 +45,36 @@ TestGenMemCycle(
     // 3rd cycle jump
     // 4th IF stage of sw (flushed)
     // 5th IF stage of lw, 9th MEM stage of lw, writeback
-    4 + 5);
+    4 + 4);
+
+TestGenMemOnceCycle(
+    JAL_JR_Return,
+    {
+        MEM_SEG[0]      = build_J_inst(0x3, 32 >> 2);      // jal 32
+        MEM_SEG[32 / 8] = build_R_inst(0, 31, 0, 0, 0, 8); // jr $ra
+    },
+    {
+        EXPECT_EQ(inst_->core->pc, 32);
+        tick();
+        tick();
+        tick();
+        EXPECT_EQ(inst_->core->pc, 8); // jr $ra returns to 0 + 8
+    },
+    // 3 to EX
+    3);
+TestGenMemOnceCycle(
+    BAL_JR_Return,
+    {
+        MEM_SEG[0]            = build_REGIMM_inst(0x1, 0x11, 0, 32 >> 2);      // bal 32
+        MEM_SEG[(32 + 4) / 8] = INST_COMB(0, build_R_inst(0, 31, 0, 0, 0, 8)); // jr $ra
+    },
+    {
+        EXPECT_EQ(inst_->core->pc, 32 + 4);
+        tick();
+        tick();
+        tick();
+        tick();
+        EXPECT_EQ(inst_->core->pc, 8 + 4); // jr $ra returns to 0 + 8
+    },
+    // 3 to EX
+    3);

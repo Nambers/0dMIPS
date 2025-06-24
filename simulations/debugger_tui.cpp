@@ -13,6 +13,7 @@
 #include <thread>
 #include <unordered_map>
 #include <array>
+#include <signal.h>
 
 #include <SOC_sim.h>
 #include <SOC_sim_core.h>
@@ -25,18 +26,11 @@
 #include <SOC_sim_regfile__W40.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
+#include <capstone/capstone.h>
+
+#include "common.hpp"
 
 enum class MemType { NO = 0, BYTE, WORD, DWORD };
-
-#define TICK_HALF                                                                                  \
-    do {                                                                                           \
-        machine->clk = !machine->clk;                                                              \
-        machine->eval();                                                                           \
-        ctx->timeInc(1);                                                                           \
-    } while (0)
-#define TICK                                                                                       \
-    TICK_HALF;                                                                                     \
-    TICK_HALF
 
 using namespace ftxui;
 
@@ -44,10 +38,9 @@ class RingBuffer {
   public:
     explicit RingBuffer(size_t capacity)
         : buffer_(capacity), capacity_(capacity), head_(0), count_(0) {
-        buffer_[0] = ""; // 初始化空行
+        buffer_[0] = "";
     }
 
-    // 追加单字符到最后一行（如果换行则新建）
     void append_char(char c) {
         if (c == '\n') {
             push_line("");
@@ -97,56 +90,40 @@ std::map<std::string, std::string> pipeline;
 
 std::array<uint64_t, 32> RF;
 
-std::map<std::string, bool>               flags;
-std::unordered_map<uint32_t, std::string> inst_map;
+std::map<std::string, bool> flags;
 
 SOC_sim*          machine = nullptr;
 VerilatedContext* ctx     = nullptr;
+csh               cs_handle;
 
 std::string reg_name(int i) {
-    static const char* names[] = {"r0", "at", "v0", "v1", "a0", "a1", "a2", "a3", "t0", "t1", "t2",
-                                  "t3", "t4", "t5", "t6", "t7", "s0", "s1", "s2", "s3", "s4", "s5",
-                                  "s6", "s7", "t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra"};
+    constexpr static std::array names = {"r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
+                                         "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
+                                         "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
+                                         "t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra"};
     if (i >= 0 && i < 32) return names[i];
     return "reg";
 }
 
-template <typename Wide> uint64_t vlwide_get(const Wide& wide, int idx /* low_bit */, int width) {
-    int high_bit  = idx + width - 1;
-    int low_bit   = idx;
-    int low_word  = low_bit / 32;
-    int high_word = high_bit / 32;
-    int offset    = low_bit % 32;
-
-    auto get32 = [&](int w) -> uint32_t { return static_cast<uint32_t>(wide.at(w)); };
-
-    if (high_word == low_word) {
-        uint32_t word = get32(low_word);
-        uint64_t mask = (width == 32 ? 0xFFFFFFFFull : ((1ull << width) - 1));
-        return (word >> offset) & mask;
-    }
-
-    int      low_width = 32 - offset;
-    uint64_t low_part  = get32(low_word) >> offset;
-    uint64_t high_part = uint64_t(get32(high_word)) << low_width;
-
-    uint64_t mask = (width == 64 ? ~0ull : ((1ull << width) - 1));
-    return (high_part | low_part) & mask;
-}
-
-std::string fmt_inst(uint64_t pc) {
-    auto it = inst_map.find((uint32_t)pc);
-    if (it != inst_map.end()) return it->second;
-    return "nop";
-}
+std::unordered_map<uint64_t, DisasmEntry> disasm_cache;
 
 void update_state_from_sim() {
     TICK;
-    pipeline["IF"]  = fmt_inst(machine->SOC->core->pc);
-    pipeline["ID"]  = fmt_inst(vlwide_get(machine->SOC->core->IF_regs, 0, 64));
-    pipeline["EX"]  = fmt_inst(vlwide_get(machine->SOC->core->ID_regs, 0, 64));
-    pipeline["MEM"] = fmt_inst(vlwide_get(machine->SOC->core->EX_regs, 0, 64));
-    pipeline["WB"]  = fmt_inst(vlwide_get(machine->SOC->core->MEM_regs, 0, 64));
+    pipeline["IF"] =
+        get_disasm(machine->SOC->core->pc, machine->SOC->core->inst, disasm_cache, cs_handle);
+    pipeline["ID"] =
+        get_disasm(vlwide_get(machine->SOC->core->IF_regs, 0, 64),
+                   vlwide_get(machine->SOC->core->IF_regs, 64 * 2, 32), disasm_cache, cs_handle);
+    pipeline["EX"] =
+        get_disasm(vlwide_get(machine->SOC->core->ID_regs, 0, 64),
+                   vlwide_get(machine->SOC->core->ID_regs, 20 + 64 + 7 * 2 + 3 + 5, 32),
+                   disasm_cache, cs_handle);
+    pipeline["MEM"] =
+        get_disasm(vlwide_get(machine->SOC->core->EX_regs, 0, 64),
+                   vlwide_get(machine->SOC->core->EX_regs, 64, 32), disasm_cache, cs_handle);
+    pipeline["WB"] =
+        get_disasm(vlwide_get(machine->SOC->core->MEM_regs, 0, 64),
+                   vlwide_get(machine->SOC->core->MEM_regs, 64, 32), disasm_cache, cs_handle);
 
     auto& R = machine->SOC->core->ID_stage->rf->__PVT__reg_out; // VlWide<64>，2048 bits
 
@@ -156,17 +133,19 @@ void update_state_from_sim() {
         RF[i] = vlwide_get(R, i * 64, 64);
     }
 
-    if (vlwide_get(machine->SOC->core->EX_regs, 64 + 15, 2)) {
+    const auto& readTmp = vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 11, 2);
+    const auto& memAddr =
+        vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 11 + 2 * 2 + 3 + 5 + 3 * 64, 64);
+    if (readTmp) {
         // load
-        readType = static_cast<MemType>(vlwide_get(machine->SOC->core->EX_regs, 64 + 15, 2));
-        last_mem_read =
-            vlwide_get(machine->SOC->core->EX_regs, 64 + 15 + 2 + 2 + 3 + 5 + 4 * 64, 64);
+        readType      = static_cast<MemType>(readTmp);
+        last_mem_read = memAddr;
     }
-    if (vlwide_get(machine->SOC->core->EX_regs, 64 + 15 + 2, 2)) {
+    const auto& writeTmp = vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 11 + 2, 2);
+    if (writeTmp) {
         // store
-        writeType = static_cast<MemType>(vlwide_get(machine->SOC->core->EX_regs, 64 + 15 + 2, 2));
-        last_mem_write =
-            vlwide_get(machine->SOC->core->EX_regs, 64 + 15 + 2 + 2 + 3 + 5 + 4 * 64, 64);
+        writeType      = static_cast<MemType>(writeTmp);
+        last_mem_write = memAddr;
     }
 
     flags["I"]  = machine->SOC->interrupt_sources;
@@ -407,14 +386,9 @@ int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     ctx     = new VerilatedContext;
     machine = new SOC_sim(ctx);
-
-    FILE* text_seg = fopen("memory_dump.text.dat", "r");
-    if (!text_seg) {
-        std::cerr << "Failed to open memory_dump.text.dat!" << std::endl;
-        return -1;
+    if (init_capstone(&cs_handle) != 0) {
+        return 1;
     }
-    inst_map = parseInst(text_seg);
-    fclose(text_seg);
 
     machine->clk   = 1;
     machine->reset = 1;
@@ -447,5 +421,9 @@ int main(int argc, char** argv) {
     });
 
     screen.Loop(ui);
+
+    delete machine;
+    cs_close(&cs_handle);
+    delete ctx;
     return 0;
 }

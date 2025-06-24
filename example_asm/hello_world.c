@@ -6,7 +6,7 @@ __attribute__((section(".data"))) volatile const int64_t exception_handler_addr 
     (int64_t)(void*)&exception_handler;
 
 static volatile char* const stdout_mmio        = (volatile char*)(uintptr_t)(0x20000010);
-static const int64_t        stdout_buffer_size = 8; // 8 chars per burst (including null)
+static const int64_t        stdout_buffer_size = 8;
 
 __asm__(".section .text\n"
         "lui $sp, %hi(_stack_top)\n"
@@ -20,14 +20,14 @@ int64_t puts_buf(const char* str) {
         *(stdout_mmio + i) = str[i];
         i++;
     }
-    stdout_mmio[i] = '\0'; // Null-terminate buffer
-    return i;              // Return chars written (excluding null)
+    stdout_mmio[i] = '\0';
+    return i - 1;
 }
 
 void puts_(const char* str) {
     while (*str) {
-        int64_t len = puts_buf(str); // write up to 7 chars + null
-        str += len;                  // advance by actual characters written
+        int64_t len = puts_buf(str);
+        str += len;
     }
 }
 

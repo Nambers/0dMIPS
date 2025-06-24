@@ -51,7 +51,6 @@ foreach(peripheral IN LISTS PERIPHERALS)
 endforeach()
 
 add_subdirectory(simulations)
-add_subdirectory(debugger_tui)
 add_subdirectory(example_asm)
 enable_testing()
 add_subdirectory(tests)

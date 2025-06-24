@@ -76,7 +76,8 @@ TestGenWrite(SD, 0x3f, val);
     num: resevered arg for TestGenArithR2
 */
 #define Arith32(name, opcode, overflow_expr, expr, num)                                            \
-    TestGenArithR(name, opcode, expr& MASK32 | ((expr & WORD_SIGN_MASK) ? WORD_HIGH_FULL : 0),     \
+    TestGenArithR(name, opcode,                                                                    \
+                  (expr) & MASK32 | (((expr) & WORD_SIGN_MASK) ? WORD_HIGH_FULL : 0),              \
                   TEST32OVERFLOW(overflow_expr), num);
 
 #define TestAdd(AName, expr, num)                                                                  \
@@ -87,6 +88,7 @@ TestGenWrite(SD, 0x3f, val);
 #define TestOr(AName, expr, num) Arith32(OR##AName, 0x25, val | (num & MASK16), expr, num);
 #define TestXor(AName, expr, num) Arith32(XOR##AName, 0x26, val ^ (num & MASK16), expr, num);
 #define TestNor(AName, expr, num) Arith32(NOR##AName, 0x27, ~(val | (num & MASK16)), expr, num);
+#define TestSLL(AName, expr, num) Arith32(SLL##AName, 0x00, (num & MASK16) << val, expr, num);
 
 #define Arith64(name, opcode, overflow_expr, expr, num)                                            \
     TestGenArithR(name, opcode, expr, TEST64OVERFLOW(overflow_expr), num);
@@ -98,7 +100,10 @@ TestGenWrite(SD, 0x3f, val);
 TestGenArith2(TestAnd, val&);
 TestGenArith2(TestOr, val |);
 TestGenArith2(TestXor, val ^);
-// TestGenArith2(TestNor, ~(val |));
+TestSLL(Pos, ((val & MASK16) << 1), 1);
+TestSLL(Neg, ((val & MASK16) << (-1)), -1);
+TestNor(Pos, ~(val | 1), 1);
+TestNor(Neg, ~(val | (-1)), -1);
 
 TestGenArith2(TestAdd, val +);
 TestGenArith2(TestAddU, val +);
@@ -168,7 +173,7 @@ TestGenArith2(TestDAddIU, val +);
 /* #endregion */
 
 /* #region branching test */
-TestGenMem(
+TestGenMemCycle(
     BEQ,
     {
         WRITE_RF(1, val);
@@ -176,7 +181,7 @@ TestGenMem(
         // beq $1, $2, +512
         MEM_SEG[0] = build_I_inst(0x4, 1, 2, 512 >> 2);
     },
-    { EXPECT_EQ(inst_->core->pc, 4 + 512); });
+    { EXPECT_EQ(inst_->core->pc, 512 + 4); }, 3);
 TestGenMem(
     BEQ_Fail,
     {
@@ -189,7 +194,7 @@ TestGenMem(
         // 4 stages
         EXPECT_EQ(inst_->core->pc, 4 * 4);
     });
-TestGenMem(
+TestGenMemCycle(
     BNE,
     {
         WRITE_RF(1, val);
@@ -197,7 +202,7 @@ TestGenMem(
         // bne $1, $2, +512
         MEM_SEG[0] = build_I_inst(0x5, 1, 2, 512 >> 2);
     },
-    { EXPECT_EQ(inst_->core->pc, 4 + 512); });
+    { EXPECT_EQ(inst_->core->pc, 512 + 4); }, 3);
 TestGenMem(
     BNE_Fail,
     {
@@ -207,13 +212,13 @@ TestGenMem(
         MEM_SEG[0] = build_I_inst(0x5, 1, 2, 512 >> 2);
     },
     { EXPECT_EQ(inst_->core->pc, 4 * 4); });
-TestGenMem(
+TestGenMemOnceCycle(
     BC,
     {
         // bc $1, +512
         MEM_SEG[0] = build_J_inst(0x32, 512 >> 2);
     },
-    { EXPECT_EQ(inst_->core->pc, 4 + 512); });
+    { EXPECT_EQ(inst_->core->pc, 512 + 4); }, 3);
 TestGenMemOnceCycle(
     J,
     {
@@ -272,11 +277,60 @@ TestGenMemOnceCycle(
     {
         // bal should jump to pc + 512, and store return address to $ra ($31)
         EXPECT_EQ(inst_->core->pc, 512 + 4); // PC updated after EX
-        // tick();                          // MEM stage
+        tick();                              // MEM stage
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 31);
         EXPECT_EQ(RF->W_data, 8); // return address = pc + 8 from ID stage (pc = 0 + 8)
     },
-    3 + 1);
+    3);
 
 /* #endregion */
+
+TestGenMem(
+    SLT,
+    {
+        WRITE_RF(1, val); // store val into reg $1
+        WRITE_RF(2, 0);
+        MEM_SEG[0] = build_R_inst(0, 1, 2, 3, 0, 0x2a); // slt $2, $1, $3
+    },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 3);
+        EXPECT_EQ(RF->W_data, static_cast<int64_t>(val) < 0);
+    });
+
+TestGenMem(
+    SLTI,
+    {
+        WRITE_RF(1, val);                         // store val into reg $1
+        MEM_SEG[0] = build_I_inst(0xa, 1, 2, 16); // slti $2, $1, 16
+    },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 2);
+        EXPECT_EQ(RF->W_data, static_cast<int64_t>(val) < 16);
+    });
+
+TestGenMem(
+    SLTU,
+    {
+        WRITE_RF(1, val);                               // store val into reg $1
+        MEM_SEG[0] = build_R_inst(0, 1, 2, 3, 0, 0x2b); // sltu $2, $1, $3
+    },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 3);
+        EXPECT_EQ(RF->W_data, val < 0);
+    });
+
+TestGenMem(
+    SLTIU,
+    {
+        WRITE_RF(1, val);                         // store val into reg $1
+        MEM_SEG[0] = build_I_inst(0xb, 1, 2, 16); // sltiu $2, $1, 16
+    },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 2);
+        EXPECT_EQ(RF->W_data, val < 16);
+    });

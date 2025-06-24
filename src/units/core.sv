@@ -8,7 +8,7 @@ import structures::forward_type_t;
 
 module core #(
     parameter PERIPHERAL_BASE = 64'h2000_0000
-)(
+) (
     input logic clock,
     input logic reset,
     // // --- inst ---
@@ -30,17 +30,22 @@ module core #(
 );
     // pipeline
     logic stall  /* verilator public */, flush  /* verilator public */;
-    IF_regs_t  IF_regs /* verilator public */;
-    ID_regs_t  ID_regs /* verilator public */;
-    EX_regs_t  EX_regs /* verilator public */;
-    MEM_regs_t MEM_regs /* verilator public */;
+    IF_regs_t  IF_regs  /* verilator public */;
+    ID_regs_t  ID_regs  /* verilator public */;
+    EX_regs_t  EX_regs  /* verilator public */;
+    MEM_regs_t MEM_regs  /* verilator public */;
 
     logic [63:0] pc  /* verilator public */, next_pc;
     logic [31:0] inst  /* verilator public */;
     forward_type_t
-        forward_A  /* verilator public */, forward_B  /* verilator public */;
+        forward_A  /* verilator public */,
+        forward_B  /* verilator public */,
+        forward_A_ID  /* verilator public */,
+        forward_B_ID  /* verilator public */;
 
     core_forward forward_unit (
+        .IF_rs(IF_regs.inst[25:21]),
+        .IF_rt(IF_regs.inst[20:16]),
         .ID_rs(ID_regs.inst[25:21]),
         .ID_rt(ID_regs.inst[20:16]),
         .EX_rd(EX_regs.W_regnum),
@@ -48,7 +53,9 @@ module core #(
         .MEM_rd(MEM_regs.W_regnum),
         .MEM_mem_writeback(MEM_regs.write_enable),
         .forward_A(forward_A),
-        .forward_B(forward_B)
+        .forward_B(forward_B),
+        .forward_A_ID(forward_A_ID),
+        .forward_B_ID(forward_B_ID)
     );
 
     core_hazard #(PERIPHERAL_BASE) hazard_unit (
@@ -68,7 +75,6 @@ module core #(
 
     core_branch branch_unit (
         .ID_regs(ID_regs),
-        .EX_regs(EX_regs),
         .pc4(IF_regs.pc4),
         .EPC(MEM_regs.EPC),
         .takenHandler(MEM_regs.takenHandler),
@@ -95,7 +101,10 @@ module core #(
         .stall(stall),
         .flush(flush),
         .MEM_regs(MEM_regs),
-        .ID_regs(ID_regs)
+        .ID_regs(ID_regs),
+        .forward_A(forward_A_ID),
+        .forward_B(forward_B_ID),
+        .EX_out(EX_regs.out)
     );
 
     core_EX EX_stage (

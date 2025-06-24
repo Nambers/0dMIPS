@@ -11,38 +11,18 @@
 #include <iostream>
 #include <unordered_map>
 
-#define TICK_HALF                                                                                  \
+#include "common.hpp"
+
+#define TICK_HALF_CORE                                                                             \
     do {                                                                                           \
         machine->clock = !machine->clock;                                                          \
         machine->eval();                                                                           \
         tfp->dump(ctx->time());                                                                    \
         ctx->timeInc(1);                                                                           \
     } while (0)
-#define TICK                                                                                       \
-    TICK_HALF;                                                                                     \
-    TICK_HALF
-
-// first is addr, second is instruction format string
-std::unordered_map<uint32_t, std::string> parseInst(FILE* f) {
-    std::unordered_map<uint32_t, std::string> insts;
-    char                                      buffer[256];
-
-    while (fgets(buffer, sizeof(buffer), f)) {
-        uint32_t addr;
-        uint32_t inst;
-        char     mnemonic[128];
-
-        if (sscanf(buffer, " %x: %x %[^\n]", &addr, &inst, mnemonic) == 3) {
-            std::string fmtStr(mnemonic);
-            for (char& c : fmtStr) {
-                if (c == '\t') c = ' ';
-            }
-            insts[addr] = fmtStr;
-        }
-    }
-
-    return insts;
-}
+#define TICK_CORE                                                                                  \
+    TICK_HALF_CORE;                                                                                \
+    TICK_HALF_CORE
 
 // ./Core_sim [cycle_max]
 int main(int argc, char** argv) {
@@ -56,13 +36,11 @@ int main(int argc, char** argv) {
     ctx->timeunit(-9);
     ctx->timeprecision(-12);
 
-    FILE* text_seg = fopen("memory_dump.text.dat", "r");
-    if (!text_seg) {
-        std::cerr << "Failed to open memory_dump.text.dat!" << std::endl;
+    std::unordered_map<uint64_t, DisasmEntry> disasm_cache;
+    csh                                       cs_handle;
+    if (init_capstone(&cs_handle) != 0) {
         return -1;
     }
-    auto inst_map = parseInst(text_seg);
-    fclose(text_seg);
 
     Verilated::traceEverOn(true);
     machine->trace(tfp, 99);
@@ -74,7 +52,7 @@ int main(int argc, char** argv) {
 
     machine->clock = 1;
     machine->reset = 1;
-    TICK;
+    TICK_CORE;
     machine->reset = 0;
     std::cout << "flags: I - interrupt, S - stall, F - flush, A - forward A, B "
                  "-forward B, R - reset, D - "
@@ -111,13 +89,14 @@ int main(int argc, char** argv) {
         }
 
         std::cout << std::left << std::setfill(' ') << std::setw(15) << flags;
-        std::cout << "IF_inst = " << inst_map[machine->core->pc];
+        std::cout << "IF_inst = "
+                  << get_disasm(machine->core->pc, machine->core->inst, disasm_cache, cs_handle);
         if (machine->core->d_valid) {
             std::cout << "\td_addr = " << std::hex << std::right << std::setfill('0')
                       << std::setw(8) << machine->core->d_addr << std::dec << std::left;
         }
         std::cout << std::endl;
-        TICK;
+        TICK_CORE;
     }
 
     std::ofstream mem_out("memory_after.txt");

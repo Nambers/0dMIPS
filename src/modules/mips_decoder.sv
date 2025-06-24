@@ -143,17 +143,17 @@ module mips_decoder (
         signed_byte = lb_inst & ~except;
         signed_word = lw_inst & ~except;
 
-        alu_op[0] = sub_family | or_inst | xor_inst | ori_inst | xori_inst | branch_family | slt_inst;
+        alu_op[0] = sub_family | or_inst | xor_inst | ori_inst | xori_inst | branch_family | slt_family;
         alu_op[1] = sub_family | xor_inst | nor_inst | add_family | addi_family | xori_inst | branch_family | bal_inst | slt_family | lw_family | lb_family | ld_inst | store_family;
         // lu switch
         alu_op[2] = and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst;
 
-        rd_src[0] = (addi_family | ori_inst | xori_inst | lui_inst | lw_family | lb_family | ld_inst) & ~MFC0_inst & ~except;
+        rd_src[0] = (addi_family | ori_inst | xori_inst | lui_inst | lw_family | lb_family | ld_inst | slti_inst | sltiu_inst) & ~MFC0_inst & ~except;
         // W_regnum = 31
         rd_src[1] = (jal_inst | bal_inst) & ~except;
 
         // 1 = signed immediate
-        alu_src2[0] = (addiu_inst | daddiu_inst | sltiu_inst | addi_inst | daddi_inst | slti_inst | lw_family | lb_family | ld_inst | store_family | bal_inst) & ~except;
+        alu_src2[0] = (addiu_inst | daddiu_inst | sltiu_inst | slti_inst | addi_inst | daddi_inst | lw_family | lb_family | ld_inst | store_family | bal_inst) & ~except;
         // 2 = unsigned immediate
         alu_src2[1] = (and_inst | ori_inst | xori_inst) & ~except;
         ignore_overflow = (addu_inst | addiu_inst | subu_inst | daddu_inst | daddiu_inst | sltu_inst | sltiu_inst) & ~except;
@@ -161,14 +161,14 @@ module mips_decoder (
         lui_out = lui_inst & ~except;
         // write back data = pc4
         linkpc = (jal_inst | jalr_inst | bal_inst) & ~except;
-        slt_type[1:0] = {sltu_inst & ~except, slt_inst & ~except};
-        alu_shifter_src = sll_inst | srl_inst;
-        shift_right = srl_inst;
+        slt_type[1:0] = {(sltu_inst | sltiu_inst) & ~except, (slt_inst | slti_inst) & ~except};
+        alu_shifter_src = sll_family | srl_family;
+        shift_right = srl_family;
 
         cut_alu_out32[0] = (add_inst | addi_inst | sub_inst) & ~except;
         cut_alu_out32[1] = (addu_inst | addiu_inst | subu_inst) & ~except;
 
-        cut_shifter_out32 = ~(dsrl32_inst | dsrl_inst | dsll32_inst | dsll_inst) & ~except;
+        cut_shifter_out32 = (srl_inst | sll_inst) & ~except;
         shifter_plus32[0] = op0 & dsll32_inst & ~except;
         shifter_plus32[1] = op0 & dsrl32_inst & ~except;
 
@@ -183,7 +183,7 @@ module mips_decoder (
         ERET = ERET_inst & ~except;
 
         // --- stage WB ---
-        writeenable = (add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst | lui_inst | slt_family | lw_family | lb_family | ld_inst | jal_inst | jalr_inst | bal_inst) & ~MTC0_inst & ~ERET_inst & ~beq_inst & ~except;
+        writeenable = (add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst | lui_inst | slt_family | lw_family | lb_family | ld_inst | jal_inst | jalr_inst | bal_inst | sll_family | srl_family) & ~MTC0_inst & ~ERET_inst & ~beq_inst & ~except;
     end
 
 endmodule  // mips_decode

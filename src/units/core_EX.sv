@@ -15,9 +15,7 @@ module core_EX (
     input forward_type_t forward_B,
     output EX_regs_t EX_regs
 );
-    logic negative, overflow, zero, borrow_out;
     logic [63:0]
-        B_in,
         slt_out,
         alu_tmp_out,
         alu_out,
@@ -27,10 +25,8 @@ module core_EX (
         shifter_out,
         shifter_plus32_out,
         forwarded_A,
-        forwarded_B;
-
-    wire [63:0] SignExtImm = {{48{ID_regs.inst[15]}}, ID_regs.inst[15:0]};
-    wire [63:0] ZeroExtImm = {{48{1'b0}}, ID_regs.inst[15:0]};
+        forwarded_B,
+        lu_out;
 
     mux3v #(64) forward_mux_A (
         forwarded_A,
@@ -40,42 +36,38 @@ module core_EX (
         forward_A
     );
 
-    mux3v #(64) forward_mux_B (
+    // mux3v #(64) forward_mux_B (
+    //     forwarded_B,
+    //     ID_regs.B_data,
+    //     EX_regs.out,
+    //     MEM_data,
+    //     forward_B
+    // );
+    // Only LU don't need to forward from elsewhere
+    // but keep ref for future use
+    assign forwarded_B = ID_regs.B_data;
+    mux2v #(64) mux2v_0 (
+        alu_tmp_out,
+        ID_regs.AU_out,
+        lu_out,
+        ID_regs.alu_op[2]
+    );
+    lu #(64) lu_0 (
+        forwarded_A,
         forwarded_B,
-        ID_regs.B_data,
-        EX_regs.out,
-        MEM_data,
-        forward_B
+        ID_regs.alu_op[1:0],
+        lu_out
     );
 
-    // -- ALU --
-    alu #(64) alu_ (
-        .out(alu_tmp_out),
-        .overflow(overflow),
-        .zero(zero),
-        .negative(negative),
-        .borrow_out(borrow_out),
-        .a(forwarded_A),
-        .b(B_in),
-        .alu_op(ID_regs.alu_op)
-    );
-    mux3v #(64) B_in_mux (
-        B_in,
-        forwarded_B,
-        SignExtImm,
-        ZeroExtImm,
-        ID_regs.alu_src2
-    );
-    mux4v #(64) slt_mux (
+    mux3v #(64) slt_mux (
         slt_out,
         out,
         {
             63'b0,
             // if different sign, check if A < 0, else check negative flag from alu
-            ((forwarded_A[63] ^ B_in[63]) & forwarded_A[63]) | (~(forwarded_A[63] ^ B_in[63]) & negative)
+            ((forwarded_A[63] ^ forwarded_B[63]) & forwarded_A[63]) | (~(forwarded_A[63] ^ forwarded_B[63]) & ID_regs.negative)
         },
-        {63'b0, borrow_out},
-        'z,
+        {63'b0, ID_regs.borrow_out},
         ID_regs.slt_type
     );
     mux3v #(64) cut_alu_out (
@@ -129,19 +121,14 @@ module core_EX (
             EX_regs.B_data <= forwarded_B;
             EX_regs.W_regnum <= ID_regs.W_regnum;
             EX_regs.pc4 <= ID_regs.pc4;
-            EX_regs.overflow <= overflow & ~ID_regs.ignore_overflow;
-            EX_regs.zero <= zero;
+            EX_regs.overflow <= ID_regs.overflow;
+            EX_regs.zero <= ID_regs.zero;
             EX_regs.sel <= ID_regs.inst[2:0];
             EX_regs.mem_load_type <= ID_regs.mem_load_type;
             EX_regs.mem_store_type <= ID_regs.mem_store_type;
             EX_regs.MFC0 <= ID_regs.MFC0;
             EX_regs.MTC0 <= ID_regs.MTC0;
             EX_regs.ERET <= ID_regs.ERET;
-            EX_regs.BEQ <= ID_regs.BEQ;
-            EX_regs.BNE <= ID_regs.BNE;
-            EX_regs.BC <= ID_regs.BC;
-            EX_regs.BAL <= ID_regs.BAL;
-            EX_regs.pc_branch <= ID_regs.pc_branch;
             EX_regs.write_enable <= ID_regs.write_enable;
             EX_regs.reserved_inst_E <= ID_regs.reserved_inst_E;
             EX_regs.slt_out <= slt_out;
@@ -150,7 +137,8 @@ module core_EX (
             EX_regs.lui <= ID_regs.lui;
             EX_regs.linkpc <= ID_regs.linkpc;
 `ifdef DEBUGGER
-            EX_regs.pc <= ID_regs.pc;
+            EX_regs.pc   <= ID_regs.pc;
+            EX_regs.inst <= ID_regs.inst;
 `endif
         end
     end

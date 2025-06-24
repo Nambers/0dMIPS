@@ -9,6 +9,9 @@ set(VGA_SRCS
 set(SDL3_ENABLED SOC_VGA VGA)
 
 find_package(SDL3)
+# find_package(capstone REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(CAPSTONE REQUIRED capstone)
 
 file(GLOB SIM_SOURCES "${SIM_DIR}/*_sim.cpp")
 
@@ -26,7 +29,7 @@ foreach(sim_src IN LISTS SIM_SOURCES)
     set(target_name "${target}_sim")
     capitalize_first(target unitCap)
 
-    add_executable(${target_name} ${sim_src})
+    add_executable(${target_name} common.cpp ${sim_src})
     verilate(${target_name}
         SOURCES ${${srclist}}
         TOP_MODULE ${base_target}
@@ -34,6 +37,8 @@ foreach(sim_src IN LISTS SIM_SOURCES)
         DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${target}
         TRACE_VCD
     )
+    target_link_libraries(${target_name} PRIVATE ${CAPSTONE_LIBRARIES})
+    target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${target} ${CAPSTONE_INCLUDE_DIRS})
     if(target IN_LIST SDL3_ENABLED)
         if(NOT SDL3_FOUND)
             message(FATAL_ERROR "SDL3 not found. Please install SDL3 development files.")
@@ -58,7 +63,7 @@ foreach(debug_src IN LISTS DEBUG_SOURCES)
     set(target_name "${target}_debug")
     capitalize_first(target unitCap)
 
-    add_executable(${target_name} ${debug_src})
+    add_executable(${target_name} common.cpp ${debug_src})
     verilate(${target_name}
         SOURCES ${${srclist}}
         TOP_MODULE ${base_target}
@@ -67,12 +72,40 @@ foreach(debug_src IN LISTS DEBUG_SOURCES)
         TRACE_VCD
         VERILATOR_ARGS +define+DEBUG
     )
-    target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${target})
+    target_link_libraries(${target_name} PRIVATE ${CAPSTONE_LIBRARIES})
+    target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${target} ${CAPSTONE_INCLUDE_DIRS})
     if(target IN_LIST SDL3_ENABLED)
         if(NOT SDL3_FOUND)
             message(FATAL_ERROR "SDL3 not found. Please install SDL3 development files.")
         endif()
         target_include_directories(${target_name} PRIVATE ${SDL3_INCLUDE_DIRS})
-        target_link_libraries(${target_name} PRIVATE SDL3::SDL3)
+        target_link_libraries(${target_name} PRIVATE SDL3::SDL3 ${CAPSTONE_LIBRARIES})
     endif()
 endforeach()
+
+# --- debugger_tui ---
+
+find_package(ftxui)
+
+if(NOT ftxui_FOUND)
+    message(WARNING "ftxui not found. Please install ftxui development files.")
+else()
+    add_executable(debugger_tui common.cpp debugger_tui.cpp)
+    verilate(debugger_tui
+        SOURCES ${SOC_SRCS}
+        TOP_MODULE SOC
+        PREFIX SOC_sim
+        DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/debugger_tui
+        VERILATOR_ARGS +define+DEBUGGER
+    )
+
+    target_include_directories(debugger_tui
+        PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/debugger_tui ${CAPSTONE_INCLUDE_DIRS}
+    )
+    target_link_libraries(debugger_tui
+        PRIVATE ftxui::screen
+        PRIVATE ftxui::dom
+        PRIVATE ftxui::component
+        PRIVATE ${CAPSTONE_LIBRARIES}
+    )
+endif()

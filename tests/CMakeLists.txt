@@ -1,13 +1,6 @@
-set(UNITS alu timer cp0 core)
+set(UNITS timer cp0 core)
 set(TEST_DIR ${CMAKE_SOURCE_DIR}/tests)
 
-set(alu_SRCS
-    ${SRC_DIR}/modules/mux.sv
-    ${SRC_DIR}/modules/adder.sv
-    ${SRC_DIR}/units/au.sv
-    ${SRC_DIR}/units/lu.sv
-    ${SRC_DIR}/units/alu.sv
-)
 set(timer_SRCS
     ${SRC_DIR}/modules/configurations.sv
     ${SRC_DIR}/modules/register.sv

@@ -163,6 +163,7 @@ module core_MEM (
             MEM_regs.takenHandler <= takenHandler;
 `ifdef DEBUGGER
             MEM_regs.pc <= EX_regs.pc;
+            MEM_regs.inst <= EX_regs.inst;
 `endif
         end
     end
