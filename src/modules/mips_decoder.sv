@@ -31,6 +31,9 @@ module mips_decoder (
     output logic                   signed_byte,
     output logic                   signed_word,
     output logic                   ignore_overflow,
+    output logic            [ 4:0] rs,
+    output logic            [ 4:0] rt,
+    output logic            [ 4:0] rd,
     /* verilator lint_off UNUSEDSIGNAL */
     input  logic            [31:0] inst
     /* verilator lint_on UNUSEDSIGNAL */
@@ -38,17 +41,20 @@ module mips_decoder (
     import mips_define::*;
 
     wire [5:0] opcode = inst[31:26], funct = inst[5:0];
-    wire [4:0] rs = inst[25:21], op_r = inst[20:16];
-    wire op0 = (opcode == OP_OTHER0), op1 = (opcode == OP_REGIMM), co = inst[25];
+    wire [4:0] shamt = inst[10:6];
+    wire op0 = (opcode == OP_OTHER0), opr = (opcode == OP_REGIMM), co = inst[25], no_shamt = (shamt == 'b0);
+    assign rs = inst[25:21];
+    assign rt = inst[20:16];
+    assign rd = inst[15:11];
 
     // the family means these instruction share same datapath in most stages
     // but only differ in rare places
 
     // add family
-    wire daddu_inst = op0 & (funct == OP0_DADDU);
-    wire dadd_inst = op0 & (funct == OP0_DADD);
-    wire addu_inst = op0 & (funct == OP0_ADDU);
-    wire add_inst = op0 & (funct == OP0_ADD);
+    wire daddu_inst = op0 & (funct == OP0_DADDU) & no_shamt;
+    wire dadd_inst = op0 & (funct == OP0_DADD) & no_shamt;
+    wire addu_inst = op0 & (funct == OP0_ADDU) & no_shamt;
+    wire add_inst = op0 & (funct == OP0_ADD) & no_shamt;
     wire add_family = add_inst | addu_inst | dadd_inst | daddu_inst;
     // addi family
     wire daddiu_inst = (opcode == OP_DADDIU);
@@ -57,26 +63,28 @@ module mips_decoder (
     wire addi_inst = (opcode == OP_ADDI);
     wire addi_family = addi_inst | addiu_inst | daddi_inst | daddiu_inst;
     // sub family
-    wire sub_inst = op0 & (funct == OP0_SUB);
-    wire subu_inst = op0 & (funct == OP0_SUBU);
-    wire dsub_inst = op0 & (funct == OP0_DSUB);
+    wire sub_inst = op0 & (funct == OP0_SUB) & no_shamt;
+    wire subu_inst = op0 & (funct == OP0_SUBU) & no_shamt;
+    wire dsub_inst = op0 & (funct == OP0_DSUB) & no_shamt;
     wire sub_family = sub_inst | subu_inst | dsub_inst;
     // LU operations
-    wire or_inst = op0 & (funct == OP0_OR);
+    wire or_inst = op0 & (funct == OP0_OR) & no_shamt;
     wire ori_inst = (opcode == OP_ORI);
     wire xori_inst = (opcode == OP_XORI);
-    wire xor_inst = op0 & (funct == OP0_XOR);
-    wire and_inst = op0 & (funct == OP0_AND);
+    wire xor_inst = op0 & (funct == OP0_XOR) & no_shamt;
+    wire and_inst = op0 & (funct == OP0_AND) & no_shamt;
     wire nor_inst = op0 & (funct == OP0_NOR);
     // slt family
-    wire sltu_inst = op0 & (funct == OP0_SLTU);
-    wire slt_inst = op0 & (funct == OP0_SLT);
+    wire sltu_inst = op0 & (funct == OP0_SLTU) & no_shamt;
+    wire slt_inst = op0 & (funct == OP0_SLT) & no_shamt;
     wire slti_inst = (opcode == OP_SLTI);
     wire sltiu_inst = (opcode == OP_SLTIU);
     wire slt_family = slt_inst | sltu_inst | slti_inst | sltiu_inst;
     // sll family
     wire dsll32_inst = op0 & (funct == OP0_DSLL32);
     wire dsll_inst = op0 & (funct == OP0_DSLL);
+    // sll $0, $0, 0 is NOP
+    // sll $0, $0, 1 is SSNOP
     wire sll_inst = op0 & (funct == OP0_SLL);
     wire sll_family = dsll_inst | dsll32_inst | sll_inst;
     // srl family
@@ -85,15 +93,16 @@ module mips_decoder (
     wire srl_inst = op0 & (funct == OP0_SRL);
     wire srl_family = dsrl_inst | dsrl32_inst | srl_inst;
 
-    wire jalr_inst = op0 & (funct == OP0_JALR);
-    wire jr_inst = op0 & (funct == OP0_JR);
+    wire jalr_inst = op0 & (funct == OP0_JALR) & (rt == 'b0);
+    wire jr_inst = op0 & (funct == OP0_JR) & (rt == 'b0) & (rd == 'b0);
     wire jal_inst = (opcode == OP_JAL);
     wire j_inst = (opcode == OP_J);
     wire j_family = j_inst | jr_inst | jal_inst | jalr_inst;
 
-    wire bal_inst = (opcode == OP_REGIMM) & (rs == 'b0) & (op_r == OPR_BAL);
+    wire bal_inst = opr & (rs == 'b0) & (rt == OPR_BAL);
 
-    wire lui_inst = (opcode == OP_LUI);
+    // or AUI
+    wire lui_inst = (opcode == OP_LUI) & (rs == 'b0);
     wire ld_inst = (opcode == OP_LD);
 
     // lw family
@@ -126,7 +135,7 @@ module mips_decoder (
 
     always_comb begin
         // --- stage ID ---
-        except = ~(add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst  | ori_inst | xori_inst | branch_family | j_family | lui_inst | slt_family| lw_family | lb_family | ld_inst | store_family | nop_inst | sll_family | srl_family | CP0_family | bal_inst);
+        except = ~(add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst | branch_family | j_family | lui_inst | slt_family| lw_family | lb_family | ld_inst | store_family | nop_inst | sll_family | srl_family | CP0_family | bal_inst);
         // branch unit resolved in ID stage
         // jump to register
         control_type[1] = (jr_inst | jalr_inst) & ~except;
@@ -155,7 +164,7 @@ module mips_decoder (
         // 1 = signed immediate
         alu_src2[0] = (addiu_inst | daddiu_inst | sltiu_inst | slti_inst | addi_inst | daddi_inst | lw_family | lb_family | ld_inst | store_family | bal_inst) & ~except;
         // 2 = unsigned immediate
-        alu_src2[1] = (and_inst | ori_inst | xori_inst) & ~except;
+        alu_src2[1] = (ori_inst | xori_inst) & ~except;
         ignore_overflow = (addu_inst | addiu_inst | subu_inst | daddu_inst | daddiu_inst | sltu_inst | sltiu_inst) & ~except;
 
         lui_out = lui_inst & ~except;
@@ -183,7 +192,7 @@ module mips_decoder (
         ERET = ERET_inst & ~except;
 
         // --- stage WB ---
-        writeenable = (add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst | lui_inst | slt_family | lw_family | lb_family | ld_inst | jal_inst | jalr_inst | bal_inst | sll_family | srl_family) & ~MTC0_inst & ~ERET_inst & ~beq_inst & ~except;
+        writeenable = (add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst | lui_inst | slt_family | lw_family | lb_family | ld_inst | jal_inst | jalr_inst | bal_inst | sll_family | srl_family) & ~MTC0_inst & ~ERET_inst & ~beq_inst & ~nop_inst & ~except;
     end
 
 endmodule  // mips_decode

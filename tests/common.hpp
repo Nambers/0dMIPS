@@ -7,6 +7,10 @@
 #include <verilated.h>
 #include <verilated_cov.h>
 
+constexpr inline int64_t sign_extend(uint64_t val, int bits) {
+    return static_cast<int64_t>(val << (64 - bits)) >> (64 - bits);
+}
+
 template <class T> class TestBaseI : public testing::Test {
   protected:
     TestBaseI() : rng(std::random_device{}()), ctx() {}

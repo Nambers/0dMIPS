@@ -11,6 +11,8 @@ static const int64_t        stdout_buffer_size = 8;
 __asm__(".section .text\n"
         "lui $sp, %hi(_stack_top)\n"
         "ori $sp, $sp, %lo(_stack_top)\n"
+        "lui $gp, %hi(_gp)\n"
+        "ori $gp, $gp, %lo(_gp)\n"
         "li $ra, 0x0d00\n"
         "j __start\n");
 

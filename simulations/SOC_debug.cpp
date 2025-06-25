@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
                   << std::left << "\t flags = ";
         std::string flags;
         if (machine->SOC->interrupt_sources) flags += "I|";
-        if (machine->SOC->core->stall) flags += "S|";
+        if (machine->SOC->core->stall_EX) flags += "S|";
         if (machine->SOC->core->flush) flags += "F|";
         if (machine->SOC->reset) flags += "R|";
         if (machine->SOC->core->__PVT__d_valid) flags += "D|";

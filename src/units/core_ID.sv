@@ -32,7 +32,7 @@ module core_ID (
         forwarded_B,
         BranchAddrFinal,
         AU_out;
-    logic [4:0] W_regnum;
+    logic [4:0] W_regnum, rs, rt, rd;
     logic [2:0] alu_op;
     logic [1:0] alu_src2, shifter_plus32, rd_src;
     control_type_t control_type;
@@ -61,7 +61,8 @@ module core_ID (
         overflow,
         zero,
         negative,
-        borrow_out;
+        borrow_out,
+        B_is_reg  /* verilator public */;
 
     // if it's 0, use AU, otherwise LU
     logic use_AU = ~alu_op[2];
@@ -80,7 +81,7 @@ module core_ID (
         A_data_forwarded,
         forwarded_A,
         ID_regs.AU_out,
-        use_AU & (ID_regs.W_regnum == IF_regs.inst[25:21]) & ID_regs.write_enable
+        use_AU & (ID_regs.W_regnum == rs) & ID_regs.write_enable
     );
 
     mux3v #(64) forward_mux_B (
@@ -88,13 +89,13 @@ module core_ID (
         B_data,
         EX_out,
         MEM_regs.W_data,
-        forward_B
+        {2{B_is_reg}} & forward_B
     );
     mux2v #(64) B_data_mux (
         B_data_forwarded,
         forwarded_B,
         ID_regs.AU_out,
-        use_AU & (ID_regs.W_regnum == IF_regs.inst[20:16]) & ID_regs.write_enable
+        B_is_reg & use_AU & (ID_regs.W_regnum == rt) & ID_regs.write_enable
     );
     mux3v #(64) B_in_mux (
         B_in,
@@ -148,15 +149,19 @@ module core_ID (
         .signed_byte(signed_byte),
         .signed_word(signed_word),
         .ignore_overflow(ignore_overflow),
+        .rs(rs),
+        .rt(rt),
+        .rd(rd),
         .inst(IF_regs.inst)
     );
+    assign B_is_reg = rd_src == 0;
 
     // -- reg --
     regfile #(64) rf (
         A_data,
         B_data,
-        IF_regs.inst[25:21],
-        IF_regs.inst[20:16],
+        rs,
+        rt,
         MEM_regs.W_regnum,
         MEM_regs.W_data,
         MEM_regs.write_enable,
@@ -166,8 +171,8 @@ module core_ID (
 
     mux3v #(5) rd_mux (
         W_regnum,
-        IF_regs.inst[15:11],
-        IF_regs.inst[20:16],
+        rd,
+        rt,
         'h1f,  // $ra
         rd_src
     );
@@ -220,7 +225,10 @@ module core_ID (
             ID_regs.shifter_plus32 <= shifter_plus32;
             ID_regs.A_data <= A_data_forwarded;
             ID_regs.B_data <= B_in_raw;
-            ID_regs.inst <= IF_regs.inst;
+            ID_regs.lui_imm <= IF_regs.inst[15:0];
+            ID_regs.shamt <= IF_regs.inst[10:6];
+            ID_regs.rs <= rs;
+            ID_regs.rt <= rt;
             ID_regs.pc4 <= IF_regs.pc4;
             ID_regs.pc_branch <= BranchAddrFinal;
             ID_regs.jumpAddr <= JumpAddr;
@@ -233,8 +241,10 @@ module core_ID (
             ID_regs.negative <= negative;
             ID_regs.borrow_out <= borrow_out;
             ID_regs.overflow <= overflow & ~ignore_overflow;
+            ID_regs.B_is_reg <= B_is_reg;
 `ifdef DEBUGGER
-            ID_regs.pc <= IF_regs.pc;
+            ID_regs.inst <= IF_regs.inst;
+            ID_regs.pc   <= IF_regs.pc;
 `endif
         end
     end

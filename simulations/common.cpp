@@ -39,7 +39,12 @@ std::string get_disasm(uint64_t pc, uint32_t inst,
     std::string result;
 
     if (count > 0) {
-        result = std::string(insn[0].mnemonic) + " " + insn[0].op_str;
+        for (auto i = 0; i < count; ++i) {
+            result += std::string(insn[i].mnemonic) + " " + insn[i].op_str;
+            if (i < count - 1) {
+                result += "; ";
+            }
+        }
         cs_free(insn, count);
     } else
         result = fallback_disasm(pc, inst, cs_handle);
@@ -49,12 +54,25 @@ std::string get_disasm(uint64_t pc, uint32_t inst,
 }
 
 int init_capstone(csh* cs_handle) {
-    if (cs_open(CS_ARCH_MIPS,
-                static_cast<cs_mode>(CS_MODE_MIPS64 | CS_MODE_MIPS32R6 | CS_MODE_LITTLE_ENDIAN),
-                cs_handle) != CS_ERR_OK) {
+    cs_err err = cs_open(
+        CS_ARCH_MIPS, static_cast<cs_mode>(CS_MODE_64 | CS_MODE_MIPS32R6 | CS_MODE_LITTLE_ENDIAN),
+        cs_handle);
+    if (err != CS_ERR_OK) {
         std::cerr << "Failed to open Capstone" << std::endl;
         return 1;
     }
+
+    err = cs_option(*cs_handle, CS_OPT_DETAIL, CS_OPT_ON);
+    if (err != CS_ERR_OK) {
+        std::cerr << "cs_option DETAIL failed: " << cs_strerror(err) << std::endl;
+        return 1;
+    }
+
+    // err = cs_option(*cs_handle, CS_OPT_SYNTAX, CS_OPT_SYNTAX_ATT);
+    // if (err != CS_ERR_OK) {
+    //     std::cerr << "cs_option SYNTAX failed: " << cs_strerror(err) << std::endl;
+    //     return 1;
+    // }
     return 0;
 }
 

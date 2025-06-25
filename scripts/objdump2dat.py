@@ -40,18 +40,10 @@ def parse_objdump(objdump_output, addr_dividor=1):
     return "\n".join(memory)
 
 
-with open(f"{CWD}/memory_dump.text.dat", "r") as f:
+with open(f"{CWD}/memory_dump.dat", "r") as f:
     objdump_output = f.read()
 
 # rebasing text section may have problem in direct jump
 formatted_output = parse_objdump(objdump_output, 8)
-with open(f"{CWD}/memory.text.mem", "w") as f:
+with open(f"{CWD}/memory.mem", "w") as f:
     f.write(formatted_output)
-
-# check file existence
-if os.path.exists(f"{CWD}/memory_dump.data.dat"):
-    with open(f"{CWD}/memory_dump.data.dat", "r") as f:
-        objdump_output = f.read()
-    formatted_output = parse_objdump(objdump_output, 8)
-    with open(f"{CWD}/memory.data.mem", "w") as f:
-        f.write(formatted_output)

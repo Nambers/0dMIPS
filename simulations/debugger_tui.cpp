@@ -116,8 +116,7 @@ void update_state_from_sim() {
                    vlwide_get(machine->SOC->core->IF_regs, 64 * 2, 32), disasm_cache, cs_handle);
     pipeline["EX"] =
         get_disasm(vlwide_get(machine->SOC->core->ID_regs, 0, 64),
-                   vlwide_get(machine->SOC->core->ID_regs, 20 + 64 + 7 * 2 + 3 + 5, 32),
-                   disasm_cache, cs_handle);
+                   vlwide_get(machine->SOC->core->ID_regs, 64, 32), disasm_cache, cs_handle);
     pipeline["MEM"] =
         get_disasm(vlwide_get(machine->SOC->core->EX_regs, 0, 64),
                    vlwide_get(machine->SOC->core->EX_regs, 64, 32), disasm_cache, cs_handle);
@@ -148,15 +147,21 @@ void update_state_from_sim() {
         last_mem_write = memAddr;
     }
 
-    flags["I"]  = machine->SOC->interrupt_sources;
-    flags["S"]  = machine->SOC->core->stall;
-    flags["F"]  = machine->SOC->core->flush;
-    flags["R"]  = machine->SOC->reset;
-    flags["D"]  = machine->SOC->core->__PVT__d_valid;
-    flags["AA"] = (machine->SOC->core->forward_A == 1);
-    flags["AM"] = (machine->SOC->core->forward_A == 2);
-    flags["BA"] = (machine->SOC->core->forward_B == 1);
-    flags["BM"] = (machine->SOC->core->forward_B == 2);
+    flags["I"]    = machine->SOC->interrupt_sources;
+    flags["S_E"]  = machine->SOC->core->stall_EX;
+    flags["S_I"]  = machine->SOC->core->stall_ID;
+    flags["F"]    = machine->SOC->core->flush;
+    flags["R"]    = machine->SOC->reset;
+    flags["D"]    = machine->SOC->core->__PVT__d_valid;
+    flags["AA_E"] = (machine->SOC->core->forward_A == 1);
+    flags["AM_E"] = (machine->SOC->core->forward_A == 2);
+    flags["BA_E"] = (machine->SOC->core->forward_B == 1);
+    flags["BM_E"] = (machine->SOC->core->forward_B == 2);
+    flags["AA_I"] = (machine->SOC->core->forward_A_ID == 1);
+    flags["AM_I"] = (machine->SOC->core->forward_A_ID == 2);
+    flags["BA_I"] = (machine->SOC->core->forward_B_ID == 1);
+    flags["BM_I"] =
+        (machine->SOC->core->forward_B_ID == 2) & (machine->SOC->core->ID_stage->B_is_reg);
     flags["DR"] = machine->SOC->__PVT__d_ready;
     flags["IE"] = (machine->SOC->core->MEM_stage->cp->exc_code == 0xc);
     flags["OE"] = (machine->SOC->core->MEM_stage->cp->exc_code == 0xa);
@@ -172,12 +177,14 @@ Element render_pipeline() {
     }
 
     std::vector<std::pair<std::string, bool>> persistent = {
-        {"Interrupt", flags["I"]}, {"Stall", flags["S"]},        {"Flush", flags["F"]},
-        {"Reset", flags["R"]},     {"PeriphAccess", flags["D"]}, {"fA-EX", flags["AA"]},
-        {"fA-MEM", flags["AM"]},   {"fB-EX", flags["BA"]},       {"fB-MEM", flags["BM"]},
+        {"Interrupt", flags["I"]}, {"StallID", flags["S_I"]}, {"StallEx", flags["S_E"]},
+        {"Flush", flags["F"]},     {"Reset", flags["R"]},     {"PeriphAccess", flags["D"]},
     };
     std::vector<std::pair<std::string, bool>> transients = {
-        {"InstExc", flags["IE"]}, {"OpExc", flags["OE"]}, {"PeriphReady", flags["DR"]}};
+        {"InstExc", flags["IE"]},     {"OpExc", flags["OE"]},       {"PeriphReady", flags["DR"]},
+        {"fA-EX_Ex", flags["AA_E"]},  {"fA-MEM_Ex", flags["AM_E"]}, {"fB-EX_Ex", flags["BA_E"]},
+        {"fB-MEM_Ex", flags["BM_E"]}, {"fA-EX_Id", flags["AA_I"]},  {"fA-MEM_Id", flags["AM_I"]},
+        {"fB-EX_Id", flags["BA_I"]},  {"fB-MEM_Id", flags["BM_I"]}};
 
     std::vector<Element> flag_elems;
     auto                 push_flag = [&](const std::string& name, bool on) {

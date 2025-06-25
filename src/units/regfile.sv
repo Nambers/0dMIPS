@@ -15,7 +15,7 @@ module regfile #(
     logic [31:0][width - 1:0] reg_out;
     logic [31:0] reg_enable, reg_enable_tmp;
 
-    barrel_shifter32 barrel_shifter32_ (
+    barrel_shifter32 #(32) barrel_shifter32_ (
         .data_out(reg_enable_tmp),
         .data_in(32'b1),
         .shift_amount(W_addr),

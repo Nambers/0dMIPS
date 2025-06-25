@@ -6,7 +6,7 @@ str_msg:    .asciiz "Hello, World!"
 .text
 .global __start
 __start:
-    la $t1, str_msg;
+    dla $t1, str_msg;
     # stdout mmio
     li $t0, 0x20000010;
 

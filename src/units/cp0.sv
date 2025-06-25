@@ -47,7 +47,6 @@ module cp0 #(
         ERET | reset
     );
     // TODO control reg $k1 $k0 for ack addr
-    // TODO EPC won't work under pipeline
     mux2v #(64) m (
         EPC_D,
         wr_data,

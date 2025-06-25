@@ -6,6 +6,29 @@
 
 #define INST_COMB(a, b) ((static_cast<uint64_t>(b) << 32) | a)
 
+template <typename Wide> uint64_t vlwide_get(const Wide& wide, int idx /* low_bit */, int width) {
+    int high_bit  = idx + width - 1;
+    int low_bit   = idx;
+    int low_word  = low_bit / 32;
+    int high_word = high_bit / 32;
+    int offset    = low_bit % 32;
+
+    auto get32 = [&](int w) -> uint32_t { return static_cast<uint32_t>(wide.at(w)); };
+
+    if (high_word == low_word) {
+        uint32_t word = get32(low_word);
+        uint64_t mask = (width == 32 ? 0xFFFFFFFFull : ((1ull << width) - 1));
+        return (word >> offset) & mask;
+    }
+
+    int      low_width = 32 - offset;
+    uint64_t low_part  = get32(low_word) >> offset;
+    uint64_t high_part = uint64_t(get32(high_word)) << low_width;
+
+    uint64_t mask = (width == 64 ? ~0ull : ((1ull << width) - 1));
+    return (high_part | low_part) & mask;
+}
+
 TestGenMemCycle(
     BEQ_Multi,
     {
@@ -40,7 +63,7 @@ TestGenMemCycle(
         EXPECT_EQ(MEM_SEG[0] & MASK32, val & MASK32);
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 3);
-        EXPECT_EQ(RF->W_data, (val & MASK32) | ((val & WORD_SIGN_MASK) ? WORD_HIGH_FULL : 0));
+        EXPECT_EQ(RF->W_data, sign_extend(val & MASK32, 32));
     },
     // 3rd cycle jump
     // 4th IF stage of sw (flushed)
@@ -78,3 +101,31 @@ TestGenMemOnceCycle(
     },
     // 3 to EX
     3);
+
+TestGenMemCycle(
+    LA,
+    {
+        MEM_SEG[0] = INST_COMB(build_I_inst(0x0f, 0, 1, (val >> 16) & MASK16), // LUI
+                               build_I_inst(0x0d, 1, 1, val & MASK16)          // ORI
+        );
+    },
+    {
+        // 1st tick: LUI result
+        uint32_t imm     = (val >> 16) & 0xffff;
+        uint64_t lui_val = (uint64_t)(int32_t(imm << 16)); // sign-extend
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data, lui_val);
+
+        tick(); // move to ORI
+
+        // 2nd tick: ORI result
+        uint64_t ori_val = lui_val | (val & 0xffff);
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data, ori_val);
+
+        tick(); // done
+        EXPECT_FALSE(RF->wr_enable);
+    },
+    4);

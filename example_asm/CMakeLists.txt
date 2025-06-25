@@ -10,15 +10,14 @@ if(NOT EXISTS ${CMAKE_SOURCE_DIR}/toolchains/mips64el-linux-musl-cross)
     set(TOOLCHIAN_FLAGS -mips64r6 -static -lgcc -nostdlib -nostartfiles)
 endif()
 # TODO support all compact branches
-set(C_FLAGS ${TOOLCHIAN_FLAGS} -O0 -mcompact-branches=never -fomit-frame-pointer -nostartfiles -nostdlib -fno-asynchronous-unwind-tables -fomit-frame-pointer -fno-stack-protector)
+set(C_FLAGS ${TOOLCHIAN_FLAGS} -O0 -mcompact-branches=never -fomit-frame-pointer -nostartfiles -nostdlib -fno-asynchronous-unwind-tables -fomit-frame-pointer -fno-stack-protector -fno-pic -fno-pie)
 
 foreach(script IN LISTS ASM_SCRIPTS)
     get_filename_component(script_name ${script} NAME_WE)
     add_custom_target(${script_name}
-        COMMAND mips64el-linux-gnu-as -O0 -mips64r6 ${script} -o ${script_name}.o
-        COMMAND mips64el-linux-gnu-ld -T ${ASM_DIR}/script.ld ${script_name}.o -o ${script_name}.elf
-        COMMAND mips64el-linux-gnu-objdump --section=.text -D ${script_name}.elf > ${CMAKE_SOURCE_DIR}/memory_dump.text.dat
-        COMMAND mips64el-linux-gnu-objdump --section=.data -D ${script_name}.elf > ${CMAKE_SOURCE_DIR}/memory_dump.data.dat || rm -f memory_dump.data.dat
+        COMMAND mips64el-linux-gnu-as -mabi=64 -O0 -mips64r6 ${script} -o ${script_name}.o
+        COMMAND mips64el-linux-gnu-ld -m elf64ltsmip -T ${ASM_DIR}/script.ld ${script_name}.o -o ${script_name}.elf
+        COMMAND mips64el-linux-gnu-objdump -D ${script_name}.elf > ${CMAKE_SOURCE_DIR}/memory_dump.dat || rm -f ${CMAKE_SOURCE_DIR}/memory_dump.dat
         COMMAND python ${SCRIPT_DIR}/objdump2dat.py ${CMAKE_SOURCE_DIR}
         DEPENDS ${script}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -31,8 +30,7 @@ foreach(script IN LISTS C_SCRIPTS)
     get_filename_component(script_name ${script} NAME_WE)
     add_custom_target(${script_name}_c
         COMMAND mips64-linux-gnu-gcc ${C_FLAGS} -T ${ASM_DIR}/script.ld ${script} -o ${script_name}.elf
-        COMMAND mips64-linux-gnu-objdump --section=.text -D ${script_name}.elf > ${CMAKE_SOURCE_DIR}/memory_dump.text.dat
-        COMMAND mips64-linux-gnu-objdump --section=.data -D ${script_name}.elf > ${CMAKE_SOURCE_DIR}/memory_dump.data.dat || rm -f ${CMAKE_SOURCE_DIR}/memory_dump.data.dat
+        COMMAND mips64-linux-gnu-objdump -D ${script_name}.elf > ${CMAKE_SOURCE_DIR}/memory_dump.dat || rm -f ${CMAKE_SOURCE_DIR}/memory_dump.dat
         COMMAND python ${SCRIPT_DIR}/objdump2dat.py ${CMAKE_SOURCE_DIR}
         DEPENDS ${script}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}

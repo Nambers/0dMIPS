@@ -36,16 +36,13 @@ module core_EX (
         forward_A
     );
 
-    // mux3v #(64) forward_mux_B (
-    //     forwarded_B,
-    //     ID_regs.B_data,
-    //     EX_regs.out,
-    //     MEM_data,
-    //     forward_B
-    // );
-    // Only LU don't need to forward from elsewhere
-    // but keep ref for future use
-    assign forwarded_B = ID_regs.B_data;
+    mux3v #(64) forward_mux_B (
+        forwarded_B,
+        ID_regs.B_data,
+        EX_regs.out,
+        MEM_data,
+        forward_B
+    );
     mux2v #(64) mux2v_0 (
         alu_tmp_out,
         ID_regs.AU_out,
@@ -59,17 +56,6 @@ module core_EX (
         lu_out
     );
 
-    mux3v #(64) slt_mux (
-        slt_out,
-        out,
-        {
-            63'b0,
-            // if different sign, check if A < 0, else check negative flag from alu
-            ((forwarded_A[63] ^ forwarded_B[63]) & forwarded_A[63]) | (~(forwarded_A[63] ^ forwarded_B[63]) & ID_regs.negative)
-        },
-        {63'b0, ID_regs.borrow_out},
-        ID_regs.slt_type
-    );
     mux3v #(64) cut_alu_out (
         alu_out,
         alu_tmp_out,
@@ -82,7 +68,7 @@ module core_EX (
     barrel_shifter32 #(64) shifter (
         shifter_tmp_out,
         forwarded_B,
-        ID_regs.inst[10:6],
+        ID_regs.shamt,
         ID_regs.shift_right
     );
     mux2v #(64) cut_shifter_out (
@@ -109,21 +95,33 @@ module core_EX (
     mux2v #(64) lui_mux (
         lui_out,
         out,
-        {{32{ID_regs.inst[15]}}, ID_regs.inst[15:0], 16'b0},
+        {{32{ID_regs.lui_imm[15]}}, ID_regs.lui_imm, 16'b0},
         ID_regs.lui
+    );
+
+    mux3v #(64) slt_mux (
+        slt_out,
+        lui_out,
+        {
+            63'b0,
+            // if different sign, check if A < 0, else check negative flag from alu
+            ((forwarded_A[63] ^ forwarded_B[63]) & forwarded_A[63]) | (~(forwarded_A[63] ^ forwarded_B[63]) & ID_regs.negative)
+        },
+        {63'b0, ID_regs.borrow_out},
+        ID_regs.slt_type
     );
 
     always_ff @(posedge clock, posedge reset) begin
         if (reset || (flush & !ID_regs.linkpc)) begin
             EX_regs <= '0;
         end else begin
-            EX_regs.out <= lui_out;
+            EX_regs.out <= slt_out;
             EX_regs.B_data <= forwarded_B;
             EX_regs.W_regnum <= ID_regs.W_regnum;
             EX_regs.pc4 <= ID_regs.pc4;
             EX_regs.overflow <= ID_regs.overflow;
             EX_regs.zero <= ID_regs.zero;
-            EX_regs.sel <= ID_regs.inst[2:0];
+            EX_regs.sel <= ID_regs.sel;
             EX_regs.mem_load_type <= ID_regs.mem_load_type;
             EX_regs.mem_store_type <= ID_regs.mem_store_type;
             EX_regs.MFC0 <= ID_regs.MFC0;
@@ -131,7 +129,6 @@ module core_EX (
             EX_regs.ERET <= ID_regs.ERET;
             EX_regs.write_enable <= ID_regs.write_enable;
             EX_regs.reserved_inst_E <= ID_regs.reserved_inst_E;
-            EX_regs.slt_out <= slt_out;
             EX_regs.signed_byte <= ID_regs.signed_byte;
             EX_regs.signed_word <= ID_regs.signed_word;
             EX_regs.lui <= ID_regs.lui;

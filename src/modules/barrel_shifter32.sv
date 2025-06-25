@@ -58,12 +58,27 @@
 // endmodule
 
 module barrel_shifter32 #(
-    parameter width = 32
-)(
-    output wire [width - 1:0] data_out,
-    input wire [width - 1:0] data_in,
-    input wire [4:0] shift_amount,
-    input wire direction // 0 for left, 1 for right
+    parameter WIDTH = 32
+) (
+    output logic [WIDTH-1:0] data_out,
+    input  logic [WIDTH-1:0] data_in,
+    input  logic [      4:0] shift_amount,  // use ISA only use 5 bits
+    input  logic             direction      // 0 = left, 1 = right
+    // input  logic             arithmetic     // 0 = logical, 1 = arithmetic (for right only)
 );
-    assign data_out = (direction == 0) ? data_in << shift_amount : data_in >> shift_amount;
+
+    always_comb begin
+        if (direction == 0) begin
+            data_out = data_in << shift_amount;
+        end else begin
+            // if (arithmetic && data_in[WIDTH-1]) begin
+            //     // arithmetic right shift with sign extension
+            //     data_out = ({{WIDTH{1'b1}}} << (WIDTH - shift_amount)) | (data_in >> shift_amount);
+            // end else begin
+            // logical right shift
+            data_out = data_in >> shift_amount;
+            // end
+        end
+    end
+
 endmodule

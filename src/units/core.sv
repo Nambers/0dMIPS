@@ -29,7 +29,7 @@ module core #(
     input logic [7:0] interrupt_sources
 );
     // pipeline
-    logic stall  /* verilator public */, flush  /* verilator public */;
+    logic stall_EX /* verilator public */, stall_ID /* verilator public */, flush  /* verilator public */;
     IF_regs_t  IF_regs  /* verilator public */;
     ID_regs_t  ID_regs  /* verilator public */;
     EX_regs_t  EX_regs  /* verilator public */;
@@ -46,12 +46,13 @@ module core #(
     core_forward forward_unit (
         .IF_rs(IF_regs.inst[25:21]),
         .IF_rt(IF_regs.inst[20:16]),
-        .ID_rs(ID_regs.inst[25:21]),
-        .ID_rt(ID_regs.inst[20:16]),
+        .ID_rs(ID_regs.rs),
+        .ID_rt(ID_regs.rt),
         .EX_rd(EX_regs.W_regnum),
         .EX_alu_writeback(EX_regs.write_enable & ~(|EX_regs.mem_load_type)),
         .MEM_rd(MEM_regs.W_regnum),
         .MEM_mem_writeback(MEM_regs.write_enable),
+        .ID_B_is_reg(ID_regs.B_is_reg),
         .forward_A(forward_A),
         .forward_B(forward_B),
         .forward_A_ID(forward_A_ID),
@@ -61,9 +62,11 @@ module core #(
     core_hazard #(PERIPHERAL_BASE) hazard_unit (
         .IF_rs(IF_regs.inst[25:21]),
         .IF_rt(IF_regs.inst[20:16]),
+        .EX_W_regnum(EX_regs.W_regnum),
         .ID_W_regnum(ID_regs.W_regnum),
         .ID_mem_read(|ID_regs.mem_load_type),
-        .stall(stall),
+        .stall_ID(stall_ID),
+        .stall_EX(stall_EX),
 
         // --- peripherals ---
         .addr(EX_regs.out),
@@ -88,7 +91,7 @@ module core #(
         .reset(reset),
         .next_pc(next_pc),
         .inst(inst),
-        .stall(stall),
+        .stall(stall_ID),
         .flush(flush),
         .pc(pc),
         .IF_regs(IF_regs)
@@ -98,7 +101,7 @@ module core #(
         .clock(clock),
         .reset(reset),
         .IF_regs(IF_regs),
-        .stall(stall),
+        .stall(stall_EX),
         .flush(flush),
         .MEM_regs(MEM_regs),
         .ID_regs(ID_regs),

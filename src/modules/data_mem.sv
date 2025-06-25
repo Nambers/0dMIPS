@@ -42,8 +42,7 @@ module data_mem #(
 
     initial begin
         // Grab initial memory values
-        $readmemh("memory.text.mem", data_seg);
-        $readmemh("memory.data.mem", data_seg);
+        $readmemh("memory.mem", data_seg);
     end
 
     wire [5:0] index = addr[8:3], inst_index = inst_addr[8:3];
@@ -58,8 +57,7 @@ module data_mem #(
     always @(negedge clk or posedge reset) begin
         if (reset) begin
             for (i = 0; i < data_words; i = i + 1) data_seg[i] <= 64'b0;
-            $readmemh("memory.text.mem", data_seg);
-            $readmemh("memory.data.mem", data_seg);
+            $readmemh("memory.mem", data_seg);
         end else begin
             unique case (mem_store_type)
                 STORE_BYTE: data_seg[index] <= musk_origin | new_data;  // sb

@@ -39,22 +39,20 @@ package structures;
 
     typedef struct packed {
         logic [31:0] inst;
-        logic [63:0] pc4,  pc;
+        logic [63:0] pc4, pc;
     } IF_regs_t;
 
     typedef struct packed {
         logic [63:0] AU_out, A_data, B_data, pc4, pc_branch, jumpAddr;
-        logic [31:0] inst;  // ofs = 20 + 64 + 7 * 2 + 3 + 5, used in debugger_tui
-        logic [4:0] W_regnum;
-        logic [2:0] alu_op;
-        // ofs = 20 + 64 + 7 * 2
+        logic [15:0] lui_imm;
+        logic [4:0] W_regnum, shamt, rs, rt;
+        logic [2:0] alu_op, sel;
         logic [1:0] alu_src2, shifter_plus32;
         control_type_t control_type;
         mem_load_type_t mem_load_type;
         mem_store_type_t mem_store_type;
         slt_type_t slt_type;
         alu_cut_t cut_alu_out32;
-        // ofs = 20 + 64
         logic reserved_inst_E,
             write_enable,
             cut_shifter_out32,
@@ -70,6 +68,7 @@ package structures;
             negative,
             borrow_out,
             overflow,
+            B_is_reg,
             signed_byte,
             signed_word,
             // -- CP0 --
@@ -78,27 +77,19 @@ package structures;
             ERET
         ;
 `ifdef DEBUGGER
+        logic [31:0] inst;
         logic [63:0] pc;
 `endif
     } ID_regs_t;
 
     typedef struct packed {
-        logic [63:0] out, slt_out, B_data, pc4;
+        logic [63:0] out, B_data, pc4;
         logic [4:0] W_regnum;
         logic [2:0] sel;
         mem_load_type_t mem_load_type;  // ofs=64 + 32 + 11 + 2, if change, also change debugger_tui
         mem_store_type_t mem_store_type;  // ofs=64 + 32 + 11, if change, also change debugger_tui
         logic reserved_inst_E,
-            overflow,
-            zero,
-            MFC0,
-            MTC0,
-            ERET,
-            write_enable,
-            signed_byte,
-            signed_word,
-            lui,
-            linkpc
+            overflow, zero, MFC0, MTC0, ERET, write_enable, signed_byte, signed_word, lui, linkpc
         ;
 `ifdef DEBUGGER
         logic [31:0] inst;
