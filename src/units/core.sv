@@ -29,12 +29,7 @@ module core #(
     input logic [7:0] interrupt_sources
 );
     // pipeline
-    logic
-        stall_EX  /* verilator public */,
-        stall_ID  /* verilator public */,
-        flush  /* verilator public */,
-        IF_B_is_reg,
-        IF_use_AU;
+    logic stall  /* verilator public */, flush  /* verilator public */, B_is_reg;
     IF_regs_t  IF_regs  /* verilator public */;
     ID_regs_t  ID_regs  /* verilator public */;
     EX_regs_t  EX_regs  /* verilator public */;
@@ -42,56 +37,27 @@ module core #(
 
     logic [63:0] pc  /* verilator public */, next_pc;
     logic [31:0] inst  /* verilator public */;
-    forward_type_t
-        forward_A  /* verilator public */,
-        forward_B  /* verilator public */,
-        forward_A_ID  /* verilator public */,
-        forward_B_ID  /* verilator public */;
+    forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
 
     core_forward forward_unit (
-        // IF 阶段要转发给下一拍 ID 的源寄存器
-        .IF_rs      (IF_regs.inst[25:21]),
-        .IF_rt      (IF_regs.inst[20:16]),
-        .IF_B_is_reg(IF_B_is_reg),
-
-        // ID 阶段当前要发到 EX 的源寄存器
-        .ID_rs      (ID_regs.rs),
-        .ID_rt      (ID_regs.rt),
+        .ID_rs(ID_regs.inst[25:21]),
+        .ID_rt(ID_regs.inst[20:16]),
         .ID_B_is_reg(ID_regs.B_is_reg),
-
-        // EX stage 写回（ALU）信息
-        .EX_rd           (EX_regs.W_regnum),
-        .EX_alu_writeback(EX_regs.write_enable & ~(|EX_regs.mem_load_type)), // 只有 ALU 指令为真
-
-        // MEM stage 写回（load or ALU）信息
-        .MEM_rd           (MEM_regs.W_regnum),
-        .MEM_mem_writeback(MEM_regs.write_enable), // load_writeback 或 ALU_writeback
-
-        // 输出给 ID 用的转发控制
+        .EX_rd(EX_regs.W_regnum),
+        .EX_alu_writeback(EX_regs.write_enable & ~(|EX_regs.mem_load_type)),
+        .MEM_rd(MEM_regs.W_regnum),
+        .MEM_mem_writeback(MEM_regs.write_enable),
         .forward_A(forward_A),
-        .forward_B(forward_B),
-
-        // 输出给 IF/ID 下一级 ID 用的转发控制
-        .forward_A_ID(forward_A_ID),
-        .forward_B_ID(forward_B_ID)
+        .forward_B(forward_B)
     );
 
-
     core_hazard #(PERIPHERAL_BASE) hazard_unit (
-        .clock(clock),
-        .reset(reset),
         .IF_rs(IF_regs.inst[25:21]),
         .IF_rt(IF_regs.inst[20:16]),
-        .IF_B_is_reg(IF_B_is_reg),
-        .IF_use_AU(IF_use_AU),
-        .ID_rs(ID_regs.rs),
-        .ID_rt(ID_regs.rt),
-        .ID_B_is_reg(ID_regs.B_is_reg),
-        .EX_W_regnum(EX_regs.W_regnum),
+        .IF_B_is_reg(B_is_reg),
         .ID_W_regnum(ID_regs.W_regnum),
         .ID_mem_read(|ID_regs.mem_load_type),
-        .stall_ID(stall_ID),
-        .stall_EX(stall_EX),
+        .stall(stall),
 
         // --- peripherals ---
         .addr(EX_regs.out),
@@ -103,6 +69,7 @@ module core #(
 
     core_branch branch_unit (
         .ID_regs(ID_regs),
+        .EX_regs(EX_regs),
         .pc4(IF_regs.pc4),
         .EPC(MEM_regs.EPC),
         .takenHandler(MEM_regs.takenHandler),
@@ -116,7 +83,7 @@ module core #(
         .reset(reset),
         .next_pc(next_pc),
         .inst(inst),
-        .stall(stall_ID),
+        .stall(stall),
         .flush(flush),
         .pc(pc),
         .IF_regs(IF_regs)
@@ -126,15 +93,11 @@ module core #(
         .clock(clock),
         .reset(reset),
         .IF_regs(IF_regs),
-        .stall(stall_ID),
+        .stall(stall),
         .flush(flush),
         .MEM_regs(MEM_regs),
         .ID_regs(ID_regs),
-        .forward_A(forward_A_ID),
-        .forward_B(forward_B_ID),
-        .EX_out(EX_regs.out),
-        .B_is_reg(IF_B_is_reg),
-        .use_AU(IF_use_AU)
+        .B_is_reg(B_is_reg)
     );
 
     core_EX EX_stage (
@@ -142,7 +105,6 @@ module core #(
         .reset(reset),
         .ID_regs(ID_regs),
         .flush(flush),
-        .stall(stall_EX),
         .EX_regs(EX_regs),
         .MEM_data(MEM_regs.W_data),
         .forward_A(forward_A),
@@ -154,7 +116,6 @@ module core #(
         .reset(reset),
         .inst_addr(pc),
         .interrupt_sources(interrupt_sources),
-        .next_pc(next_pc),
         .d_valid(d_valid),
         .d_ready(d_ready),
         .d_rdata(d_rdata),

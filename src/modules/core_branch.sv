@@ -8,6 +8,7 @@ import structures::EX_regs_t;
 module core_branch (
     /* verilator lint_off UNUSEDSIGNAL */
     input ID_regs_t ID_regs,
+    input EX_regs_t EX_regs,
     /* verilator lint_on UNUSEDSIGNAL */
     input logic [63:0] pc4,
     input logic [63:0] EPC,
@@ -46,9 +47,9 @@ module core_branch (
         end else if (ID_regs.ERET) begin
             next_pc = EPC;
             flush   = 1'b1;
-            // branch resolve in ID stage
-        end else if (ID_regs.BC | ID_regs.BAL | (ID_regs.BEQ & ID_regs.zero) | (ID_regs.BNE & ~ID_regs.zero)) begin
-            next_pc = ID_regs.pc_branch;
+            // branch resolve in EX stage
+        end else if (EX_regs.BC | EX_regs.BAL | (EX_regs.BEQ & EX_regs.zero) | (EX_regs.BNE & ~EX_regs.zero)) begin
+            next_pc = EX_regs.pc_branch;
             flush   = 1'b1;
         end else
             // others resolve in ID stage

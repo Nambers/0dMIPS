@@ -13,14 +13,17 @@ template <typename T> inline constexpr T fixedVal2() {
     return static_cast<T>((0xc100 << 16) | 0xc100);
 }
 
-template <typename Wide> uint64_t vlwide_get(const Wide& wide, int idx /* low_bit */, int width) {
-    int high_bit  = idx + width - 1;
-    int low_bit   = idx;
-    int low_word  = low_bit / 32;
+template <typename Wide>
+uint64_t vlwide_get(const Wide &wide, int idx /* low_bit */, int width) {
+    int high_bit = idx + width - 1;
+    int low_bit = idx;
+    int low_word = low_bit / 32;
     int high_word = high_bit / 32;
-    int offset    = low_bit % 32;
+    int offset = low_bit % 32;
 
-    auto get32 = [&](int w) -> uint32_t { return static_cast<uint32_t>(wide.at(w)); };
+    auto get32 = [&](int w) -> uint32_t {
+        return static_cast<uint32_t>(wide.at(w));
+    };
 
     if (high_word == low_word) {
         uint32_t word = get32(low_word);
@@ -28,8 +31,8 @@ template <typename Wide> uint64_t vlwide_get(const Wide& wide, int idx /* low_bi
         return (word >> offset) & mask;
     }
 
-    int      low_width = 32 - offset;
-    uint64_t low_part  = get32(low_word) >> offset;
+    int low_width = 32 - offset;
+    uint64_t low_part = get32(low_word) >> offset;
     uint64_t high_part = uint64_t(get32(high_word)) << low_width;
 
     uint64_t mask = (width == 64 ? ~0ull : ((1ull << width) - 1));
@@ -46,13 +49,14 @@ TestGenMemCycle(
         MEM_SEG[0] = build_I_inst(0x4, 1, 2, 32 >> 2);
         // beq $1, $2, -12
         // 36 / 8 = 4.5, so 2nd inst in the slot
-        MEM_SEG[(32 + 4) / 8] = INST_COMB(0, build_I_inst(0x4, 1, 2, -(24 >> 2)));
+        MEM_SEG[(32 + 4) / 8] =
+            INST_COMB(0, build_I_inst(0x4, 1, 2, -(24 >> 2)));
     },
     { EXPECT_EQ(inst_->core->pc, (32 + 4) - 24 + 4); },
     // 3rd cycle EX stage jump
     // 4th IF stage of 2nd beq (flushed)
     // 6th EX stage of 2nd beg
-    3 + 3);
+    4 + 4);
 
 TestGenMemCycle(
     BEQ_StoreLoad,
@@ -63,8 +67,10 @@ TestGenMemCycle(
         // 1: ori $1, $0, 0xabcd --> skiped
         // 2: sw $1, 0($0)
         // 3: lw $3, 0($0)
-        MEM_SEG[0] = INST_COMB(build_I_inst(0x4, 1, 2, 4 >> 2), build_I_inst(0xd, 0, 1, 0xabcd));
-        MEM_SEG[1] = INST_COMB(build_I_inst(0x2b, 0, 1, 0), build_I_inst(0x23, 0, 3, 0));
+        MEM_SEG[0] = INST_COMB(build_I_inst(0x4, 1, 2, 4 >> 2),
+                               build_I_inst(0xd, 0, 1, 0xabcd));
+        MEM_SEG[1] =
+            INST_COMB(build_I_inst(0x2b, 0, 1, 0), build_I_inst(0x23, 0, 3, 0));
     },
     {
         EXPECT_EQ(MEM_SEG[0] & MASK32, val & MASK32);
@@ -72,15 +78,15 @@ TestGenMemCycle(
         EXPECT_EQ(RF->W_addr, 3);
         EXPECT_EQ(RF->W_data, sign_extend(val & MASK32, 32));
     },
-    // 3rd cycle jump
+    // 4rd cycle jump
     // 4th IF stage of sw (flushed)
     // 5th IF stage of lw, 9th MEM stage of lw, writeback
-    4 + 4);
+    4 + 1 + 4);
 
 TestGenMemOnceCycle(
     JAL_JR_Return,
     {
-        MEM_SEG[0]      = build_J_inst(0x3, 32 >> 2);      // jal 32
+        MEM_SEG[0] = build_J_inst(0x3, 32 >> 2);           // jal 32
         MEM_SEG[32 / 8] = build_R_inst(0, 31, 0, 0, 0, 8); // jr $ra
     },
     {
@@ -95,8 +101,9 @@ TestGenMemOnceCycle(
 TestGenMemOnceCycle(
     BAL_JR_Return,
     {
-        MEM_SEG[0]            = build_REGIMM_inst(0x1, 0x11, 0, 32 >> 2);      // bal 32
-        MEM_SEG[(32 + 4) / 8] = INST_COMB(0, build_R_inst(0, 31, 0, 0, 0, 8)); // jr $ra
+        MEM_SEG[0] = build_REGIMM_inst(0x1, 0x11, 0, 32 >> 2); // bal 32
+        MEM_SEG[(32 + 4) / 8] =
+            INST_COMB(0, build_R_inst(0, 31, 0, 0, 0, 8)); // jr $ra
     },
     {
         EXPECT_EQ(inst_->core->pc, 32 + 4);
@@ -107,20 +114,21 @@ TestGenMemOnceCycle(
         EXPECT_EQ(inst_->core->pc, 8 + 4); // jr $ra returns to 0 + 8
     },
     // 3 to EX
-    3);
+    4);
 
-// RAW but no stall (use LU after AU)
 TestGenMemOnceCycle(
     LA,
     {
-        MEM_SEG[0] =
-            INST_COMB(build_I_inst(0x0f, 0, 1, (fixedVal<uint32_t>() >> 16) & MASK16), // LUI
-                      build_I_inst(0x0d, 1, 1, fixedVal<int16_t>())                    // ORI
-            );
+        MEM_SEG[0] = INST_COMB(
+            build_I_inst(0x0f, 0, 1,
+                         (fixedVal<uint32_t>() >> 16) & MASK16), // LUI
+            build_I_inst(0x0d, 1, 1, fixedVal<int16_t>())        // ORI
+        );
     },
     {
         // 1st tick: LUI result
-        auto lui_val = sign_extend(((fixedVal<uint32_t>() >> 16) & MASK16) << 16, 32);
+        auto lui_val =
+            sign_extend(((fixedVal<uint32_t>() >> 16) & MASK16) << 16, 32);
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
         EXPECT_EQ(RF->W_data, lui_val);
@@ -137,19 +145,46 @@ TestGenMemOnceCycle(
         EXPECT_FALSE(RF->wr_enable);
     },
     4);
-// RAW but stall (use AU after LU)
+
+TestGenMemOnceCycle(
+    LW_ADDI,
+    {
+        MEM_SEG[32 / 8] =
+            sign_extend(fixedVal<int32_t>(), 32); // store value into $0
+        MEM_SEG[0] =
+            INST_COMB(build_I_inst(0x23, 0, 1, 32),                  // LW
+                      build_I_inst(0x9, 1, 1, fixedVal<int16_t>())); // ADDI
+    },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data, sign_extend(fixedVal<int32_t>(), 32));
+
+        tick();
+        EXPECT_FALSE(RF->wr_enable);
+        tick(); // stall, load-use hazard
+
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data, sign_extend(fixedVal<int32_t>(), 32) +
+                                  sign_extend(fixedVal<int16_t>(), 16));
+
+        tick();
+        EXPECT_FALSE(RF->wr_enable);
+    },
+    4);
+
 TestGenMemOnceCycle(
     ORI_ADDI,
     {
-        MEM_SEG[0] = INST_COMB(build_I_inst(0xd, 0, 1, fixedVal<int16_t>()),  // ORI
-                               build_I_inst(0x9, 1, 1, fixedVal<int16_t>())); // ADDI
+        MEM_SEG[0] =
+            INST_COMB(build_I_inst(0xd, 0, 1, fixedVal<int16_t>()),  // ORI
+                      build_I_inst(0x9, 1, 1, fixedVal<int16_t>())); // ADDI
     },
     {
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
         EXPECT_EQ(RF->W_data, fixedVal<int16_t>());
-
-        tick();
 
         tick();
 
@@ -164,16 +199,20 @@ TestGenMemOnceCycle(
 TestGenMemOnceCycle(
     LA_LA,
     {
-        MEM_SEG[0] = INST_COMB(build_I_inst(0x0f, 0, 1, (fixedVal<uint32_t>() >> 16) & MASK16),
-                               build_I_inst(0x0d, 1, 1, fixedVal<int16_t>()));
+        MEM_SEG[0] = INST_COMB(
+            build_I_inst(0x0f, 0, 1, (fixedVal<uint32_t>() >> 16) & MASK16),
+            build_I_inst(0x0d, 1, 1, fixedVal<int16_t>()));
 
-        MEM_SEG[1] = INST_COMB(build_I_inst(0x0f, 0, 1, (fixedVal2<uint32_t>() >> 16) & MASK16),
-                               build_I_inst(0x0d, 1, 1, fixedVal2<int16_t>()));
+        MEM_SEG[1] = INST_COMB(
+            build_I_inst(0x0f, 0, 1, (fixedVal2<uint32_t>() >> 16) & MASK16),
+            build_I_inst(0x0d, 1, 1, fixedVal2<int16_t>()));
     },
     {
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
-        EXPECT_EQ(RF->W_data, sign_extend(((fixedVal<uint32_t>() >> 16) & MASK16) << 16, 32));
+        EXPECT_EQ(
+            RF->W_data,
+            sign_extend(((fixedVal<uint32_t>() >> 16) & MASK16) << 16, 32));
 
         tick();
         EXPECT_TRUE(RF->wr_enable);
@@ -183,7 +222,9 @@ TestGenMemOnceCycle(
         tick();
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
-        EXPECT_EQ(RF->W_data, sign_extend(((fixedVal2<uint32_t>() >> 16) & MASK16) << 16, 32));
+        EXPECT_EQ(
+            RF->W_data,
+            sign_extend(((fixedVal2<uint32_t>() >> 16) & MASK16) << 16, 32));
 
         tick();
         EXPECT_TRUE(RF->wr_enable);
@@ -206,7 +247,7 @@ TestGenMemCycle(
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
         EXPECT_EQ(RF->W_data, 1 << 16);
-        tick();
-        EXPECT_EQ(inst_->core->MEM_stage->mem->addr, (1 << 16) - (1 << 15)); // 0x8000
+        EXPECT_EQ(inst_->core->MEM_stage->mem->addr,
+                  (1 << 16) - (1 << 15)); // 0x8000
     },
     4);

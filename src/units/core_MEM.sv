@@ -9,7 +9,6 @@ module core_MEM (
     /* verilator lint_on UNUSEDSIGNAL */
     input logic [63:0] inst_addr,
     input logic [7:0] interrupt_sources,
-    input logic [63:0] next_pc,
     input logic d_valid,
     input logic d_ready,
     input logic [63:0] d_rdata,
@@ -97,7 +96,7 @@ module core_MEM (
         alu_mem_d_out,
         alu_mem_out,
         d_rdata,
-        d_valid | d_ready
+        d_valid
     );
 
     // -- cp0 --
@@ -108,7 +107,7 @@ module core_MEM (
         EX_regs.B_data,
         EX_regs.W_regnum,
         EX_regs.sel,
-        next_pc,
+        EX_regs.pc,
         EX_regs.MTC0,
         EX_regs.ERET,
         interrupt_sources,
@@ -135,7 +134,6 @@ module core_MEM (
     );
 
     always_ff @(posedge clock, posedge reset) begin
-        // $display("MEM: W_data_lui_linkpc=%h, d_valid=%b, d_ready=%b", W_data_lui_linkpc, d_valid, d_ready);
 `ifdef DEBUG
         if (|EX_regs.mem_load_type) begin
             $display("read addr: %h, data: %h, final: %h, reg=$%d", EX_regs.out, data_out,

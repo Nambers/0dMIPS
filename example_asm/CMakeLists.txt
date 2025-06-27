@@ -40,8 +40,8 @@ foreach(script IN LISTS C_SCRIPTS)
     # get script name w/o ext
     get_filename_component(script_name ${script} NAME_WE)
     add_custom_target(${script_name}_c
-        COMMAND mips64-linux-gnu-gcc ${C_FLAGS} -T ${ASM_DIR}/script.ld ${script} -o ${script_name}.elf
-        COMMAND mips64-linux-gnu-objdump -D ${script_name}.elf > ${CMAKE_SOURCE_DIR}/memory_dump.dat || rm -f ${CMAKE_SOURCE_DIR}/memory_dump.dat
+        COMMAND mips64el-linux-gnu-gcc ${C_FLAGS} -T ${ASM_DIR}/script.ld ${script} -o ${script_name}.elf
+        COMMAND mips64el-linux-gnu-objdump -D ${script_name}.elf > ${CMAKE_SOURCE_DIR}/memory_dump.dat || rm -f ${CMAKE_SOURCE_DIR}/memory_dump.dat
         COMMAND python ${SCRIPT_DIR}/objdump2dat.py ${CMAKE_SOURCE_DIR}
         DEPENDS ${script}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}

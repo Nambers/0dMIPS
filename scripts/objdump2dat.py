@@ -13,7 +13,7 @@ def parse_objdump(objdump_output, addr_dividor=1):
 
     def group_mem(phrase):
         paired_list = [
-            f"{phrase[i+1]}{phrase[i]}" for i in range(0, len(phrase) - 1, 2)
+            f"{phrase[i]}{phrase[i+1]}" for i in range(0, len(phrase) - 1, 2)
         ]
         if len(phrase) % 2 == 1:
             paired_list.append(f"00000000{phrase[-1]}")

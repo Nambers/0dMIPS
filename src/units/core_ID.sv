@@ -16,27 +16,10 @@ module core_ID (
     /* verilator lint_off UNUSEDSIGNAL */
     input MEM_regs_t MEM_regs,
     /* verilator lint_on UNUSEDSIGNAL */
-    input forward_type_t forward_A,
-    input forward_type_t forward_B,
-    input logic [63:0] EX_out,
     output ID_regs_t ID_regs,
-    output logic B_is_reg  /* verilator public */,
-    output logic use_AU
+    output logic B_is_reg
 );
-    logic [63:0]
-        A_data,
-        B_data,
-        A_data_forwarded,
-        B_data_forwarded,
-        B_in,
-        B_in_raw,
-        forwarded_A_EX,
-        forwarded_A_WB,
-        forwarded_B_EX,
-        forwarded_B_WB,
-        BranchAddrFinal,
-        AU_out,
-        lui_out;
+    logic [63:0] A_data, B_data, A_data_forwarded, B_data_forwarded, BranchAddrFinal;
     logic [4:0] W_regnum, rs, rt, rd;
     logic [2:0] alu_op;
     logic [1:0] alu_src2, shifter_plus32, rd_src;
@@ -62,83 +45,7 @@ module core_ID (
         BAL,
         signed_byte,
         signed_word,
-        ignore_overflow,
-        overflow,
-        zero,
-        negative,
-        borrow_out;
-
-    wire [63:0] SignExtImm = {{48{IF_regs.inst[15]}}, IF_regs.inst[15:0]};
-    wire [63:0] ZeroExtImm = {{48{1'b0}}, IF_regs.inst[15:0]};
-
-    mux3v #(64) forward_mux_A (
-        forwarded_A_EX,
-        A_data,
-        EX_out,
-        'z,
-        forward_A
-    );
-    mux2v #(64) forward_mux_A_WB (
-        forwarded_A_WB,
-        forwarded_A_EX,
-        MEM_regs.W_data,
-        MEM_regs.write_enable & (MEM_regs.W_regnum == rs)
-    );
-    mux2v #(64) A_in_mux (
-        A_data_forwarded,
-        forwarded_A_WB,
-        ID_regs.AU_out,
-        use_AU & (ID_regs.W_regnum == rs) & ID_regs.write_enable
-    );
-
-    mux3v #(64) B_data_fwd_EX_mux (
-        forwarded_B_EX,
-        B_data,
-        EX_out,
-        'z,
-        forward_B
-    );
-    mux2v #(64) B_data_fwd_WB_mux (
-        forwarded_B_WB,
-        forwarded_B_EX,
-        MEM_regs.W_data,
-        MEM_regs.write_enable & (MEM_regs.W_regnum == rt)
-    );
-    mux2v #(64) B_data_fwd_ID_mux (
-        B_data_forwarded,
-        forwarded_B_WB,
-        ID_regs.AU_out,
-        B_is_reg & use_AU & (ID_regs.W_regnum == rt) & ID_regs.write_enable
-    );
-    mux3v #(64) B_in_mux (
-        B_in,
-        B_data_forwarded,
-        SignExtImm,
-        ZeroExtImm,
-        alu_src2
-    );
-    mux2v #(64) B_in_store_mux (
-        B_in_raw,
-        B_in,
-        B_data_forwarded,
-        |mem_store_type  // if store data, need raw B_data
-    );
-    au #(64) au_ (
-        .a(A_data_forwarded),
-        .b(B_in),
-        .sub(alu_op[0]),
-        .out(AU_out),
-        .overflow(overflow),
-        .zero(zero),
-        .negative(negative),
-        .borrow_out(borrow_out)
-    );
-    mux2v #(64) lui_mux (
-        lui_out,
-        AU_out,
-        {{32{IF_regs.inst[15]}}, IF_regs.inst[15:0], 16'b0},
-        lui
-    );
+        ignore_overflow;
 
     // -- decoder --
     mips_decoder decoder (
@@ -171,9 +78,9 @@ module core_ID (
         .rs(rs),
         .rt(rt),
         .rd(rd),
+        .B_is_reg(B_is_reg),
         .inst(IF_regs.inst)
     );
-    assign B_is_reg = alu_src2 == 0;
 
     // -- reg --
     regfile #(64) rf (
@@ -186,6 +93,20 @@ module core_ID (
         MEM_regs.write_enable,
         clock,
         reset
+    );
+
+    mux2v #(64) forwarded_A_mux (
+        A_data_forwarded,
+        A_data,
+        MEM_regs.W_data,
+        MEM_regs.write_enable & (MEM_regs.W_regnum == rs)
+    );
+
+    mux2v #(64) forwarded_B_mux (
+        B_data_forwarded,
+        B_data,
+        MEM_regs.W_data,
+        B_is_reg & MEM_regs.write_enable & (MEM_regs.W_regnum == rt)
     );
 
     mux3v #(5) rd_mux (
@@ -244,26 +165,19 @@ module core_ID (
             ID_regs.control_type <= control_type;
             ID_regs.shifter_plus32 <= shifter_plus32;
             ID_regs.A_data <= A_data_forwarded;
-            ID_regs.B_data <= B_in_raw;
-            ID_regs.shamt <= IF_regs.inst[10:6];
-            ID_regs.rs <= rs;
-            ID_regs.rt <= rt;
+            ID_regs.B_data <= B_data_forwarded;
+            ID_regs.inst <= IF_regs.inst;
             ID_regs.pc4 <= IF_regs.pc4;
             ID_regs.pc_branch <= BranchAddrFinal;
             ID_regs.jumpAddr <= JumpAddr;
+            ID_regs.lui <= lui;
             ID_regs.linkpc <= linkpc;
             ID_regs.signed_byte <= signed_byte;
             ID_regs.signed_word <= signed_word;
-            ID_regs.AU_out <= lui_out;
-            ID_regs.zero <= zero;
-            ID_regs.negative <= negative;
-            ID_regs.borrow_out <= borrow_out;
-            ID_regs.overflow <= overflow & ~ignore_overflow;
+            ID_regs.ignore_overflow <= ignore_overflow;
             ID_regs.B_is_reg <= B_is_reg;
-`ifdef DEBUGGER
-            ID_regs.inst <= IF_regs.inst;
-            ID_regs.pc   <= IF_regs.pc;
-`endif
         end
+        // for setting EPC
+        ID_regs.pc <= IF_regs.pc;
     end
 endmodule

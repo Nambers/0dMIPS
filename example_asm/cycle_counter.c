@@ -3,7 +3,7 @@ void exception_handler();
 
 __attribute__((section(".bootinfo"))) volatile const unsigned long long exception_handler_addr =
     (unsigned long long)(void*)&exception_handler;
-const static unsigned int step = 7; // should be >= 7
+const static unsigned int step = 6; // should be >= 6
 
 __asm__(".section .text\n"
         "li $sp, _stack_top\n"

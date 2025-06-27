@@ -2,7 +2,7 @@
 .section .bootinfo, "a"
 exception_handler_addr: .dword interrupt_handler
 .data
-num_cycle:	.word 7 # should >= 7
+num_cycle:	.word 6 # should >= 6
 
 .text
 .global __start
@@ -12,13 +12,15 @@ __start:
     # load current cycle into reg t0 0x2000_0000
     lw $t0, 0x20000000;
     add $t1, $t1, $t0;
+    #add $t1, $t0, $t1;
     # set interrupting after num_cycle cycles
     sw $t1, 0x20000000;
     nop;
     # no reachable, but will run till EX(if num_cycle == 7)
     li $t3, 0xcafebabe;
+dead:
+    j dead;
 
-.org 0x300
 interrupt_handler:
 	#lw	$k0, 12($k1)		# $26 = 0x2000_0004
     li $t0, 0x20000004;

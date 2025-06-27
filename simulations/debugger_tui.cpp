@@ -3,30 +3,30 @@
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/dom/node.hpp>
 
+#include <array>
 #include <chrono>
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <signal.h>
 #include <sstream>
 #include <string>
 #include <thread>
 #include <unordered_map>
-#include <array>
-#include <signal.h>
 
 #include <SOC_sim.h>
-#include <SOC_sim_core.h>
 #include <SOC_sim_SOC.h>
-#include <SOC_sim_stdout.h>
-#include <SOC_sim_core_MEM.h>
-#include <SOC_sim_data_mem__D100.h>
-#include <SOC_sim_cp0.h>
+#include <SOC_sim_core.h>
 #include <SOC_sim_core_ID.h>
+#include <SOC_sim_core_MEM.h>
+#include <SOC_sim_cp0.h>
+#include <SOC_sim_data_mem__D100.h>
 #include <SOC_sim_regfile__W40.h>
+#include <SOC_sim_stdout.h>
+#include <capstone/capstone.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
-#include <capstone/capstone.h>
 
 #include "common.hpp"
 
@@ -54,9 +54,10 @@ class RingBuffer {
         }
     }
 
-    void push_line(const std::string& line) {
-        if (capacity_ == 0) return;
-        size_t idx   = (head_ + count_) % capacity_;
+    void push_line(const std::string &line) {
+        if (capacity_ == 0)
+            return;
+        size_t idx = (head_ + count_) % capacity_;
         buffer_[idx] = line;
         if (count_ < capacity_) {
             ++count_;
@@ -76,14 +77,14 @@ class RingBuffer {
 
   private:
     std::vector<std::string> buffer_;
-    size_t                   capacity_;
-    size_t                   head_;
-    size_t                   count_;
+    size_t capacity_;
+    size_t head_;
+    size_t count_;
 };
 
-uint64_t   mem_center    = 0x0;
-uint64_t   last_mem_read = -1, last_mem_write = -1;
-MemType    readType = MemType::NO, writeType = MemType::NO;
+uint64_t mem_center = 0x0;
+uint64_t last_mem_read = -1, last_mem_write = -1;
+MemType readType = MemType::NO, writeType = MemType::NO;
 std::array typeBytes = {0, 1, 4, 8}; // NO, BYTE, WORD, DWORD
 
 std::map<std::string, std::string> pipeline;
@@ -92,16 +93,17 @@ std::array<uint64_t, 32> RF;
 
 std::map<std::string, bool> flags;
 
-SOC_sim*          machine = nullptr;
-VerilatedContext* ctx     = nullptr;
-csh               cs_handle;
+SOC_sim *machine = nullptr;
+VerilatedContext *ctx = nullptr;
+csh cs_handle;
 
 std::string reg_name(int i) {
-    constexpr static std::array names = {"r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
-                                         "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
-                                         "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
-                                         "t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra"};
-    if (i >= 0 && i < 32) return names[i];
+    constexpr static std::array names = {
+        "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3", "t0", "t1", "t2",
+        "t3", "t4", "t5", "t6", "t7", "s0", "s1", "s2", "s3", "s4", "s5",
+        "s6", "s7", "t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra"};
+    if (i >= 0 && i < 32)
+        return names[i];
     return "reg";
 }
 
@@ -110,21 +112,26 @@ std::unordered_map<uint64_t, DisasmEntry> disasm_cache;
 void update_state_from_sim() {
     TICK;
     pipeline["IF"] =
-        get_disasm(machine->SOC->core->pc, machine->SOC->core->inst, disasm_cache, cs_handle);
+        get_disasm(machine->SOC->core->pc, machine->SOC->core->inst,
+                   disasm_cache, cs_handle);
     pipeline["ID"] =
         get_disasm(vlwide_get(machine->SOC->core->IF_regs, 0, 64),
-                   vlwide_get(machine->SOC->core->IF_regs, 64 * 2, 32), disasm_cache, cs_handle);
-    pipeline["EX"] =
-        get_disasm(vlwide_get(machine->SOC->core->ID_regs, 0, 64),
-                   vlwide_get(machine->SOC->core->ID_regs, 64, 32), disasm_cache, cs_handle);
+                   vlwide_get(machine->SOC->core->IF_regs, 64 * 2, 32),
+                   disasm_cache, cs_handle);
+    pipeline["EX"] = get_disasm(vlwide_get(machine->SOC->core->ID_regs, 0, 64),
+                                vlwide_get(machine->SOC->core->ID_regs, 64, 32),
+                                disasm_cache, cs_handle);
     pipeline["MEM"] =
         get_disasm(vlwide_get(machine->SOC->core->EX_regs, 0, 64),
-                   vlwide_get(machine->SOC->core->EX_regs, 64, 32), disasm_cache, cs_handle);
+                   vlwide_get(machine->SOC->core->EX_regs, 64, 32),
+                   disasm_cache, cs_handle);
     pipeline["WB"] =
         get_disasm(vlwide_get(machine->SOC->core->MEM_regs, 0, 64),
-                   vlwide_get(machine->SOC->core->MEM_regs, 64, 32), disasm_cache, cs_handle);
+                   vlwide_get(machine->SOC->core->MEM_regs, 64, 32),
+                   disasm_cache, cs_handle);
 
-    auto& R = machine->SOC->core->ID_stage->rf->__PVT__reg_out; // VlWide<64>，2048 bits
+    auto &R = machine->SOC->core->ID_stage->rf
+                  ->__PVT__reg_out; // VlWide<64>，2048 bits
 
     // reg0 = bits [63:0]，reg1 = bits [127:64], ..., reg31 = bits [2047:1984]
     for (int i = 0; i < 32; ++i) {
@@ -132,36 +139,32 @@ void update_state_from_sim() {
         RF[i] = vlwide_get(R, i * 64, 64);
     }
 
-    const auto& readTmp = vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 10, 2);
-    const auto& memAddr =
-        vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 10 + 2 * 2 + 3 + 5 + 3 * 64, 64);
+    const auto &readTmp =
+        vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 10, 2);
+    const auto &memAddr = vlwide_get(machine->SOC->core->EX_regs,
+                                     64 + 32 + 10 + 2 * 2 + 3 + 5 + 3 * 64, 64);
     if (readTmp) {
         // load
-        readType      = static_cast<MemType>(readTmp);
+        readType = static_cast<MemType>(readTmp);
         last_mem_read = memAddr;
     }
-    const auto& writeTmp = vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 10 + 2, 2);
+    const auto &writeTmp =
+        vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 10 + 2, 2);
     if (writeTmp) {
         // store
-        writeType      = static_cast<MemType>(writeTmp);
+        writeType = static_cast<MemType>(writeTmp);
         last_mem_write = memAddr;
     }
 
-    flags["I"]    = machine->SOC->interrupt_sources;
-    flags["S_E"]  = machine->SOC->core->stall_EX;
-    flags["S_I"]  = machine->SOC->core->stall_ID;
-    flags["F"]    = machine->SOC->core->flush;
-    flags["R"]    = machine->SOC->reset;
-    flags["D"]    = machine->SOC->core->__PVT__d_valid;
-    flags["AA_E"] = (machine->SOC->core->forward_A == 1);
-    flags["AM_E"] = (machine->SOC->core->forward_A == 2);
-    flags["BA_E"] = (machine->SOC->core->forward_B == 1);
-    flags["BM_E"] = (machine->SOC->core->forward_B == 2);
-    flags["AA_I"] = (machine->SOC->core->forward_A_ID == 1);
-    flags["AM_I"] = (machine->SOC->core->forward_A_ID == 2);
-    flags["BA_I"] = (machine->SOC->core->forward_B_ID == 1);
-    flags["BM_I"] =
-        (machine->SOC->core->forward_B_ID == 2) & (machine->SOC->core->ID_stage->B_is_reg);
+    flags["I"] = machine->SOC->interrupt_sources;
+    flags["S"] = machine->SOC->core->stall;
+    flags["F"] = machine->SOC->core->flush;
+    flags["R"] = machine->SOC->reset;
+    flags["D"] = machine->SOC->core->__PVT__d_valid;
+    flags["AA"] = (machine->SOC->core->forward_A == 1);
+    flags["AM"] = (machine->SOC->core->forward_A == 2);
+    flags["BA"] = (machine->SOC->core->forward_B == 1);
+    flags["BM"] = (machine->SOC->core->forward_B == 2);
     flags["DR"] = machine->SOC->__PVT__d_ready;
     flags["IE"] = (machine->SOC->core->MEM_stage->cp->exc_code == 0xc);
     flags["OE"] = (machine->SOC->core->MEM_stage->cp->exc_code == 0xa);
@@ -171,32 +174,36 @@ Element render_pipeline() {
     std::vector<Element> lines;
     lines.push_back(text("🚀 Pipeline") | bold);
 
-    for (const auto& stage : std::array<std::string, 5>{"IF", "ID", "EX", "MEM", "WB"}) {
+    for (const auto &stage :
+         std::array<std::string, 5>{"IF", "ID", "EX", "MEM", "WB"}) {
         std::string inst_str = pipeline.count(stage) ? pipeline[stage] : "N/A";
         lines.push_back(hbox({text(stage + ": ") | bold, text(inst_str)}));
     }
 
     std::vector<std::pair<std::string, bool>> persistent = {
-        {"Interrupt", flags["I"]}, {"StallID", flags["S_I"]}, {"StallEx", flags["S_E"]},
-        {"Flush", flags["F"]},     {"Reset", flags["R"]},     {"PeriphAccess", flags["D"]},
+        {"Interrupt", flags["I"]},    {"Stall", flags["S"]},
+        {"Flush", flags["F"]},        {"Reset", flags["R"]},
+        {"PeriphAccess", flags["D"]},
     };
     std::vector<std::pair<std::string, bool>> transients = {
-        {"InstExc", flags["IE"]},     {"OpExc", flags["OE"]},       {"PeriphReady", flags["DR"]},
-        {"fA-EX_Ex", flags["AA_E"]},  {"fA-MEM_Ex", flags["AM_E"]}, {"fB-EX_Ex", flags["BA_E"]},
-        {"fB-MEM_Ex", flags["BM_E"]}, {"fA-EX_Id", flags["AA_I"]},  {"fA-MEM_Id", flags["AM_I"]},
-        {"fB-EX_Id", flags["BA_I"]},  {"fB-MEM_Id", flags["BM_I"]}};
+        {"InstExc", flags["IE"]},     {"OpExc", flags["OE"]},
+        {"PeriphReady", flags["DR"]}, {"fA-EX", flags["AA"]},
+        {"fA-MEM", flags["AM"]},      {"fB-EX", flags["BA"]},
+        {"fB-MEM", flags["BM"]}};
 
     std::vector<Element> flag_elems;
-    auto                 push_flag = [&](const std::string& name, bool on) {
+    auto push_flag = [&](const std::string &name, bool on) {
         std::string label = name.substr(0, 10);
-        auto        style = on ? color(Color::Green) : color(Color::Red);
+        auto style = on ? color(Color::Green) : color(Color::Red);
         flag_elems.push_back(text(label) | style);
         flag_elems.push_back(text("  "));
     };
 
-    for (auto& p : persistent) push_flag(p.first, p.second);
-    for (auto& p : transients)
-        if (p.second) push_flag(p.first, p.second);
+    for (auto &p : persistent)
+        push_flag(p.first, p.second);
+    for (auto &p : transients)
+        if (p.second)
+            push_flag(p.first, p.second);
 
     lines.push_back(hbox(flag_elems));
 
@@ -206,13 +213,15 @@ Element render_pipeline() {
     auto timer_panel =
         vbox({
             text("⏱ Peripheral: Timer") | bold,
-            text("Cycle: " + std::to_string(machine->SOC->__PVT__timer__DOT__cycle_D)),
+            text("Cycle: " +
+                 std::to_string(machine->SOC->__PVT__timer__DOT__cycle_D)),
         }) |
         border | size(WIDTH, EQUAL, 22);
 
     // PC indicator
     std::ostringstream pc_hex;
-    pc_hex << "0x" << std::hex << std::setw(8) << std::setfill('0') << machine->SOC->core->pc;
+    pc_hex << "0x" << std::hex << std::setw(8) << std::setfill('0')
+           << machine->SOC->core->pc;
 
     auto pc_panel = vbox({
                         text("📍 PC") | bold,
@@ -242,25 +251,26 @@ Element render_registers() {
         oss.clear();
         oss << reg_name(i + 3) << ": 0x" << std::hex << RF[i + 3];
         std::string s3 = oss.str();
-        lines.push_back(
-            hbox({text(s0) | size(WIDTH, EQUAL, 24), text(s1) | size(WIDTH, EQUAL, 24),
-                  text(s2) | size(WIDTH, EQUAL, 24), text(s3) | size(WIDTH, EQUAL, 24)}));
+        lines.push_back(hbox({text(s0) | size(WIDTH, EQUAL, 24),
+                              text(s1) | size(WIDTH, EQUAL, 24),
+                              text(s2) | size(WIDTH, EQUAL, 24),
+                              text(s3) | size(WIDTH, EQUAL, 24)}));
     }
     return vbox(lines) | border;
 }
 
 Element render_memory(uint64_t center_addr) {
     const int bytes_per_row = 16;
-    const int row_radius    = 8;
-    uint64_t  base_row      = (center_addr / bytes_per_row) * bytes_per_row;
+    const int row_radius = 8;
+    uint64_t base_row = (center_addr / bytes_per_row) * bytes_per_row;
 
-    uint64_t sp       = RF[29];
+    uint64_t sp = RF[29];
     uint64_t stack_lo = (sp >= 128 ? sp - 128 : 0);
     uint64_t stack_hi = sp + 128;
 
     auto load_byte = [&](uint64_t addr) -> uint8_t {
-        uint32_t word     = machine->SOC->core->MEM_stage->mem->data_seg[addr >> 2];
-        int      byte_off = addr & 0x3;
+        uint32_t word = machine->SOC->core->MEM_stage->mem->data_seg[addr >> 2];
+        int byte_off = addr & 0x3;
         return (word >> ((3 - byte_off) * 8)) & 0xFF;
     };
 
@@ -281,14 +291,14 @@ Element render_memory(uint64_t center_addr) {
         }
 
         std::vector<Element> hex_cells;
-        std::string          ascii;
+        std::string ascii;
         for (int b = 0; b < bytes_per_row; ++b) {
             if (b == 8) {
                 hex_cells.push_back(text("  "));
             }
 
             uint64_t addr = row_addr + b;
-            uint8_t  val  = load_byte(addr);
+            uint8_t val = load_byte(addr);
 
             std::ostringstream h;
             h << std::hex << std::setw(2) << std::setfill('0') << (int)val;
@@ -302,10 +312,12 @@ Element render_memory(uint64_t center_addr) {
             if (addr == center_addr) {
                 cell |= bgcolor(Color::Blue) | color(Color::White);
             } else if (writeType != MemType::NO && addr >= last_mem_write &&
-                       addr < last_mem_write + typeBytes[static_cast<int>(writeType)]) {
+                       addr < last_mem_write +
+                                  typeBytes[static_cast<int>(writeType)]) {
                 cell |= color(Color::Cyan);
             } else if (readType != MemType::NO && addr >= last_mem_read &&
-                       addr < last_mem_read + typeBytes[static_cast<int>(readType)]) {
+                       addr < last_mem_read +
+                                  typeBytes[static_cast<int>(readType)]) {
                 cell |= color(Color::Yellow);
             }
 
@@ -334,19 +346,20 @@ Element render_memory(uint64_t center_addr) {
     return vbox(lines) | border | flex;
 }
 
-std::unordered_map<uint32_t, std::string> parseInst(FILE* f) {
+std::unordered_map<uint32_t, std::string> parseInst(FILE *f) {
     std::unordered_map<uint32_t, std::string> insts;
-    char                                      buffer[256];
+    char buffer[256];
 
     while (fgets(buffer, sizeof(buffer), f)) {
         uint32_t addr;
         uint32_t inst;
-        char     mnemonic[128];
+        char mnemonic[128];
 
         if (sscanf(buffer, " %x: %x %[^\n]", &addr, &inst, mnemonic) == 3) {
             std::string fmtStr(mnemonic);
-            for (char& c : fmtStr) {
-                if (c == '\t') c = ' ';
+            for (char &c : fmtStr) {
+                if (c == '\t')
+                    c = ' ';
             }
             insts[addr] = fmtStr;
         }
@@ -356,14 +369,14 @@ std::unordered_map<uint32_t, std::string> parseInst(FILE* f) {
 }
 
 Element render_perip() {
-    static RingBuffer    stdoutBuffer(6);
+    static RingBuffer stdoutBuffer(6);
     std::vector<Element> lines;
     lines.push_back(text("🔌 Peripheral: STDOUT") | bold);
     static size_t lastCheck = 0;
 
     if (ctx->time() > lastCheck && machine->SOC->stdout->stdout_taken) {
-        lastCheck  = ctx->time();
-        QData& buf = machine->SOC->stdout->buffer;
+        lastCheck = ctx->time();
+        QData &buf = machine->SOC->stdout->buffer;
 
         for (int i = 0; i < 8; ++i) {
             char c = static_cast<char>((buf >> (i * 8)) & 0xFF);
@@ -379,7 +392,7 @@ Element render_perip() {
     }
 
     std::istringstream iss(output);
-    std::string        line;
+    std::string line;
     while (std::getline(iss, line)) {
         if (!line.empty()) {
             lines.push_back(text(line) | dim);
@@ -389,15 +402,15 @@ Element render_perip() {
     return vbox(lines) | border | flex | size(WIDTH, GREATER_THAN, 30);
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
-    ctx     = new VerilatedContext;
+    ctx = new VerilatedContext;
     machine = new SOC_sim(ctx);
     if (init_capstone(&cs_handle) != 0) {
         return 1;
     }
 
-    machine->clk   = 1;
+    machine->clk = 1;
     machine->reset = 1;
     TICK;
     machine->reset = 0;
@@ -422,8 +435,10 @@ int main(int argc, char** argv) {
         if (e == Event::ArrowRight || e == Event::Character('s')) {
             update_state_from_sim();
         }
-        if (e == Event::ArrowUp && mem_center > 0) mem_center -= 4;
-        if (e == Event::ArrowDown) mem_center += 4;
+        if (e == Event::ArrowUp && mem_center > 0)
+            mem_center -= 4;
+        if (e == Event::ArrowDown)
+            mem_center += 4;
         return true;
     });
 

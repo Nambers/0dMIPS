@@ -176,7 +176,7 @@ TestGenArith2(TestDAddIU, val +);
 /* #endregion */
 
 /* #region branching test */
-TestGenMemCycle(
+TestGenMem(
     BEQ,
     {
         WRITE_RF(1, val);
@@ -184,7 +184,7 @@ TestGenMemCycle(
         // beq $1, $2, +512
         MEM_SEG[0] = build_I_inst(0x4, 1, 2, 512 >> 2);
     },
-    { EXPECT_EQ(inst_->core->pc, 512 + 4); }, 3);
+    { EXPECT_EQ(inst_->core->pc, 512 + 4); });
 TestGenMem(
     BEQ_Fail,
     {
@@ -197,7 +197,7 @@ TestGenMem(
         // 4 stages
         EXPECT_EQ(inst_->core->pc, 4 * 4);
     });
-TestGenMemCycle(
+TestGenMem(
     BNE,
     {
         WRITE_RF(1, val);
@@ -205,7 +205,7 @@ TestGenMemCycle(
         // bne $1, $2, +512
         MEM_SEG[0] = build_I_inst(0x5, 1, 2, 512 >> 2);
     },
-    { EXPECT_EQ(inst_->core->pc, 512 + 4); }, 3);
+    { EXPECT_EQ(inst_->core->pc, 512 + 4); });
 TestGenMem(
     BNE_Fail,
     {
@@ -215,13 +215,13 @@ TestGenMem(
         MEM_SEG[0] = build_I_inst(0x5, 1, 2, 512 >> 2);
     },
     { EXPECT_EQ(inst_->core->pc, 4 * 4); });
-TestGenMemOnceCycle(
+TestGenMemOnce(
     BC,
     {
         // bc $1, +512
         MEM_SEG[0] = build_J_inst(0x32, 512 >> 2);
     },
-    { EXPECT_EQ(inst_->core->pc, 512 + 4); }, 3);
+    { EXPECT_EQ(inst_->core->pc, 512 + 4); });
 TestGenMemOnceCycle(
     J,
     {
@@ -280,12 +280,11 @@ TestGenMemOnceCycle(
     {
         // bal should jump to pc + 512, and store return address to $ra ($31)
         EXPECT_EQ(inst_->core->pc, 512 + 4); // PC updated after EX
-        tick();                              // MEM stage
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 31);
         EXPECT_EQ(RF->W_data, 8); // return address = pc + 8 from ID stage (pc = 0 + 8)
     },
-    3);
+    4);
 
 /* #endregion */
 

@@ -34,6 +34,7 @@ module mips_decoder (
     output logic            [ 4:0] rs,
     output logic            [ 4:0] rt,
     output logic            [ 4:0] rd,
+    output logic                   B_is_reg,
     /* verilator lint_off UNUSEDSIGNAL */
     input  logic            [31:0] inst
     /* verilator lint_on UNUSEDSIGNAL */
@@ -190,6 +191,8 @@ module mips_decoder (
         MFC0 = MFC0_inst & ~except;
         MTC0 = MTC0_inst & ~except;
         ERET = ERET_inst & ~except;
+
+        B_is_reg = ((alu_src2 == 0) | store_family) & ~except;
 
         // --- stage WB ---
         writeenable = (add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst | lui_inst | slt_family | lw_family | lb_family | ld_inst | jal_inst | jalr_inst | bal_inst | sll_family | srl_family) & ~MTC0_inst & ~ERET_inst & ~beq_inst & ~nop_inst & ~except;

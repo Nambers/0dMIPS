@@ -39,12 +39,13 @@ package structures;
 
     typedef struct packed {
         logic [31:0] inst;
-        logic [63:0] pc4, pc;
+        logic [63:0] pc4,  pc;
     } IF_regs_t;
 
     typedef struct packed {
-        logic [63:0] AU_out, A_data, B_data, pc4, pc_branch, jumpAddr;
-        logic [4:0] W_regnum, shamt, rs, rt;
+        logic [63:0] A_data, B_data, pc4, pc_branch, jumpAddr;
+        // logic [31:0] inst; // move to buttom for debugger convenience
+        logic [4:0] W_regnum;
         logic [2:0] alu_op, sel;
         logic [1:0] alu_src2, shifter_plus32;
         control_type_t control_type;
@@ -61,38 +62,49 @@ package structures;
             BNE,
             BC,
             BAL,
+            lui,
             linkpc,
-            zero,
-            negative,
-            borrow_out,
-            overflow,
             B_is_reg,
             signed_byte,
             signed_word,
+            ignore_overflow,
             // -- CP0 --
             MFC0,
             MTC0,
             ERET
         ;
-`ifdef DEBUGGER
         logic [31:0] inst;
+        // for store EPC and debugger
         logic [63:0] pc;
-`endif
     } ID_regs_t;
 
     typedef struct packed {
-        logic [63:0] out, B_data, pc4;
+        logic [63:0] out, B_data, pc4, pc_branch;
         logic [4:0] W_regnum;
         logic [2:0] sel;
-        mem_load_type_t mem_load_type;  // ofs=64 + 32 + 10 + 2, if change, also change debugger_tui
-        mem_store_type_t mem_store_type;  // ofs=64 + 32 + 10, if change, also change debugger_tui
+        mem_load_type_t mem_load_type;
+        mem_store_type_t mem_store_type;
         logic reserved_inst_E,
-            overflow, zero, MFC0, MTC0, ERET, write_enable, signed_byte, signed_word, linkpc
+            overflow,
+            zero,
+            MFC0,
+            MTC0,
+            ERET,
+            write_enable,
+            BEQ,
+            BNE,
+            BC,
+            BAL,
+            signed_byte,
+            signed_word,
+            lui,
+            linkpc
         ;
 `ifdef DEBUGGER
         logic [31:0] inst;
-        logic [63:0] pc;
 `endif
+        // for store EPC and debugger
+        logic [63:0] pc;
     } EX_regs_t;
 
     typedef struct packed {
