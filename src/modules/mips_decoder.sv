@@ -157,8 +157,8 @@ module mips_decoder (
         // lu switch
         alu_op[2] = and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst;
 
+        // 0 = rd, 1 = rt, 2 = 32
         rd_src[0] = (addi_family | ori_inst | xori_inst | lui_inst | lw_family | lb_family | ld_inst | slti_inst | sltiu_inst) & ~MFC0_inst & ~except;
-        // W_regnum = 31
         rd_src[1] = (jal_inst | bal_inst) & ~except;
 
         // 1 = signed immediate

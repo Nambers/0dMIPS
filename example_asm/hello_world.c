@@ -2,19 +2,18 @@
 
 void exception_handler();
 
-__attribute__((section(".data"))) volatile const int64_t exception_handler_addr =
+__attribute__((section(".bootinfo"))) volatile const int64_t exception_handler_addr =
     (int64_t)(void*)&exception_handler;
 
 static volatile char* const stdout_mmio        = (volatile char*)(uintptr_t)(0x20000010);
 static const int64_t        stdout_buffer_size = 8;
 
 __asm__(".section .text\n"
-        "lui $sp, %hi(_stack_top)\n"
-        "ori $sp, $sp, %lo(_stack_top)\n"
-        "lui $gp, %hi(_gp)\n"
-        "ori $gp, $gp, %lo(_gp)\n"
-        "li $ra, 0x0d00\n"
-        "j __start\n");
+        "li $sp, _stack_top\n"
+        "li $gp, _gp\n"
+        "li $ra, 0x0d00\n" // placeholder
+        "li $t9, __start\n"
+        "jr $t9\n");
 
 int64_t puts_buf(const char* str) {
     int64_t i = 0;

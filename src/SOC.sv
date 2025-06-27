@@ -13,11 +13,20 @@ module SOC (
     output logic Hsync,
     output logic Vsync
 );
-    logic [63:0] d_addr /* verilator public */, d_wdata, d_rdata, timer_out;
-    logic [7:0] interrupt_sources /* verilator public */;
+    logic [63:0]
+        d_addr  /* verilator public */,
+        d_wdata  /* verilator public */,
+        d_rdata  /* verilator public */,
+        timer_out;
+    logic [7:0] interrupt_sources  /* verilator public */;
     mem_store_type_t d_store_type;
     logic
-        d_valid /* verilator public */, d_ready, timer_taken, timer_interrupt, VGA_taken, stdout_taken;
+        d_valid  /* verilator public */,
+        d_ready,
+        timer_taken,
+        timer_interrupt,
+        VGA_taken,
+        stdout_taken;
 
     assign interrupt_sources = {timer_interrupt, 7'b0};
 
@@ -34,6 +43,7 @@ module SOC (
     );
 
     timer timer (
+        .enable(d_valid),
         .TimerInterrupt(timer_interrupt),
         .cycle(timer_out),
         .TimerAddress(timer_taken),
@@ -63,6 +73,7 @@ module SOC (
     stdout stdout (
         .clock(clk),
         .reset(reset),
+        .enable(d_valid),
         .addr(d_addr),
         .mem_store_type(d_store_type),
         .w_data(d_wdata),
@@ -74,14 +85,16 @@ module SOC (
             timer_taken & ~reset: d_rdata = timer_out;
             default: d_rdata = 'z;
         endcase
+        // in-cycle peripheral access
+        d_ready = ~reset & (timer_taken | VGA_taken | stdout_taken);
     end
 
-    always_ff @(posedge clk, posedge reset) begin
-        if (reset) begin
-            d_ready <= '0;
-        end else begin
-            d_ready <= d_valid & (timer_taken | VGA_taken | stdout_taken);
-        end
-    end
+    // always_ff @(posedge clk, posedge reset) begin
+    //     if (reset) begin
+    //         d_ready <= '0;
+    //     end else begin
+    //         d_ready <= d_valid & (timer_taken | VGA_taken | stdout_taken);
+    //     end
+    // end
 
 endmodule

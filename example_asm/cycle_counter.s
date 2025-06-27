@@ -1,26 +1,27 @@
 # should run in SOC
-.data
+.section .bootinfo, "a"
 exception_handler_addr: .dword interrupt_handler
-num_cycle:	.word 6
+.data
+num_cycle:	.word 7 # should >= 7
 
 .text
 .global __start
 __start:
-    la $t0, num_cycle;
+    dla $t0, num_cycle;
     lw $t1, 0($t0);
     # load current cycle into reg t0 0x2000_0000
     lw $t0, 0x20000000;
     add $t1, $t1, $t0;
     # set interrupting after num_cycle cycles
     sw $t1, 0x20000000;
-    nop; nop; nop; nop;
-    # no reachable
+    nop;
+    # no reachable, but will run till EX(if num_cycle == 7)
     li $t3, 0xcafebabe;
-.org 0x120
+
+.org 0x300
 interrupt_handler:
 	#lw	$k0, 12($k1)		# $26 = 0x2000_0004
-    li $k0, 0x20000004
-	sw	$k1, 0($k0)		# acknowledge interrupt
-	add	$k1, $zero, $k0		# $27 = 0x2000_0004
-    or $t2, 0xdeadbeef;
-	eret
+    li $t0, 0x20000004;
+    li $t1, 1;
+	sw	$t1, 0($t0);		# acknowledge interrupt
+	eret;

@@ -11,6 +11,7 @@ module timer #(
     output logic               TimerInterrupt,
     output logic [width - 1:0] cycle,
     output logic               TimerAddress,
+    input  logic               enable,
     input  logic [width - 1:0] data,
     input  logic [width - 1:0] address,
     input  logic               MemRead,
@@ -45,7 +46,7 @@ module timer #(
 
     // -- interrupt cycle --
 
-    register #(1) armed(
+    register #(1) armed (
         armed_Q,
         1'b1,
         clock,
@@ -73,8 +74,8 @@ module timer #(
 
     // -- lower --
 
-    wire addr_eq1 = address == TIMER_CNT_ADDR;
-    wire addr_eq2 = address == TIMER_CRL_ADDR;
+    wire addr_eq1 = enable & (address == TIMER_CNT_ADDR);
+    wire addr_eq2 = enable & (address == TIMER_CRL_ADDR);
     assign TimerAddress = addr_eq1 | addr_eq2;
     assign Acknowledge = addr_eq2 & MemWrite;
     assign TimerRead = addr_eq1 & MemRead;

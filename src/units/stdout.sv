@@ -8,6 +8,7 @@ import configurations::STDOUT_BASE_ADDR;
 module stdout (
     input  logic                   clock,
     input  logic                   reset,
+    input  logic                   enable,
     input  logic            [63:0] addr,
     input  mem_store_type_t        mem_store_type,
     input  logic            [63:0] w_data,
@@ -20,7 +21,7 @@ module stdout (
     always_ff @(posedge clock or posedge reset) begin
         if (reset) begin
             buffer <= 64'h0;
-        end else if (addr >= STDOUT_BASE_ADDR && addr < STDOUT_BASE_ADDR + 8) begin
+        end else if (enable & (addr >= STDOUT_BASE_ADDR && addr < STDOUT_BASE_ADDR + 8)) begin
             unique case (mem_store_type)
                 STORE_BYTE: buffer <= musk_origin | new_data;
                 STORE_WORD: begin

@@ -3,7 +3,7 @@
 #include <SOC_sim_SOC.h>
 #include <SOC_sim_stdout.h>
 #include <SOC_sim_core_MEM.h>
-#include <SOC_sim_data_mem__D40.h>
+#include <SOC_sim_data_mem__D100.h>
 #include <SOC_sim_cp0.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
@@ -14,6 +14,7 @@
 #include <unordered_map>
 
 #include "common.hpp"
+#include "SOC_utils.hpp"
 
 // ./Core_sim [cycle_max]
 int main(int argc, char** argv) {
@@ -45,58 +46,7 @@ int main(int argc, char** argv) {
     machine->reset = 1;
     TICK;
     machine->reset = 0;
-    std::cout << "flags: I - interrupt, S - stall, F - flush, A - forward A, B "
-                 "-forward B, R - reset, D - "
-                 "ask peripheral data access\n"
-              << "IE - instruction exception, OE - operation exception" << std::endl;
-    std::cout << "simulation starting" << std::endl;
-    while (ctx->time() < cycle_max * 2) {
-        if (machine->SOC->stdout->stdout_taken) {
-            printf("stdout: %s \n", (const char*)&machine->SOC->stdout->buffer);
-        }
-        std::cout << "time = " << ctx->time() << "\tpc = " << std::hex << std::right
-                  << std::setfill('0') << std::setw(8) << machine->SOC->core->pc << std::dec
-                  << std::left << "\t flags = ";
-        std::string flags;
-        if (machine->SOC->interrupt_sources) flags += "I|";
-        if (machine->SOC->core->stall_EX) flags += "S|";
-        if (machine->SOC->core->flush) flags += "F|";
-        if (machine->SOC->reset) flags += "R|";
-        if (machine->SOC->core->__PVT__d_valid) flags += "D|";
-        if (machine->SOC->core->forward_A == 1) flags += "AA|";
-        if (machine->SOC->core->forward_A == 2) flags += "AM|";
-        if (machine->SOC->core->forward_B == 1) flags += "BA|";
-        if (machine->SOC->core->forward_B == 2) flags += "BM|";
-        switch (machine->SOC->core->MEM_stage->cp->exc_code) {
-        case 0:
-            break;
-        case 0xc:
-            flags += "IE|";
-            break;
-        case 0xa:
-            flags += "OE|";
-            break;
-        }
-
-        if (!flags.empty()) {
-            flags.pop_back();
-        }
-
-        std::cout << std::left << std::setfill(' ') << std::setw(15) << flags;
-        std::cout << "IF_inst = "
-                  << get_disasm(machine->SOC->core->pc, machine->SOC->core->inst, disasm_cache,
-                                cs_handle);
-        if (machine->SOC->d_valid) {
-            std::cout << "\td_addr = " << std::hex << std::right << std::setfill('0')
-                      << std::setw(8) << machine->SOC->d_addr << std::dec << std::left;
-        }
-        if (machine->SOC->interrupt_sources) {
-            std::cout << "\tinterrupt_sources = " << std::hex << std::right << std::setfill('0')
-                      << std::setw(2) << (int)machine->SOC->interrupt_sources << std::dec;
-        }
-        std::cout << std::endl;
-        TICK;
-    }
+    mainLoop(machine, ctx, cycle_max, cs_handle, disasm_cache);
 
     std::ofstream mem_out("memory_after.txt");
     auto&         mem = machine->SOC->core->MEM_stage->mem->data_seg;

@@ -11,6 +11,7 @@ TEST_F(TimerTest, ReadCycleTest) {
     inst_->address = CYCLE_ADDR;
     inst_->MemRead = 1;
     inst_->MemWrite = 0;
+    inst_->enable = 1;
     std::uniform_int_distribution<int> dist{0, 10};
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < dist(rng); j++) {
@@ -26,6 +27,7 @@ TEST_F(TimerTest, InterruptTest) {
     inst_->address = CYCLE_ADDR;
     inst_->MemRead = 0;
     inst_->MemWrite = 1;
+    inst_->enable = 1;
     const auto interruptCycle = dist(rng);
     inst_->data = interruptCycle;
     tick();
@@ -47,6 +49,7 @@ TEST_F(TimerTest, AcknowledgeTest) {
     inst_->MemRead = 0;
     inst_->MemWrite = 1;
     inst_->data = 1;
+    inst_->enable = 1;
     tick();
     inst_->MemWrite = 0;
     inst_->MemRead = 1;

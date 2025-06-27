@@ -2,7 +2,6 @@ SECTIONS
 {
     /DISCARD/ : {
         *(.eh_frame)
-        *(.comment)
         *(.note*)
         *(.pdr)
         *(.MIPS.options)
@@ -16,6 +15,15 @@ SECTIONS
 
     . = 0x0;
 
+    .bootinfo : {
+        KEEP(*(.boot*))
+    }
+    .comment : {
+        *(.comment)
+    }
+
+    . = 0x100;
+
     .text : {
         *(.text)
         *(.text.*)
@@ -27,7 +35,7 @@ SECTIONS
     }
 
     .data : {
-        _gp = .;
+        PROVIDE(_gp = .);
         *(.sdata)
         *(.data)
     }
@@ -37,9 +45,10 @@ SECTIONS
         *(.bss)
         *(COMMON)
     }
-    . = ALIGN(16);
-    _stack_bottom = .;
-    . += 0x100;
-    _stack_top = .;
-    PROVIDE(_stack_top = .);
+
+    .stack (NOLOAD) : ALIGN(16) {
+        _stack_bottom = .;
+        . += 0x100;
+        PROVIDE(_stack_top = .);
+    }
 }

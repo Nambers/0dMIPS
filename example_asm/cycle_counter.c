@@ -1,8 +1,9 @@
+// should run in SOC
 void exception_handler();
 
 __attribute__((section(".bootinfo"))) volatile const unsigned long long exception_handler_addr =
     (unsigned long long)(void*)&exception_handler;
-const static unsigned int step = 6;
+const static unsigned int step = 7; // should be >= 7
 
 __asm__(".section .text\n"
         "li $sp, _stack_top\n"
@@ -10,19 +11,15 @@ __asm__(".section .text\n"
         "li $ra, 0x0d00\n" // placeholder
         "li $t9, __start\n"
         "jr $t9\n");
-
 void __start() {
-    unsigned int prev = 0, curr = 1, sum = 0;
-    for (unsigned int i = step; i > 0; i--) {
-        sum  = prev + curr;
-        prev = curr;
-        curr = sum;
-    }
-    // should be 13, F_6
-    *(unsigned long long*)0 = sum;
+    unsigned int curr = *(unsigned int*)(0x20000000);
+    curr += step;
+    *(unsigned int*)(0x20000000) = curr; // set interrupting after num_cycle cycles
     while (1);
 }
 
 void exception_handler() {
-    while (1);
+    // Acknowledge the interrupt
+    *(unsigned int*)(0x20000004) = 1;
+    __asm__ volatile("eret");
 }

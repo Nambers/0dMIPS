@@ -22,11 +22,16 @@ module core_branch (
         integer fd;
         // plz put the error handler address at first in .data section
         // this can help the memory be compacted
-        fd = $fopen("memory.data.mem", "r");
+        // TODO make it boot vector or configurable in CP0
+        fd = $fopen("memory.mem", "r");
         if (|fd) begin
             $fscanf(fd, "@%h", interrupeHandlerAddr);  // skip the first line
-            $fscanf(fd, "%h", interrupeHandlerAddr);
-            interrupeHandlerAddr = {interrupeHandlerAddr[31:0], interrupeHandlerAddr[63:32]};
+            if (interrupeHandlerAddr != 'b0) begin
+                interrupeHandlerAddr = 'h0;  // default value
+            end else begin
+                $fscanf(fd, "%h", interrupeHandlerAddr);
+                $display("Interrupe Handler Address: %h", interrupeHandlerAddr);
+            end
             $fclose(fd);
         end
     end

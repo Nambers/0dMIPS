@@ -44,7 +44,6 @@ package structures;
 
     typedef struct packed {
         logic [63:0] AU_out, A_data, B_data, pc4, pc_branch, jumpAddr;
-        logic [15:0] lui_imm;
         logic [4:0] W_regnum, shamt, rs, rt;
         logic [2:0] alu_op, sel;
         logic [1:0] alu_src2, shifter_plus32;
@@ -62,7 +61,6 @@ package structures;
             BNE,
             BC,
             BAL,
-            lui,
             linkpc,
             zero,
             negative,
@@ -86,10 +84,10 @@ package structures;
         logic [63:0] out, B_data, pc4;
         logic [4:0] W_regnum;
         logic [2:0] sel;
-        mem_load_type_t mem_load_type;  // ofs=64 + 32 + 11 + 2, if change, also change debugger_tui
-        mem_store_type_t mem_store_type;  // ofs=64 + 32 + 11, if change, also change debugger_tui
+        mem_load_type_t mem_load_type;  // ofs=64 + 32 + 10 + 2, if change, also change debugger_tui
+        mem_store_type_t mem_store_type;  // ofs=64 + 32 + 10, if change, also change debugger_tui
         logic reserved_inst_E,
-            overflow, zero, MFC0, MTC0, ERET, write_enable, signed_byte, signed_word, lui, linkpc
+            overflow, zero, MFC0, MTC0, ERET, write_enable, signed_byte, signed_word, linkpc
         ;
 `ifdef DEBUGGER
         logic [31:0] inst;

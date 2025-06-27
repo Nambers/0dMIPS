@@ -1,6 +1,8 @@
 import structures::IF_regs_t;
 
-module core_IF (
+module core_IF #(
+    parameter RESET_PC = 64'h100
+) (
     input logic clock,
     input logic reset,
     input logic [63:0] next_pc,
@@ -13,12 +15,12 @@ module core_IF (
 );
     always_ff @(posedge clock, posedge reset) begin
         if (reset) begin
-            pc <= 'd0;
-            IF_regs.pc <= 'd0;
-            IF_regs.pc4 <= 'd4;
+            pc <= RESET_PC;
+            IF_regs.pc <= RESET_PC;
+            IF_regs.pc4 <= RESET_PC + 'd4;
             IF_regs.inst <= 'd0;
         end else if (!stall || flush) begin
-            if(flush) begin
+            if (flush) begin
                 // when flush, keep pc
                 IF_regs.inst <= 'd0;
             end else begin

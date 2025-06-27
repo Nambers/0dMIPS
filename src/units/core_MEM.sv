@@ -33,7 +33,7 @@ module core_MEM (
 
     // -- mem --
     // {out[63:3], 3'b000} to align the data to the memory
-    data_mem #(64) mem (
+    data_mem #(256) mem (
         data_out,
         EX_regs.out,
         EX_regs.B_data,
@@ -97,7 +97,7 @@ module core_MEM (
         alu_mem_d_out,
         alu_mem_out,
         d_rdata,
-        d_valid
+        d_valid | d_ready
     );
 
     // -- cp0 --
@@ -135,6 +135,7 @@ module core_MEM (
     );
 
     always_ff @(posedge clock, posedge reset) begin
+        // $display("MEM: W_data_lui_linkpc=%h, d_valid=%b, d_ready=%b", W_data_lui_linkpc, d_valid, d_ready);
 `ifdef DEBUG
         if (|EX_regs.mem_load_type) begin
             $display("read addr: %h, data: %h, final: %h, reg=$%d", EX_regs.out, data_out,

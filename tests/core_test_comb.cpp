@@ -1,10 +1,17 @@
 #include "core_test.hpp"
 #include <Core_core_ID.h>
 #include <Core_core_MEM.h>
-#include <Core_data_mem__D40.h>
+#include <Core_data_mem__D100.h>
 #include <Core_regfile__W40.h>
 
 #define INST_COMB(a, b) ((static_cast<uint64_t>(b) << 32) | a)
+
+template <typename T> inline constexpr T fixedVal() {
+    return static_cast<T>((0x0d00 << 16) | 0x0d00);
+}
+template <typename T> inline constexpr T fixedVal2() {
+    return static_cast<T>((0xc100 << 16) | 0xc100);
+}
 
 template <typename Wide> uint64_t vlwide_get(const Wide& wide, int idx /* low_bit */, int width) {
     int high_bit  = idx + width - 1;
@@ -102,17 +109,18 @@ TestGenMemOnceCycle(
     // 3 to EX
     3);
 
-TestGenMemCycle(
+// RAW but no stall (use LU after AU)
+TestGenMemOnceCycle(
     LA,
     {
-        MEM_SEG[0] = INST_COMB(build_I_inst(0x0f, 0, 1, (val >> 16) & MASK16), // LUI
-                               build_I_inst(0x0d, 1, 1, val & MASK16)          // ORI
-        );
+        MEM_SEG[0] =
+            INST_COMB(build_I_inst(0x0f, 0, 1, (fixedVal<uint32_t>() >> 16) & MASK16), // LUI
+                      build_I_inst(0x0d, 1, 1, fixedVal<int16_t>())                    // ORI
+            );
     },
     {
         // 1st tick: LUI result
-        uint32_t imm     = (val >> 16) & 0xffff;
-        uint64_t lui_val = (uint64_t)(int32_t(imm << 16)); // sign-extend
+        auto lui_val = sign_extend(((fixedVal<uint32_t>() >> 16) & MASK16) << 16, 32);
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
         EXPECT_EQ(RF->W_data, lui_val);
@@ -120,12 +128,85 @@ TestGenMemCycle(
         tick(); // move to ORI
 
         // 2nd tick: ORI result
-        uint64_t ori_val = lui_val | (val & 0xffff);
+        uint64_t ori_val = sign_extend(fixedVal<int32_t>(), 32);
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
         EXPECT_EQ(RF->W_data, ori_val);
 
+        tick();
+        EXPECT_FALSE(RF->wr_enable);
+    },
+    4);
+// RAW but stall (use AU after LU)
+TestGenMemOnceCycle(
+    ORI_ADDI,
+    {
+        MEM_SEG[0] = INST_COMB(build_I_inst(0xd, 0, 1, fixedVal<int16_t>()),  // ORI
+                               build_I_inst(0x9, 1, 1, fixedVal<int16_t>())); // ADDI
+    },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data, fixedVal<int16_t>());
+
+        tick();
+
+        tick();
+
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data, fixedVal<int16_t>() * 2);
+
+        tick();
+        EXPECT_FALSE(RF->wr_enable);
+    },
+    4);
+TestGenMemOnceCycle(
+    LA_LA,
+    {
+        MEM_SEG[0] = INST_COMB(build_I_inst(0x0f, 0, 1, (fixedVal<uint32_t>() >> 16) & MASK16),
+                               build_I_inst(0x0d, 1, 1, fixedVal<int16_t>()));
+
+        MEM_SEG[1] = INST_COMB(build_I_inst(0x0f, 0, 1, (fixedVal2<uint32_t>() >> 16) & MASK16),
+                               build_I_inst(0x0d, 1, 1, fixedVal2<int16_t>()));
+    },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data, sign_extend(((fixedVal<uint32_t>() >> 16) & MASK16) << 16, 32));
+
+        tick();
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data, sign_extend(fixedVal<int32_t>(), 32));
+
+        tick();
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data, sign_extend(((fixedVal2<uint32_t>() >> 16) & MASK16) << 16, 32));
+
+        tick();
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data, sign_extend(fixedVal2<int32_t>(), 32));
+
         tick(); // done
         EXPECT_FALSE(RF->wr_enable);
+    },
+    4 // total 5 cycles
+);
+
+TestGenMemCycle(
+    LUI_Load,
+    {
+        MEM_SEG[0] = INST_COMB(build_I_inst(0xf, 0, 1, 1),            // LUI
+                               build_I_inst(0x23, 1, 2, -(1 << 15))); // LW
+    },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data, 1 << 16);
+        tick();
+        EXPECT_EQ(inst_->core->MEM_stage->mem->addr, (1 << 16) - (1 << 15)); // 0x8000
     },
     4);

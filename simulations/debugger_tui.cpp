@@ -20,7 +20,7 @@
 #include <SOC_sim_SOC.h>
 #include <SOC_sim_stdout.h>
 #include <SOC_sim_core_MEM.h>
-#include <SOC_sim_data_mem__D40.h>
+#include <SOC_sim_data_mem__D100.h>
 #include <SOC_sim_cp0.h>
 #include <SOC_sim_core_ID.h>
 #include <SOC_sim_regfile__W40.h>
@@ -132,15 +132,15 @@ void update_state_from_sim() {
         RF[i] = vlwide_get(R, i * 64, 64);
     }
 
-    const auto& readTmp = vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 11, 2);
+    const auto& readTmp = vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 10, 2);
     const auto& memAddr =
-        vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 11 + 2 * 2 + 3 + 5 + 3 * 64, 64);
+        vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 10 + 2 * 2 + 3 + 5 + 3 * 64, 64);
     if (readTmp) {
         // load
         readType      = static_cast<MemType>(readTmp);
         last_mem_read = memAddr;
     }
-    const auto& writeTmp = vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 11 + 2, 2);
+    const auto& writeTmp = vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 10 + 2, 2);
     if (writeTmp) {
         // store
         writeType      = static_cast<MemType>(writeTmp);

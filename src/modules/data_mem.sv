@@ -18,11 +18,12 @@ import structures::STORE_DWORD;
 
 module data_mem #(
     // size of data segment
-    parameter data_words = 'h4000  /* 4 M */
+    parameter data_words = 'h4000,  /* 4 M */
+    parameter index_bits = $clog2(data_words)
 ) (
     output logic [63:0] data_out,
     /* verilator lint_off UNUSEDSIGNAL */
-    input logic [63:0] addr,
+    input logic [63:0] addr /* verilator public */,
     /* verilator lint_on UNUSEDSIGNAL */
     input logic [63:0] data_in,
     input mem_store_type_t mem_store_type,
@@ -45,7 +46,7 @@ module data_mem #(
         $readmemh("memory.mem", data_seg);
     end
 
-    wire [5:0] index = addr[8:3], inst_index = inst_addr[8:3];
+    wire [index_bits-1:0] index = addr[index_bits+2:3], inst_index = inst_addr[index_bits+2:3];
     wire [63:0] musk_origin = data_seg[index] & (~(64'hff << (8*(addr[2:0])))),
             new_data = (data_in & 64'hff) << (8 * (addr[2:0]));
 

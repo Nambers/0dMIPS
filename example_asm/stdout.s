@@ -1,6 +1,7 @@
 # should run in SOC
-.data
+.section .bootinfo, "a"
 exception_handler_addr: .dword interrupt_handler
+.data
 str_msg:    .asciiz "Hello, World!"
 
 .text
@@ -18,8 +19,6 @@ print_loop:
     j print_loop;
 
 done:
-.org 0x120
 interrupt_handler:
-	nop;
     j interrupt_handler;
     
