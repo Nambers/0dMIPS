@@ -1,15 +1,3 @@
-////////////////////////////////////////////////////////////////////////
-//
-// Module: rom
-//
-// Author: Jared Smolens
-//
-// Description:
-//  Reads a file named 'memory.dat' for 32-bit binary MIPS instructions.
-//  Will read up to 256 instructions.
-//
-////////////////////////////////////////////////////////////////////////
-// this file is modified
 import structures::mem_store_type_t;
 import structures::NO_STORE;
 import structures::STORE_BYTE;
@@ -23,7 +11,7 @@ module data_mem #(
 ) (
     output logic [63:0] data_out,
     /* verilator lint_off UNUSEDSIGNAL */
-    input logic [63:0] addr /* verilator public */,
+    input logic [63:0] addr  /* verilator public */,
     /* verilator lint_on UNUSEDSIGNAL */
     input logic [63:0] data_in,
     input mem_store_type_t mem_store_type,
@@ -52,7 +40,7 @@ module data_mem #(
 
     always_comb begin
         data_out = data_seg[index];
-        inst = (inst_addr[2] == 1'b0) ? data_seg[inst_index][31:0] : data_seg[inst_index][63:32];
+        inst = (inst_addr[2] == 1'b0) ? data_seg[inst_index][63:32] : data_seg[inst_index][31:0];
     end
 
     always @(negedge clk or posedge reset) begin

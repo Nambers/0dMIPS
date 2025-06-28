@@ -16,7 +16,7 @@ def parse_objdump(objdump_output, addr_dividor=1):
             f"{phrase[i]}{phrase[i+1]}" for i in range(0, len(phrase) - 1, 2)
         ]
         if len(phrase) % 2 == 1:
-            paired_list.append(f"00000000{phrase[-1]}")
+            paired_list.append(f"{phrase[-1]}00000000")
         return paired_list
 
     next_expected_addr = -1

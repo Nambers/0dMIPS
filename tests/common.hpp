@@ -7,6 +7,10 @@
 #include <verilated.h>
 #include <verilated_cov.h>
 
+constexpr inline uint64_t inst_comb(uint32_t a, uint32_t b) {
+    return (static_cast<uint64_t>(a) << 32) | (b);
+}
+
 constexpr inline int64_t sign_extend(uint64_t val, int bits) {
     return static_cast<int64_t>(val << (64 - bits)) >> (64 - bits);
 }
@@ -14,12 +18,12 @@ constexpr inline int64_t sign_extend(uint64_t val, int bits) {
 template <class T> class TestBaseI : public testing::Test {
   protected:
     TestBaseI() : rng(std::random_device{}()), ctx() {}
-    virtual void tick()              = 0;
-    virtual void SetUp() override    = 0;
+    virtual void tick() = 0;
+    virtual void SetUp() override = 0;
     virtual void TearDown() override = 0;
 
-    T*               inst_ = nullptr;
-    std::mt19937     rng;
+    T *inst_ = nullptr;
+    std::mt19937 rng;
     VerilatedContext ctx;
 };
 
@@ -34,7 +38,7 @@ template <class T> class TestBase : public TestBaseI<T> {
         this->ctx.timeInc(1);
     }
     void SetUp() override {
-        this->inst_        = new T{&this->ctx};
+        this->inst_ = new T{&this->ctx};
         this->inst_->clock = 0;
         reset();
     }
@@ -52,8 +56,10 @@ template <class T> class TestBase : public TestBaseI<T> {
 };
 
 template <class T, class Param>
-class TestBaseWithParamI : public ::testing::WithParamInterface<Param>, public TestBaseI<T> {};
+class TestBaseWithParamI : public ::testing::WithParamInterface<Param>,
+                           public TestBaseI<T> {};
 template <class T, class Param>
-class TestBaseWithParam : public ::testing::WithParamInterface<Param>, public TestBase<T> {};
+class TestBaseWithParam : public ::testing::WithParamInterface<Param>,
+                          public TestBase<T> {};
 
 #endif // TESTS_COMMON_HPP

@@ -4,12 +4,15 @@ import structures::J;
 import structures::JR;
 import structures::ID_regs_t;
 import structures::EX_regs_t;
+import structures::forward_type_t;
 
 module core_branch (
     /* verilator lint_off UNUSEDSIGNAL */
     input ID_regs_t ID_regs,
     input EX_regs_t EX_regs,
     /* verilator lint_on UNUSEDSIGNAL */
+    input forward_type_t forward_A,
+    input logic [63:0] MEM_data,
     input logic [63:0] pc4,
     input logic [63:0] EPC,
     input logic takenHandler,
@@ -17,7 +20,7 @@ module core_branch (
     output logic [63:0] next_pc,
     output logic flush
 );
-    logic [63:0] interrupeHandlerAddr;
+    logic [63:0] interrupeHandlerAddr, forwarded_A;
 
     initial begin
         integer fd;
@@ -30,12 +33,22 @@ module core_branch (
             if (interrupeHandlerAddr != 'b0) begin
                 interrupeHandlerAddr = 'h0;  // default value
             end else begin
-                $fscanf(fd, "%h", interrupeHandlerAddr);
+                logic [63:0] rawAddr;
+                $fscanf(fd, "%h", rawAddr);
+                interrupeHandlerAddr = {rawAddr[31:0], rawAddr[63:32]};
                 $display("Interrupe Handler Address: %h", interrupeHandlerAddr);
             end
             $fclose(fd);
         end
     end
+
+    mux3v #(64) forward_mux_A (
+        forwarded_A,
+        ID_regs.A_data,
+        EX_regs.out,
+        MEM_data,
+        forward_A
+    );
 
     always_comb begin
         if (reset) begin
@@ -48,7 +61,7 @@ module core_branch (
             next_pc = EPC;
             flush   = 1'b1;
             // branch resolve in EX stage
-        end else if (EX_regs.BC | EX_regs.BAL | (EX_regs.BEQ & EX_regs.zero) | (EX_regs.BNE & ~EX_regs.zero)) begin
+        end else if (EX_regs.BC || EX_regs.BAL || (EX_regs.BEQ && EX_regs.zero) || (EX_regs.BNE && !EX_regs.zero)) begin
             next_pc = EX_regs.pc_branch;
             flush   = 1'b1;
         end else
@@ -65,7 +78,7 @@ module core_branch (
                 end
                 JR: begin
                     // jalr and jr
-                    next_pc = ID_regs.A_data;
+                    next_pc = forwarded_A;
                     flush   = 1'b1;
                 end
             endcase

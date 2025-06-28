@@ -3,7 +3,7 @@
 #include <SOC_debug_SOC.h>
 #include <SOC_debug_stdout.h>
 #include <SOC_debug_core_MEM.h>
-#include <SOC_debug_data_mem__D40.h>
+#include <SOC_debug_data_mem__D100.h>
 #include <SOC_debug_cp0.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
@@ -15,6 +15,7 @@
 #include <unordered_map>
 
 #include "common.hpp"
+#include "SOC_utils.hpp"
 
 // ./Core_sim [cycle_max]
 int main(int argc, char** argv) {

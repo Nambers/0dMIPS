@@ -16,6 +16,7 @@ module core_ID (
     /* verilator lint_off UNUSEDSIGNAL */
     input MEM_regs_t MEM_regs,
     /* verilator lint_on UNUSEDSIGNAL */
+    input logic [63:0] next_pc,
     output ID_regs_t ID_regs,
     output logic B_is_reg
 );
@@ -178,6 +179,6 @@ module core_ID (
             ID_regs.B_is_reg <= B_is_reg;
         end
         // for setting EPC
-        ID_regs.pc <= IF_regs.pc;
+        ID_regs.pc <= flush ? next_pc : IF_regs.pc;
     end
 endmodule

@@ -8,7 +8,9 @@ module core_MEM (
     input EX_regs_t EX_regs,
     /* verilator lint_on UNUSEDSIGNAL */
     input logic [63:0] inst_addr,
+    input logic [63:0] next_pc,
     input logic [7:0] interrupt_sources,
+    input logic flush,
     input logic d_valid,
     input logic d_ready,
     input logic [63:0] d_rdata,
@@ -33,14 +35,14 @@ module core_MEM (
     // -- mem --
     // {out[63:3], 3'b000} to align the data to the memory
     data_mem #(256) mem (
-        data_out,
-        EX_regs.out,
-        EX_regs.B_data,
-        EX_regs.mem_store_type & {2{~(d_valid | d_ready)}},
-        clock,
-        reset,
-        inst,
-        inst_addr
+        .clk(clock),
+        .reset(reset),
+        .addr(EX_regs.out),  // align to 8-byte boundary
+        .data_in(EX_regs.B_data),
+        .mem_store_type(EX_regs.mem_store_type & {2{~(d_valid | d_ready)}}), // mmio use memory store type but not store into
+        .data_out(data_out),
+        .inst_addr(inst_addr),
+        .inst(inst)
     );
 
     mux8v #(8) byte_load_mux (
@@ -107,7 +109,7 @@ module core_MEM (
         EX_regs.B_data,
         EX_regs.W_regnum,
         EX_regs.sel,
-        EX_regs.pc,
+        flush ? next_pc : EX_regs.pc,
         EX_regs.MTC0,
         EX_regs.ERET,
         interrupt_sources,

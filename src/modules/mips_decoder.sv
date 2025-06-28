@@ -52,73 +52,73 @@ module mips_decoder (
     // but only differ in rare places
 
     // add family
-    wire daddu_inst = op0 & (funct == OP0_DADDU) & no_shamt;
-    wire dadd_inst = op0 & (funct == OP0_DADD) & no_shamt;
-    wire addu_inst = op0 & (funct == OP0_ADDU) & no_shamt;
-    wire add_inst = op0 & (funct == OP0_ADD) & no_shamt;
-    wire add_family = add_inst | addu_inst | dadd_inst | daddu_inst;
+    wire daddu_inst = op0 && (funct == OP0_DADDU) && no_shamt;
+    wire dadd_inst = op0 && (funct == OP0_DADD) && no_shamt;
+    wire addu_inst = op0 && (funct == OP0_ADDU) && no_shamt;
+    wire add_inst = op0 && (funct == OP0_ADD) && no_shamt;
+    wire add_family = add_inst || addu_inst || dadd_inst || daddu_inst;
     // addi family
     wire daddiu_inst = (opcode == OP_DADDIU);
     wire addiu_inst = (opcode == OP_ADDIU);
     wire daddi_inst = (opcode == OP_DADDI);
     wire addi_inst = (opcode == OP_ADDI);
-    wire addi_family = addi_inst | addiu_inst | daddi_inst | daddiu_inst;
+    wire addi_family = addi_inst || addiu_inst || daddi_inst || daddiu_inst;
     // sub family
-    wire sub_inst = op0 & (funct == OP0_SUB) & no_shamt;
-    wire subu_inst = op0 & (funct == OP0_SUBU) & no_shamt;
-    wire dsub_inst = op0 & (funct == OP0_DSUB) & no_shamt;
-    wire sub_family = sub_inst | subu_inst | dsub_inst;
+    wire sub_inst = op0 && (funct == OP0_SUB) && no_shamt;
+    wire subu_inst = op0 && (funct == OP0_SUBU) && no_shamt;
+    wire dsub_inst = op0 && (funct == OP0_DSUB) && no_shamt;
+    wire sub_family = sub_inst || subu_inst || dsub_inst;
     // LU operations
-    wire or_inst = op0 & (funct == OP0_OR) & no_shamt;
+    wire or_inst = op0 && (funct == OP0_OR) && no_shamt;
     wire ori_inst = (opcode == OP_ORI);
     wire xori_inst = (opcode == OP_XORI);
-    wire xor_inst = op0 & (funct == OP0_XOR) & no_shamt;
-    wire and_inst = op0 & (funct == OP0_AND) & no_shamt;
-    wire nor_inst = op0 & (funct == OP0_NOR);
+    wire xor_inst = op0 && (funct == OP0_XOR) && no_shamt;
+    wire and_inst = op0 && (funct == OP0_AND) && no_shamt;
+    wire nor_inst = op0 && (funct == OP0_NOR);
     // slt family
-    wire sltu_inst = op0 & (funct == OP0_SLTU) & no_shamt;
-    wire slt_inst = op0 & (funct == OP0_SLT) & no_shamt;
+    wire sltu_inst = op0 && (funct == OP0_SLTU) && no_shamt;
+    wire slt_inst = op0 && (funct == OP0_SLT) && no_shamt;
     wire slti_inst = (opcode == OP_SLTI);
     wire sltiu_inst = (opcode == OP_SLTIU);
-    wire slt_family = slt_inst | sltu_inst | slti_inst | sltiu_inst;
+    wire slt_family = slt_inst || sltu_inst || slti_inst || sltiu_inst;
     // sll family
-    wire dsll32_inst = op0 & (funct == OP0_DSLL32);
-    wire dsll_inst = op0 & (funct == OP0_DSLL);
+    wire dsll32_inst = op0 && (funct == OP0_DSLL32);
+    wire dsll_inst = op0 && (funct == OP0_DSLL);
     // sll $0, $0, 0 is NOP
     // sll $0, $0, 1 is SSNOP
-    wire sll_inst = op0 & (funct == OP0_SLL);
-    wire sll_family = dsll_inst | dsll32_inst | sll_inst;
+    wire sll_inst = op0 && (funct == OP0_SLL);
+    wire sll_family = dsll_inst || dsll32_inst || sll_inst;
     // srl family
-    wire dsrl_inst = op0 & (funct == OP0_DSRL);
-    wire dsrl32_inst = op0 & (funct == OP0_DSRL32);
-    wire srl_inst = op0 & (funct == OP0_SRL);
-    wire srl_family = dsrl_inst | dsrl32_inst | srl_inst;
+    wire dsrl_inst = op0 && (funct == OP0_DSRL);
+    wire dsrl32_inst = op0 && (funct == OP0_DSRL32);
+    wire srl_inst = op0 && (funct == OP0_SRL);
+    wire srl_family = dsrl_inst || dsrl32_inst || srl_inst;
 
-    wire jalr_inst = op0 & (funct == OP0_JALR) & (rt == 'b0);
-    wire jr_inst = op0 & (funct == OP0_JR) & (rt == 'b0) & (rd == 'b0);
+    wire jalr_inst = op0 && (funct == OP0_JALR) && (rt == 'b0);
+    wire jr_inst = op0 && (funct == OP0_JR) && (rt == 'b0) && (rd == 'b0);
     wire jal_inst = (opcode == OP_JAL);
     wire j_inst = (opcode == OP_J);
-    wire j_family = j_inst | jr_inst | jal_inst | jalr_inst;
+    wire j_family = j_inst || jr_inst || jal_inst || jalr_inst;
 
-    wire bal_inst = opr & (rs == 'b0) & (rt == OPR_BAL);
+    wire bal_inst = opr && (rs == 'b0) && (rt == OPR_BAL);
 
     // or AUI
-    wire lui_inst = (opcode == OP_LUI) & (rs == 'b0);
+    wire lui_inst = (opcode == OP_LUI) && (rs == 'b0);
     wire ld_inst = (opcode == OP_LD);
 
     // lw family
     wire lw_inst = (opcode == OP_LW);
     wire lwu_inst = (opcode == OP_LWU);
-    wire lw_family = ld_inst | lwu_inst | lw_inst;
+    wire lw_family = ld_inst || lwu_inst || lw_inst;
     // lb family
     wire lb_inst = (opcode == OP_LB);
     wire lbu_inst = (opcode == OP_LBU);
-    wire lb_family = lbu_inst | lb_inst;
+    wire lb_family = lbu_inst || lb_inst;
 
     wire sd_inst = (opcode == OP_SD);
     wire sw_inst = (opcode == OP_SW);
     wire sb_inst = (opcode == OP_SB);
-    wire store_family = sd_inst | sw_inst | sb_inst;
+    wire store_family = sd_inst || sw_inst || sb_inst;
 
     wire nop_inst = (inst == 'b0);
 
@@ -126,76 +126,76 @@ module mips_decoder (
     wire beq_inst = (opcode == OP_BEQ);
     wire bne_inst = (opcode == OP_BNE);
     wire bc_inst = (opcode == OP_BC);
-    wire branch_family = beq_inst | bne_inst | bc_inst;
+    wire branch_family = beq_inst || bne_inst || bc_inst;
 
     // CP0
-    wire MFC0_inst = (opcode == OP_Z0) & (rs == OPZ_MFCZ);
-    wire MTC0_inst = (opcode == OP_Z0) & (rs == OPZ_MTCZ);
-    wire ERET_inst = (opcode == OP_Z0) & (co == OP_CO) & (funct == OPC_ERET);
-    wire CP0_family = MFC0_inst | MTC0_inst | ERET_inst;
+    wire MFC0_inst = (opcode == OP_Z0) && (rs == OPZ_MFCZ);
+    wire MTC0_inst = (opcode == OP_Z0) && (rs == OPZ_MTCZ);
+    wire ERET_inst = (opcode == OP_Z0) && (co == OP_CO) && (funct == OPC_ERET);
+    wire CP0_family = MFC0_inst || MTC0_inst || ERET_inst;
 
     always_comb begin
         // --- stage ID ---
-        except = ~(add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst | branch_family | j_family | lui_inst | slt_family| lw_family | lb_family | ld_inst | store_family | nop_inst | sll_family | srl_family | CP0_family | bal_inst);
+        except = !(add_family || addi_family || sub_family || and_inst || or_inst || xor_inst || nor_inst || ori_inst || xori_inst || branch_family || j_family || lui_inst || slt_family| lw_family || lb_family || ld_inst || store_family || nop_inst || sll_family || srl_family || CP0_family || bal_inst);
         // branch unit resolved in ID stage
         // jump to register
-        control_type[1] = (jr_inst | jalr_inst) & ~except;
+        control_type[1] = (jr_inst || jalr_inst) && !except;
         // jump to imm
-        control_type[0] = (j_inst | jal_inst | bal_inst) & ~except;
+        control_type[0] = (j_inst || jal_inst || bal_inst) && !except;
 
         // --- stage EX ---
         // branch unit resolved in EX stage
-        beq = beq_inst & ~except;
-        bne = bne_inst & ~except;
-        bc = bc_inst & ~except;
-        bal = bal_inst & ~except;
+        beq = beq_inst && !except;
+        bne = bne_inst && !except;
+        bc = bc_inst && !except;
+        bal = bal_inst && !except;
 
-        signed_byte = lb_inst & ~except;
-        signed_word = lw_inst & ~except;
+        signed_byte = lb_inst && !except;
+        signed_word = lw_inst && !except;
 
-        alu_op[0] = sub_family | or_inst | xor_inst | ori_inst | xori_inst | branch_family | slt_family;
-        alu_op[1] = sub_family | xor_inst | nor_inst | add_family | addi_family | xori_inst | branch_family | bal_inst | slt_family | lw_family | lb_family | ld_inst | store_family;
+        alu_op[0] = sub_family || or_inst || xor_inst || ori_inst || xori_inst || branch_family || slt_family;
+        alu_op[1] = sub_family || xor_inst || nor_inst || add_family || addi_family || xori_inst || branch_family || bal_inst || slt_family || lw_family || lb_family || ld_inst || store_family;
         // lu switch
-        alu_op[2] = and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst;
+        alu_op[2] = and_inst || or_inst || xor_inst || nor_inst || ori_inst || xori_inst;
 
         // 0 = rd, 1 = rt, 2 = 32
-        rd_src[0] = (addi_family | ori_inst | xori_inst | lui_inst | lw_family | lb_family | ld_inst | slti_inst | sltiu_inst) & ~MFC0_inst & ~except;
-        rd_src[1] = (jal_inst | bal_inst) & ~except;
+        rd_src[0] = (addi_family || ori_inst || xori_inst || lui_inst || lw_family || lb_family || ld_inst || slti_inst || sltiu_inst) && !MFC0_inst && !except;
+        rd_src[1] = (jal_inst || bal_inst) && !except;
 
         // 1 = signed immediate
-        alu_src2[0] = (addiu_inst | daddiu_inst | sltiu_inst | slti_inst | addi_inst | daddi_inst | lw_family | lb_family | ld_inst | store_family | bal_inst) & ~except;
+        alu_src2[0] = (addiu_inst || daddiu_inst || sltiu_inst || slti_inst || addi_inst || daddi_inst || lw_family || lb_family || ld_inst || store_family || bal_inst) && !except;
         // 2 = unsigned immediate
-        alu_src2[1] = (ori_inst | xori_inst) & ~except;
-        ignore_overflow = (addu_inst | addiu_inst | subu_inst | daddu_inst | daddiu_inst | sltu_inst | sltiu_inst) & ~except;
+        alu_src2[1] = (ori_inst || xori_inst) && !except;
+        ignore_overflow = (addu_inst || addiu_inst || subu_inst || daddu_inst || daddiu_inst || sltu_inst || sltiu_inst) && !except;
 
-        lui_out = lui_inst & ~except;
+        lui_out = lui_inst && !except;
         // write back data = pc4
-        linkpc = (jal_inst | jalr_inst | bal_inst) & ~except;
-        slt_type[1:0] = {(sltu_inst | sltiu_inst) & ~except, (slt_inst | slti_inst) & ~except};
-        alu_shifter_src = sll_family | srl_family;
+        linkpc = (jal_inst || jalr_inst || bal_inst) && !except;
+        slt_type[1:0] = {(sltu_inst || sltiu_inst) && !except, (slt_inst || slti_inst) && !except};
+        alu_shifter_src = sll_family || srl_family;
         shift_right = srl_family;
 
-        cut_alu_out32[0] = (add_inst | addi_inst | sub_inst) & ~except;
-        cut_alu_out32[1] = (addu_inst | addiu_inst | subu_inst) & ~except;
+        cut_alu_out32[0] = (add_inst || addi_inst || sub_inst) && !except;
+        cut_alu_out32[1] = (addu_inst || addiu_inst || subu_inst) && !except;
 
-        cut_shifter_out32 = (srl_inst | sll_inst) & ~except;
-        shifter_plus32[0] = op0 & dsll32_inst & ~except;
-        shifter_plus32[1] = op0 & dsrl32_inst & ~except;
+        cut_shifter_out32 = (srl_inst || sll_inst) && !except;
+        shifter_plus32[0] = op0 && dsll32_inst && !except;
+        shifter_plus32[1] = op0 && dsrl32_inst && !except;
 
         // --- stage MEM ---
-        mem_store_type[0] = (sb_inst | sd_inst) & ~except;
-        mem_store_type[1] = (sw_inst | sd_inst) & ~except;
-        mem_load_type[0] = (lb_family | ld_inst) & ~except;
-        mem_load_type[1] = (lw_family | ld_inst) & ~except;
+        mem_store_type[0] = (sb_inst || sd_inst) && !except;
+        mem_store_type[1] = (sw_inst || sd_inst) && !except;
+        mem_load_type[0] = (lb_family || ld_inst) && !except;
+        mem_load_type[1] = (lw_family || ld_inst) && !except;
         // cp0
-        MFC0 = MFC0_inst & ~except;
-        MTC0 = MTC0_inst & ~except;
-        ERET = ERET_inst & ~except;
+        MFC0 = MFC0_inst && !except;
+        MTC0 = MTC0_inst && !except;
+        ERET = ERET_inst && !except;
 
-        B_is_reg = ((alu_src2 == 0) | store_family) & ~except;
+        B_is_reg = ((alu_src2 == 0) || store_family) && !except;
 
         // --- stage WB ---
-        writeenable = (add_family | addi_family | sub_family | and_inst | or_inst | xor_inst | nor_inst | ori_inst | xori_inst | lui_inst | slt_family | lw_family | lb_family | ld_inst | jal_inst | jalr_inst | bal_inst | sll_family | srl_family) & ~MTC0_inst & ~ERET_inst & ~beq_inst & ~nop_inst & ~except;
+        writeenable = (add_family || addi_family || sub_family || and_inst || or_inst || xor_inst || nor_inst || ori_inst || xori_inst || lui_inst || slt_family || lw_family || lb_family || ld_inst || jal_inst || (jalr_inst && (rd != 0)) || bal_inst || sll_family || srl_family) && !MTC0_inst && !ERET_inst && !beq_inst && !nop_inst && !except;
     end
 
 endmodule  // mips_decode

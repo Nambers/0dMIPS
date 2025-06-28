@@ -30,4 +30,7 @@
     - [x] Timer interrupt
     - [ ] Break
     - [ ] Syscall
-- [ ] out-of-order execution
+- [ ] ~~out-of-order execution~~ double-issue in-order
+- [ ] AXI
+    - [ ] Memory
+- [ ] Branch prediction

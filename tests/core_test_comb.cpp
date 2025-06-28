@@ -4,8 +4,6 @@
 #include <Core_data_mem__D100.h>
 #include <Core_regfile__W40.h>
 
-#define INST_COMB(a, b) ((static_cast<uint64_t>(b) << 32) | a)
-
 template <typename T> inline constexpr T fixedVal() {
     return static_cast<T>((0x0d00 << 16) | 0x0d00);
 }
@@ -46,11 +44,11 @@ TestGenMemCycle(
         WRITE_RF(2, val);
 
         // beq $1, $2, +32
-        MEM_SEG[0] = build_I_inst(0x4, 1, 2, 32 >> 2);
+        MEM_SEG[0] = inst_comb(build_I_inst(0x4, 1, 2, 32 >> 2), 0);
         // beq $1, $2, -12
         // 36 / 8 = 4.5, so 2nd inst in the slot
         MEM_SEG[(32 + 4) / 8] =
-            INST_COMB(0, build_I_inst(0x4, 1, 2, -(24 >> 2)));
+            inst_comb(0, build_I_inst(0x4, 1, 2, -(24 >> 2)));
     },
     { EXPECT_EQ(inst_->core->pc, (32 + 4) - 24 + 4); },
     // 3rd cycle EX stage jump
@@ -67,10 +65,10 @@ TestGenMemCycle(
         // 1: ori $1, $0, 0xabcd --> skiped
         // 2: sw $1, 0($0)
         // 3: lw $3, 0($0)
-        MEM_SEG[0] = INST_COMB(build_I_inst(0x4, 1, 2, 4 >> 2),
+        MEM_SEG[0] = inst_comb(build_I_inst(0x4, 1, 2, 4 >> 2),
                                build_I_inst(0xd, 0, 1, 0xabcd));
         MEM_SEG[1] =
-            INST_COMB(build_I_inst(0x2b, 0, 1, 0), build_I_inst(0x23, 0, 3, 0));
+            inst_comb(build_I_inst(0x2b, 0, 1, 0), build_I_inst(0x23, 0, 3, 0));
     },
     {
         EXPECT_EQ(MEM_SEG[0] & MASK32, val & MASK32);
@@ -86,8 +84,9 @@ TestGenMemCycle(
 TestGenMemOnceCycle(
     JAL_JR_Return,
     {
-        MEM_SEG[0] = build_J_inst(0x3, 32 >> 2);           // jal 32
-        MEM_SEG[32 / 8] = build_R_inst(0, 31, 0, 0, 0, 8); // jr $ra
+        MEM_SEG[0] = inst_comb(build_J_inst(0x3, 32 >> 2), 0); // jal 32
+        MEM_SEG[32 / 8] =
+            inst_comb(build_R_inst(0, 31, 0, 0, 0, 8), 0); // jr $ra
     },
     {
         EXPECT_EQ(inst_->core->pc, 32);
@@ -101,9 +100,10 @@ TestGenMemOnceCycle(
 TestGenMemOnceCycle(
     BAL_JR_Return,
     {
-        MEM_SEG[0] = build_REGIMM_inst(0x1, 0x11, 0, 32 >> 2); // bal 32
+        MEM_SEG[0] =
+            inst_comb(build_REGIMM_inst(0x1, 0x11, 0, 32 >> 2), 0); // bal 32
         MEM_SEG[(32 + 4) / 8] =
-            INST_COMB(0, build_R_inst(0, 31, 0, 0, 0, 8)); // jr $ra
+            inst_comb(0, build_R_inst(0, 31, 0, 0, 0, 8)); // jr $ra
     },
     {
         EXPECT_EQ(inst_->core->pc, 32 + 4);
@@ -119,7 +119,7 @@ TestGenMemOnceCycle(
 TestGenMemOnceCycle(
     LA,
     {
-        MEM_SEG[0] = INST_COMB(
+        MEM_SEG[0] = inst_comb(
             build_I_inst(0x0f, 0, 1,
                          (fixedVal<uint32_t>() >> 16) & MASK16), // LUI
             build_I_inst(0x0d, 1, 1, fixedVal<int16_t>())        // ORI
@@ -152,7 +152,7 @@ TestGenMemOnceCycle(
         MEM_SEG[32 / 8] =
             sign_extend(fixedVal<int32_t>(), 32); // store value into $0
         MEM_SEG[0] =
-            INST_COMB(build_I_inst(0x23, 0, 1, 32),                  // LW
+            inst_comb(build_I_inst(0x23, 0, 1, 32),                  // LW
                       build_I_inst(0x9, 1, 1, fixedVal<int16_t>())); // ADDI
     },
     {
@@ -178,7 +178,7 @@ TestGenMemOnceCycle(
     ORI_ADDI,
     {
         MEM_SEG[0] =
-            INST_COMB(build_I_inst(0xd, 0, 1, fixedVal<int16_t>()),  // ORI
+            inst_comb(build_I_inst(0xd, 0, 1, fixedVal<int16_t>()),  // ORI
                       build_I_inst(0x9, 1, 1, fixedVal<int16_t>())); // ADDI
     },
     {
@@ -199,11 +199,11 @@ TestGenMemOnceCycle(
 TestGenMemOnceCycle(
     LA_LA,
     {
-        MEM_SEG[0] = INST_COMB(
+        MEM_SEG[0] = inst_comb(
             build_I_inst(0x0f, 0, 1, (fixedVal<uint32_t>() >> 16) & MASK16),
             build_I_inst(0x0d, 1, 1, fixedVal<int16_t>()));
 
-        MEM_SEG[1] = INST_COMB(
+        MEM_SEG[1] = inst_comb(
             build_I_inst(0x0f, 0, 1, (fixedVal2<uint32_t>() >> 16) & MASK16),
             build_I_inst(0x0d, 1, 1, fixedVal2<int16_t>()));
     },
@@ -240,7 +240,7 @@ TestGenMemOnceCycle(
 TestGenMemCycle(
     LUI_Load,
     {
-        MEM_SEG[0] = INST_COMB(build_I_inst(0xf, 0, 1, 1),            // LUI
+        MEM_SEG[0] = inst_comb(build_I_inst(0xf, 0, 1, 1),            // LUI
                                build_I_inst(0x23, 1, 2, -(1 << 15))); // LW
     },
     {

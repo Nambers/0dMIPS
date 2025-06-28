@@ -35,7 +35,7 @@ module core #(
     EX_regs_t  EX_regs  /* verilator public */;
     MEM_regs_t MEM_regs  /* verilator public */;
 
-    logic [63:0] pc  /* verilator public */, next_pc;
+    logic [63:0] pc  /* verilator public */, next_pc, EX_A_data_forwarded;
     logic [31:0] inst  /* verilator public */;
     forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
 
@@ -70,6 +70,8 @@ module core #(
     core_branch branch_unit (
         .ID_regs(ID_regs),
         .EX_regs(EX_regs),
+        .forward_A(forward_A),
+        .MEM_data(MEM_regs.W_data),
         .pc4(IF_regs.pc4),
         .EPC(MEM_regs.EPC),
         .takenHandler(MEM_regs.takenHandler),
@@ -95,6 +97,7 @@ module core #(
         .IF_regs(IF_regs),
         .stall(stall),
         .flush(flush),
+        .next_pc(next_pc),
         .MEM_regs(MEM_regs),
         .ID_regs(ID_regs),
         .B_is_reg(B_is_reg)
@@ -107,6 +110,7 @@ module core #(
         .flush(flush),
         .EX_regs(EX_regs),
         .MEM_data(MEM_regs.W_data),
+        .next_pc(next_pc),
         .forward_A(forward_A),
         .forward_B(forward_B)
     );
@@ -115,7 +119,9 @@ module core #(
         .clock(clock),
         .reset(reset),
         .inst_addr(pc),
+        .next_pc(next_pc),
         .interrupt_sources(interrupt_sources),
+        .flush(flush),
         .d_valid(d_valid),
         .d_ready(d_ready),
         .d_rdata(d_rdata),

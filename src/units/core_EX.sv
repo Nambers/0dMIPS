@@ -10,6 +10,7 @@ module core_EX (
     /* verilator lint_on UNUSEDSIGNAL */
     input logic flush,
     input logic [63:0] MEM_data,
+    input logic [63:0] next_pc,
     // -- forward --
     input forward_type_t forward_A,
     input forward_type_t forward_B,
@@ -153,6 +154,6 @@ module core_EX (
 `endif
         end
         // for setting EPC
-        EX_regs.pc <= ID_regs.pc;
+        EX_regs.pc <= flush ? next_pc : ID_regs.pc;
     end
 endmodule
