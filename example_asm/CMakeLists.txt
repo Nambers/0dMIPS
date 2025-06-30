@@ -20,6 +20,9 @@ set(C_FLAGS ${TOOLCHIAN_FLAGS}
     -fno-pie
     -nostartfiles
     -nostdlib
+    -EL
+    -G 8
+    -mno-abicalls
     -Wl,-e,__start
 )
 

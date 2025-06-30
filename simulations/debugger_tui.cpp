@@ -376,13 +376,13 @@ Element render_perip() {
 
     if (ctx->time() > lastCheck && machine->SOC->stdout->stdout_taken) {
         lastCheck = ctx->time();
-        QData &buf = machine->SOC->stdout->buffer;
+        char *buf = reinterpret_cast<char *>(&machine->SOC->stdout->buffer);
 
         for (int i = 0; i < 8; ++i) {
-            char c = static_cast<char>((buf >> (i * 8)) & 0xFF);
-            if (c != 0) {
-                stdoutBuffer.append_char(c);
-            }
+            char c = buf[i];
+            if (c == 0)
+                break;
+            stdoutBuffer.append_char(c);
         }
     }
 

@@ -45,16 +45,17 @@ module core_MEM (
         .inst(inst)
     );
 
+    // little endian byte load
     mux8v #(8) byte_load_mux (
         byte_load_out,
-        data_out[7:0],
-        data_out[15:8],
-        data_out[23:16],
-        data_out[31:24],
         data_out[39:32],
         data_out[47:40],
         data_out[55:48],
         data_out[63:56],
+        data_out[7:0],
+        data_out[15:8],
+        data_out[23:16],
+        data_out[31:24],
         EX_regs.out[2:0]
     );
 
