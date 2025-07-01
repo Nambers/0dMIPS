@@ -40,6 +40,6 @@
 <details>
     <summary>Hello world with debugger (GIF)</summary>
 
-    ![Hello world with debugger](docs/hello_world.gif)
+![Hello world with debugger](docs/hello_world.gif)
 
 </details>
