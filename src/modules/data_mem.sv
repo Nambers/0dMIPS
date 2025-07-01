@@ -6,7 +6,7 @@ import structures::STORE_DWORD;
 
 module data_mem #(
     // size of data segment
-    parameter data_words = 'h4000,  /* 4 M */
+    parameter data_words = 'h4000,
     parameter index_bits = $clog2(data_words)
 ) (
     output logic [63:0] data_out,
@@ -35,25 +35,72 @@ module data_mem #(
     end
 
     wire [index_bits-1:0] index = addr[index_bits+2:3], inst_index = inst_addr[index_bits+2:3];
-    wire [63:0] musk_origin = data_seg[index] & (~(64'hff << (8*(addr[2:0])))),
-            new_data = (data_in & 64'hff) << (8 * (addr[2:0]));
+    assign data_out = {
+        data_seg[index][7:0],
+        data_seg[index][15:8],
+        data_seg[index][23:16],
+        data_seg[index][31:24],
+        data_seg[index][39:32],
+        data_seg[index][47:40],
+        data_seg[index][55:48],
+        data_seg[index][63:56]
+    };
 
     always_comb begin
-        data_out = data_seg[index];
-        inst = (inst_addr[2] == 1'b0) ? data_seg[inst_index][63:32] : data_seg[inst_index][31:0];
+        if (inst_addr[2])
+            inst = {
+                data_seg[inst_index][7:0],
+                data_seg[inst_index][15:8],
+                data_seg[inst_index][23:16],
+                data_seg[inst_index][31:24]
+            };
+        else
+            inst = {
+                data_seg[inst_index][39:32],
+                data_seg[inst_index][47:40],
+                data_seg[inst_index][55:48],
+                data_seg[inst_index][63:56]
+            };
     end
 
     always @(negedge clk or posedge reset) begin
         if (reset) begin
-            for (i = 0; i < data_words; i = i + 1) data_seg[i] <= 64'b0;
+            for (i = 0; i < data_words; i = i + 1) data_seg[i] <= 'b0;
             $readmemh("memory.mem", data_seg);
         end else begin
             unique case (mem_store_type)
-                STORE_BYTE: data_seg[index] <= musk_origin | new_data;  // sb
+                STORE_BYTE:
+                unique case (addr[2:0])
+                    'd7: data_seg[index][7:0] <= data_in[7:0];
+                    'd6: data_seg[index][15:8] <= data_in[7:0];
+                    'd5: data_seg[index][23:16] <= data_in[7:0];
+                    'd4: data_seg[index][31:24] <= data_in[7:0];
+                    'd3: data_seg[index][39:32] <= data_in[7:0];
+                    'd2: data_seg[index][47:40] <= data_in[7:0];
+                    'd1: data_seg[index][55:48] <= data_in[7:0];
+                    'd0: data_seg[index][63:56] <= data_in[7:0];
+                endcase
                 STORE_WORD:
-                if (addr[2]) data_seg[index][63:32] <= data_in[31:0];
-                else data_seg[index][31:0] <= data_in[31:0];  // sw
-                STORE_DWORD: data_seg[index] <= data_in;  // sd
+                if (addr[2])
+                    data_seg[index][31:0] <= {
+                        data_in[7:0], data_in[15:8], data_in[23:16], data_in[31:24]
+                    };
+                else
+                    data_seg[index][63:32] <= {
+                        data_in[7:0], data_in[15:8], data_in[23:16], data_in[31:24]
+                    };
+                STORE_DWORD: begin
+                    data_seg[index] <= {
+                        data_in[7:0],
+                        data_in[15:8],
+                        data_in[23:16],
+                        data_in[31:24],
+                        data_in[39:32],
+                        data_in[47:40],
+                        data_in[55:48],
+                        data_in[63:56]
+                    };
+                end
                 NO_STORE: ;  // we = 0
             endcase
         end

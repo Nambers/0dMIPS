@@ -13,12 +13,12 @@
         name,                                                                  \
         {                                                                      \
             MEM_SEG[0] = inst_comb(build_I_inst(opcode, 0, 1, 16), 0);         \
-            MEM_SEG[2] = val;                                                  \
+            MEM_SEG[2] = htobe64(val);                                         \
         },                                                                     \
         {                                                                      \
             EXPECT_TRUE(RF->wr_enable);                                        \
             EXPECT_EQ(RF->W_addr, 1);                                          \
-            EXPECT_EQ(RF->W_data, check_W_data);                               \
+            EXPECT_EQ(RF->W_data, check_W_data);                      \
         })
 
 TestGenRead(LB, 0x20, (val & 0xff) | ((val & 0x80) ? BYTE_HIGH_FULL : 0));
@@ -33,10 +33,10 @@ TestGenRead(LD, 0x37, val);
     TestGenMem(                                                                \
         name,                                                                  \
         {                                                                      \
-            WRITE_RF(1, val); /* store val into reg $1*/                       \
+            WRITE_RF(1, (val)); /* store val into reg $1*/              \
             MEM_SEG[0] = inst_comb(build_I_inst(opcode, 0, 1, 8), 0);          \
         },                                                                     \
-        { EXPECT_EQ(MEM_SEG[1], check_mem); })
+        { EXPECT_EQ(be64toh(MEM_SEG[1]), check_mem); })
 
 TestGenWrite(SW, 0x2b, val &MASK32);
 TestGenWrite(SB, 0x28, val & 0xff);

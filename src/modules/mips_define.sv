@@ -57,6 +57,7 @@ package mips_define;
     localparam OP0_DSRL = 6'h3a;
     localparam OP0_DSLL32 = 6'h3c;
     localparam OP0_DSRL32 = 6'h3e;
+    localparam OP0_SYSCALL = 6'h0c;
 
     // Secondary opcodes (rs field; OP_Z[0-3])
     localparam OPZ_MFCZ = 5'h00;

@@ -2,7 +2,7 @@
 .section .bootinfo, "a"
 exception_handler_addr: .dword interrupt_handler
 .data
-str_msg:    .asciiz "Hello, World!"
+str_msg:    .asciiz "Hello, World!\n"
 
 .text
 .global __start

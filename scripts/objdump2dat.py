@@ -1,6 +1,7 @@
 import re
 import os
 import sys
+import struct
 
 CWD = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
 
@@ -11,32 +12,37 @@ def parse_objdump(objdump_output, addr_dividor=1):
     memory = []
     phrase = []
 
-    def group_mem(phrase):
-        paired_list = [
-            f"{phrase[i]}{phrase[i+1]}" for i in range(0, len(phrase) - 1, 2)
-        ]
-        if len(phrase) % 2 == 1:
-            paired_list.append(f"{phrase[-1]}00000000")
-        return paired_list
+    def b32toel(vals):
+        res = []
+        for i in range(0, len(vals) - 1, 2):
+            res.append(
+                struct.pack("<Q", (int(vals[i + 1], 16) << 32) | int(vals[i], 16)).hex()
+            )
+        if len(vals) % 2 == 1:
+            res.append(struct.pack("<Q", int(vals[-1], 16)).hex())
+        return res
 
     next_expected_addr = -1
     for line in lines:
         match = re.match(pattern, line)
         if match:
+            print(match.groups())
             address = int(match.group(1), 16)
             instruction = match.group(2)
 
             if address != next_expected_addr:
                 # Flush old phrase if entering new aligned section
                 if phrase:
-                    memory.extend(group_mem(phrase))
+                    memory.extend(b32toel(phrase))
                     phrase = []
                 memory.append(f"@{(address // addr_dividor):08x}")
+                if address % addr_dividor != 0:
+                    phrase.append("0")
 
-            next_expected_addr = address + len(instruction) // 2
+            next_expected_addr = address + 4
             phrase.append(instruction)
 
-    memory.extend(group_mem(phrase))
+    memory.extend(b32toel(phrase))
     return "\n".join(memory)
 
 

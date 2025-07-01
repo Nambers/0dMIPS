@@ -6,7 +6,7 @@ const static unsigned int step = 6;
 
 __asm__(".section .text\n"
         "li $sp, _stack_top\n"
-        "li $gp, _gp\n"
+        "li $gp, __global_pointer$\n"
         "li $ra, 0x0d00\n" // placeholder
         "li $t9, __start\n"
         "jr $t9\n");

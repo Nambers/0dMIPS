@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
     unsigned int      cycle_max = argc > 1 ? std::stoi(argv[1]) : 200;
     VerilatedContext* ctx       = new VerilatedContext;
     SOC_sim*          machine   = new SOC_sim{ctx};
-    VerilatedVcdC*    tfp       = new VerilatedVcdC;
+    // VerilatedVcdC*    tfp       = new VerilatedVcdC;
     ctx->debug(0);
     ctx->randReset(2);
     ctx->timeunit(-9);
@@ -35,12 +35,12 @@ int main(int argc, char** argv) {
     }
 
     Verilated::traceEverOn(true);
-    machine->trace(tfp, 99);
-    tfp->open("core.vcd");
-    if (!tfp->isOpen()) {
-        std::cerr << "Failed to create VCD file!" << std::endl;
-        return -1;
-    }
+    // machine->trace(tfp, 99);
+    // tfp->open("core.vcd");
+    // if (!tfp->isOpen()) {
+        // std::cerr << "Failed to create VCD file!" << std::endl;
+        // return -1;
+    // }
 
     machine->clk   = 1;
     machine->reset = 1;
@@ -55,9 +55,9 @@ int main(int argc, char** argv) {
     }
     mem_out.close();
 
-    tfp->flush();
-    tfp->close();
-    delete tfp;
+    // tfp->flush();
+    // tfp->close();
+    // delete tfp;
     machine->final();
     delete machine;
     ctx->gotFinish(1);

@@ -45,17 +45,16 @@ module core_MEM (
         .inst(inst)
     );
 
-    // little endian byte load
     mux8v #(8) byte_load_mux (
         byte_load_out,
-        data_out[39:32],
-        data_out[47:40],
-        data_out[55:48],
-        data_out[63:56],
         data_out[7:0],
         data_out[15:8],
         data_out[23:16],
         data_out[31:24],
+        data_out[39:32],
+        data_out[47:40],
+        data_out[55:48],
+        data_out[63:56],
         EX_regs.out[2:0]
     );
 
@@ -103,24 +102,24 @@ module core_MEM (
     );
 
     // -- cp0 --
-    cp0 cp (
-        c0_rd_data,
-        EPC,
-        takenHandler,
-        EX_regs.B_data,
-        EX_regs.W_regnum,
-        EX_regs.sel,
-        flush ? next_pc : EX_regs.pc,
-        EX_regs.MTC0,
-        EX_regs.ERET,
-        interrupt_sources,
-        clock,
-        reset,
-        EX_regs.overflow,
-        EX_regs.reserved_inst_E,
-        0,
-        0
-    );  // TODO syscall, break
+    cp0 cp0_ (
+        .rd_data(c0_rd_data),
+        .EPC(EPC),
+        .takenHandler(takenHandler),
+        .wr_data(EX_regs.B_data),
+        .regnum(EX_regs.cp0_rd),
+        .sel(EX_regs.sel),
+        .next_pc(flush ? next_pc : EX_regs.pc),
+        .MTC0(EX_regs.MTC0),
+        .ERET(EX_regs.ERET),
+        .interrupt_source(interrupt_sources),
+        .clock(clock),
+        .reset(reset),
+        .overflow(EX_regs.overflow),
+        .reserved_inst(EX_regs.reserved_inst_E),
+        .syscall(EX_regs.syscall),
+        .break_(1'b0)  // TODO syscall, break
+    );
 
     mux2v #(64) mfc0_mux (
         W_data,

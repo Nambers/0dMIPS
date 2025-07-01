@@ -2,9 +2,8 @@
 
 void exception_handler();
 
-__attribute__((
-    section(".bootinfo"))) static const uint64_t exception_handler_addr =
-    (uint64_t)(void *)&exception_handler;
+__attribute__((unused, section(".bootinfo")))
+const uint64_t exception_handler_addr = (uint64_t)(void *)&exception_handler;
 
 static char *const stdout_mmio = (char *)(0x20000010);
 static const uint64_t stdout_buffer_size = 8;

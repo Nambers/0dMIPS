@@ -24,6 +24,7 @@ module mips_decoder (
     output logic                   MFC0,
     output logic                   MTC0,
     output logic                   ERET,
+    output logic                   syscall,
     output logic                   beq,
     output logic                   bne,
     output logic                   bc,
@@ -129,9 +130,11 @@ module mips_decoder (
     wire branch_family = beq_inst || bne_inst || bc_inst;
 
     // CP0
-    wire MFC0_inst = (opcode == OP_Z0) && (rs == OPZ_MFCZ);
-    wire MTC0_inst = (opcode == OP_Z0) && (rs == OPZ_MTCZ);
-    wire ERET_inst = (opcode == OP_Z0) && (co == OP_CO) && (funct == OPC_ERET);
+    wire CP0_RES = inst[10:3] == '0;
+    wire MFC0_inst = (opcode == OP_Z0) && (rs == OPZ_MFCZ) && CP0_RES;
+    wire MTC0_inst = (opcode == OP_Z0) && (rs == OPZ_MTCZ) && CP0_RES;
+    wire ERET_inst = (opcode == OP_Z0) && (co == OP_CO) && (funct == OPC_ERET) && (inst[24:6] == '0);
+    assign syscall = op0 && (funct == OP0_SYSCALL);
     wire CP0_family = MFC0_inst || MTC0_inst || ERET_inst;
 
     always_comb begin
@@ -159,7 +162,7 @@ module mips_decoder (
         alu_op[2] = and_inst || or_inst || xor_inst || nor_inst || ori_inst || xori_inst;
 
         // 0 = rd, 1 = rt, 2 = 32
-        rd_src[0] = (addi_family || ori_inst || xori_inst || lui_inst || lw_family || lb_family || ld_inst || slti_inst || sltiu_inst) && !MFC0_inst && !except;
+        rd_src[0] = (addi_family || ori_inst || xori_inst || lui_inst || lw_family || lb_family || ld_inst || slti_inst || sltiu_inst || MFC0_inst) && !except;
         rd_src[1] = (jal_inst || bal_inst) && !except;
 
         // 1 = signed immediate
@@ -185,8 +188,8 @@ module mips_decoder (
         // --- stage MEM ---
         mem_store_type[0] = (sb_inst || sd_inst) && !except;
         mem_store_type[1] = (sw_inst || sd_inst) && !except;
-        mem_load_type[0] = (lb_family || ld_inst) && !except;
-        mem_load_type[1] = (lw_family || ld_inst) && !except;
+        mem_load_type[0] = (lb_family || ld_inst || MFC0_inst) && !except;
+        mem_load_type[1] = (lw_family || ld_inst || MFC0_inst) && !except;
         // cp0
         MFC0 = MFC0_inst && !except;
         MTC0 = MTC0_inst && !except;
@@ -195,7 +198,7 @@ module mips_decoder (
         B_is_reg = ((alu_src2 == 0) || store_family) && !except;
 
         // --- stage WB ---
-        writeenable = (add_family || addi_family || sub_family || and_inst || or_inst || xor_inst || nor_inst || ori_inst || xori_inst || lui_inst || slt_family || lw_family || lb_family || ld_inst || jal_inst || (jalr_inst && (rd != 0)) || bal_inst || sll_family || srl_family) && !MTC0_inst && !ERET_inst && !beq_inst && !nop_inst && !except;
+        writeenable = (add_family || addi_family || sub_family || and_inst || or_inst || xor_inst || nor_inst || ori_inst || xori_inst || lui_inst || slt_family || lw_family || lb_family || ld_inst || jal_inst || (jalr_inst && (rd != 0)) || bal_inst || sll_family || srl_family || MFC0_inst) && !MTC0_inst && !ERET_inst && !beq_inst && !nop_inst && !except;
     end
 
 endmodule  // mips_decode

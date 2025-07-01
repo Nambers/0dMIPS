@@ -20,7 +20,8 @@ module core_ID (
     output ID_regs_t ID_regs,
     output logic B_is_reg
 );
-    logic [63:0] A_data, B_data, A_data_forwarded, B_data_forwarded, BranchAddrFinal;
+    logic [63:0]
+        A_data, B_data, A_data_forwarded, B_data_forwarded, B_data_badinst, BranchAddrFinal;
     logic [4:0] W_regnum, rs, rt, rd;
     logic [2:0] alu_op;
     logic [1:0] alu_src2, shifter_plus32, rd_src;
@@ -40,6 +41,7 @@ module core_ID (
         MFC0,
         MTC0,
         ERET,
+        syscall,
         BEQ,
         BNE,
         BC,
@@ -69,6 +71,7 @@ module core_ID (
         .MFC0(MFC0),
         .MTC0(MTC0),
         .ERET(ERET),
+        .syscall(syscall),
         .beq(BEQ),
         .bne(BNE),
         .bc(BC),
@@ -108,6 +111,13 @@ module core_ID (
         B_data,
         MEM_regs.W_data,
         B_is_reg & MEM_regs.write_enable & (MEM_regs.W_regnum == rt)
+    );
+
+    mux2v #(64) badinstr_B (
+        B_data_badinst,
+        B_data_forwarded,
+        {32'b0, IF_regs.inst},
+        syscall || reserved_inst_E
     );
 
     mux3v #(5) rd_mux (
@@ -158,6 +168,7 @@ module core_ID (
             ID_regs.MFC0 <= MFC0;
             ID_regs.MTC0 <= MTC0;
             ID_regs.ERET <= ERET;
+            ID_regs.syscall <= syscall;
             ID_regs.BEQ <= BEQ;
             ID_regs.BNE <= BNE;
             ID_regs.BC <= BC;
@@ -166,7 +177,7 @@ module core_ID (
             ID_regs.control_type <= control_type;
             ID_regs.shifter_plus32 <= shifter_plus32;
             ID_regs.A_data <= A_data_forwarded;
-            ID_regs.B_data <= B_data_forwarded;
+            ID_regs.B_data <= B_data_badinst;
             ID_regs.inst <= IF_regs.inst;
             ID_regs.pc4 <= IF_regs.pc4;
             ID_regs.pc_branch <= BranchAddrFinal;
@@ -177,6 +188,7 @@ module core_ID (
             ID_regs.signed_word <= signed_word;
             ID_regs.ignore_overflow <= ignore_overflow;
             ID_regs.B_is_reg <= B_is_reg;
+            ID_regs.cp0_rd <= IF_regs.inst[15:11];
         end
         // for setting EPC
         ID_regs.pc <= flush ? next_pc : IF_regs.pc;

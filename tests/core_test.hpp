@@ -4,6 +4,7 @@
 #include "common.hpp"
 #include <Core.h>
 #include <Core_core.h>
+#include <Core_core_branch.h>
 
 #include <array>
 
@@ -18,27 +19,29 @@
 #define MASKED(val, mask) ((val##mask) & (MASK##mask))
 #define u64(a, b) ((uint64_t(a) << 32) | uint64_t(b))
 
-template <class T, class... U> constexpr std::array<T, sizeof...(U)> make_array(U&&... u) {
+template <class T, class... U>
+constexpr std::array<T, sizeof...(U)> make_array(U &&...u) {
     return {static_cast<T>(u)...};
 };
 
-constexpr static auto common_boundary_cases =
-    make_array<uint64_t>(0, 1, 0x7fffffffffffffff, 0x8000000000000000, 0xffffffffffffffff);
+constexpr static auto common_boundary_cases = make_array<uint64_t>(
+    0, 1, 0x7fffffffffffffff, 0x8000000000000000, 0xffffffffffffffff);
 
 #define MEM_SEG inst_->core->MEM_stage->mem->data_seg
 #define RF inst_->core->ID_stage->rf
 
-inline void reset_pc(Core* inst_, uint64_t pc) {
-    inst_->core->pc             = pc;
-    inst_->core->__PVT__next_pc = pc + 4;
-    pc                          = (pc == 0) ? 0 : pc - 4;
+inline void reset_pc(Core *inst_, uint64_t pc) {
+    inst_->core->pc = pc;
+    inst_->core->branch_unit->next_pc = pc + 4;
+    pc = (pc == 0) ? 0 : pc - 4;
 
     // inst = NOP
     inst_->core->IF_regs.at(4) = 0;
 
     // pc4
-    inst_->core->IF_regs.at(2) = (uint32_t)((pc + 4) & 0xffffffff);         // low
-    inst_->core->IF_regs.at(3) = (uint32_t)(((pc + 4) >> 32) & 0xffffffff); // high
+    inst_->core->IF_regs.at(2) = (uint32_t)((pc + 4) & 0xffffffff); // low
+    inst_->core->IF_regs.at(3) =
+        (uint32_t)(((pc + 4) >> 32) & 0xffffffff); // high
 
     // pc
     inst_->core->IF_regs.at(0) = (uint32_t)((pc) & 0xffffffff);         // low
@@ -50,9 +53,9 @@ inline void reset_pc(Core* inst_, uint64_t pc) {
 
 inline VlWide<5> buildMemRegs(int addr, uint64_t data) {
     VlWide<5> regs{};
-    auto      part1 = 5 + 1 + 1;
-    uint64_t  data1 = data & ((1 << (32 - part1)) - 1);
-    uint64_t  data2 = data >> (32 - part1);
+    auto part1 = 5 + 1 + 1;
+    uint64_t data1 = data & ((1 << (32 - part1)) - 1);
+    uint64_t data2 = data >> (32 - part1);
 
     regs[4] = 0; // EPC
     regs[3] = 0;
@@ -64,27 +67,29 @@ inline VlWide<5> buildMemRegs(int addr, uint64_t data) {
     return regs;
 }
 
-#define WRITE_RF(addr, data)                                                                       \
-    inst_->core->MEM_regs = buildMemRegs(addr, data);                                              \
+#define WRITE_RF(addr, data)                                                   \
+    inst_->core->MEM_regs = buildMemRegs(addr, data);                          \
     tick()
 
-#define TestGenMemCycle(name, init_test, check_result, cycle)                                      \
-    TEST_F(CoreTest, name) {                                                                       \
-        for (const auto val : common_boundary_cases) {                                             \
-            reset();                                                                               \
-            init_test;                                                                             \
-            RESET_PC();                                                                            \
-            for (auto i = 0; i < cycle; ++i) tick();                                               \
-            check_result;                                                                          \
-        }                                                                                          \
+#define TestGenMemCycle(name, init_test, check_result, cycle)                  \
+    TEST_F(CoreTest, name) {                                                   \
+        for (const auto val : common_boundary_cases) {                         \
+            reset();                                                           \
+            init_test;                                                         \
+            RESET_PC();                                                        \
+            for (auto i = 0; i < cycle; ++i)                                   \
+                tick();                                                        \
+            check_result;                                                      \
+        }                                                                      \
     }
-#define TestGenMemOnceCycle(name, init_test, check_result, cycle)                                  \
-    TEST_F(CoreTest, name) {                                                                       \
-        reset();                                                                                   \
-        init_test;                                                                                 \
-        RESET_PC();                                                                                \
-        for (auto i = 0; i < cycle; ++i) tick();                                                   \
-        check_result;                                                                              \
+#define TestGenMemOnceCycle(name, init_test, check_result, cycle)              \
+    TEST_F(CoreTest, name) {                                                   \
+        reset();                                                               \
+        init_test;                                                             \
+        RESET_PC();                                                            \
+        for (auto i = 0; i < cycle; ++i)                                       \
+            tick();                                                            \
+        check_result;                                                          \
     }
 
 /*
@@ -93,15 +98,16 @@ inline VlWide<5> buildMemRegs(int addr, uint64_t data) {
     /EX Stage
     MEM Stage
 */
-#define TestGenMem(name, init_test, check_result) TestGenMemCycle(name, init_test, check_result, 4)
-#define TestGenMemOnce(name, init_test, check_result)                                              \
+#define TestGenMem(name, init_test, check_result)                              \
+    TestGenMemCycle(name, init_test, check_result, 4)
+#define TestGenMemOnce(name, init_test, check_result)                          \
     TestGenMemOnceCycle(name, init_test, check_result, 4)
 
 class CoreTest : public TestBase<Core> {
   protected:
     void SetUp() override {
         std::system("mkdir -p test_tmp >> /dev/null");
-        this->inst_        = new Core{&this->ctx};
+        this->inst_ = new Core{&this->ctx};
         this->inst_->clock = 1;
         this->inst_->reset = 1;
         tick();
@@ -109,23 +115,32 @@ class CoreTest : public TestBase<Core> {
     }
 };
 
-inline uint32_t build_R_inst(uint8_t opcode6, uint8_t rs5, uint8_t rt5, uint8_t rd5, uint8_t shift5,
-                             uint8_t funct6) {
-    return (MASKED(opcode, 6) << 26) | (MASKED(rs, 5) << 21) | (MASKED(rt, 5) << 16) |
-           (MASKED(rd, 5) << 11) | (MASKED(shift, 5) << 6) | MASKED(funct, 6);
+inline uint32_t build_R_inst(uint8_t opcode6, uint8_t rs5, uint8_t rt5,
+                             uint8_t rd5, uint8_t shift5, uint8_t funct6) {
+    return (MASKED(opcode, 6) << 26) | (MASKED(rs, 5) << 21) |
+           (MASKED(rt, 5) << 16) | (MASKED(rd, 5) << 11) |
+           (MASKED(shift, 5) << 6) | MASKED(funct, 6);
 }
 
-inline uint32_t build_I_inst(uint8_t opcode6, uint8_t rs5, uint8_t rt5, int16_t imm16) {
-    return (MASKED(opcode, 6) << 26) | (MASKED(rs, 5) << 21) | (MASKED(rt, 5) << 16) |
-           (imm16 & MASK16);
+inline uint32_t build_I_inst(uint8_t opcode6, uint8_t rs5, uint8_t rt5,
+                             int16_t imm16) {
+    return (MASKED(opcode, 6) << 26) | (MASKED(rs, 5) << 21) |
+           (MASKED(rt, 5) << 16) | (imm16 & MASK16);
 }
-
 inline uint32_t build_J_inst(uint8_t opcode6, uint32_t addr26) {
     return (MASKED(opcode, 6) << 26) | (addr26 & 0x03ffffff);
 }
-inline uint32_t build_REGIMM_inst(uint8_t opcode, uint8_t rt, uint8_t rs, int16_t offset) {
-    return (static_cast<uint32_t>(opcode) << 26) | (static_cast<uint32_t>(rs) << 21) |
+inline uint32_t build_REGIMM_inst(uint8_t opcode, uint8_t rt, uint8_t rs,
+                                  int16_t offset) {
+    return (static_cast<uint32_t>(opcode) << 26) |
+           (static_cast<uint32_t>(rs) << 21) |
            (static_cast<uint32_t>(rt) << 16) | (static_cast<uint16_t>(offset));
 }
-
+inline uint32_t build_CP0_inst(uint8_t MT5, uint8_t rt5, uint8_t rd5,
+                               uint8_t sel3) {
+    return (static_cast<uint32_t>(0b010000) << 26) |
+           (static_cast<uint32_t>(MT5) << 21) |
+           (static_cast<uint32_t>(rt5) << 16) |
+           (static_cast<uint32_t>(rd5) << 11) | (sel3 & 0b111);
+}
 #endif // CORE_TEST_HPP

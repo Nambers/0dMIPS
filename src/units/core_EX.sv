@@ -139,6 +139,7 @@ module core_EX (
             EX_regs.MFC0 <= ID_regs.MFC0;
             EX_regs.MTC0 <= ID_regs.MTC0;
             EX_regs.ERET <= ID_regs.ERET;
+            EX_regs.syscall <= ID_regs.syscall;
             EX_regs.BEQ <= ID_regs.BEQ;
             EX_regs.BNE <= ID_regs.BNE;
             EX_regs.BC <= ID_regs.BC;
@@ -149,6 +150,7 @@ module core_EX (
             EX_regs.signed_byte <= ID_regs.signed_byte;
             EX_regs.signed_word <= ID_regs.signed_word;
             EX_regs.linkpc <= ID_regs.linkpc;
+            EX_regs.cp0_rd <= ID_regs.cp0_rd;
 `ifdef DEBUGGER
             EX_regs.inst <= ID_regs.inst;
 `endif

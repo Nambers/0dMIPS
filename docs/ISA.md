@@ -4,6 +4,8 @@
 > 
 > And `MIPS® Architecture For Programmers Volume III: MIPS64® / microMIPS64™ Privileged Resource Architecture`, Document Number: MD00091, Revision 6.03, December 22, 2015
 >
+> You can find copies of all above documents at <https://archive.org/details/mips-doc>, by searching the document number.
+>
 > Note: `₆₄` means it added in MIPS64. Most of `U` suffix in instruction are suppressing arithmetic overflow exception.
 
 ## Arithmetic Operations
@@ -64,3 +66,4 @@
 
 - `ERET` - Exception Return To Previous PC
 - `MFC0` / `MTC0` - Coprocessor0 Register Read / Write
+- `SYSCALL` - System Call

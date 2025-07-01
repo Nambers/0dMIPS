@@ -18,8 +18,8 @@ void mainLoop(T *machine, C *ctx, unsigned int cycle_max, csh &cs_handle,
     std::cout << "simulation starting" << std::endl;
     while (ctx->time() < cycle_max * 2) {
         if (machine->SOC->stdout->stdout_taken) {
-            printf("stdout: %s \n",
-                   (const char *)&machine->SOC->stdout->buffer);
+            uint64_t data = be64toh(machine->SOC->stdout->buffer);
+            printf("stdout: %s \n", reinterpret_cast<char *>(&data));
         }
         std::cout << "time = " << ctx->time() << "\tpc = " << std::hex
                   << std::right << std::setfill('0') << std::setw(8)
@@ -44,7 +44,7 @@ void mainLoop(T *machine, C *ctx, unsigned int cycle_max, csh &cs_handle,
             flags += "BA|";
         if (machine->SOC->core->forward_B == 2)
             flags += "BM|";
-        switch (machine->SOC->core->MEM_stage->cp->exc_code) {
+        switch (machine->SOC->core->MEM_stage->cp0_->exc_code) {
         case 0:
             break;
         case 0xc:

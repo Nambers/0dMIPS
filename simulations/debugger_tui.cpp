@@ -166,8 +166,8 @@ void update_state_from_sim() {
     flags["BA"] = (machine->SOC->core->forward_B == 1);
     flags["BM"] = (machine->SOC->core->forward_B == 2);
     flags["DR"] = machine->SOC->__PVT__d_ready;
-    flags["IE"] = (machine->SOC->core->MEM_stage->cp->exc_code == 0xc);
-    flags["OE"] = (machine->SOC->core->MEM_stage->cp->exc_code == 0xa);
+    flags["IE"] = (machine->SOC->core->MEM_stage->cp0_->exc_code == 0xc);
+    flags["OE"] = (machine->SOC->core->MEM_stage->cp0_->exc_code == 0xa);
 }
 
 Element render_pipeline() {
@@ -269,9 +269,9 @@ Element render_memory(uint64_t center_addr) {
     uint64_t stack_hi = sp + 128;
 
     auto load_byte = [&](uint64_t addr) -> uint8_t {
-        uint32_t word = machine->SOC->core->MEM_stage->mem->data_seg[addr >> 2];
-        int byte_off = addr & 0x3;
-        return (word >> ((3 - byte_off) * 8)) & 0xFF;
+        uint64_t word =
+            le64toh(machine->SOC->core->MEM_stage->mem->data_seg[addr >> 3]);
+        return (word >> ((addr & 0x7) * 8)) & 0xFF;
     };
 
     std::vector<Element> lines;
@@ -306,7 +306,7 @@ Element render_memory(uint64_t center_addr) {
 
             // stack background highlight
             if (addr >= stack_lo && addr < stack_hi) {
-                cell |= bgcolor(Color::GrayDark);
+                cell |= bgcolor(Color::DarkMagenta);
             }
 
             if (addr == center_addr) {
@@ -376,7 +376,8 @@ Element render_perip() {
 
     if (ctx->time() > lastCheck && machine->SOC->stdout->stdout_taken) {
         lastCheck = ctx->time();
-        char *buf = reinterpret_cast<char *>(&machine->SOC->stdout->buffer);
+        uint64_t data = be64toh(machine->SOC->stdout->buffer);
+        char *buf = reinterpret_cast<char *>(&data);
 
         for (int i = 0; i < 8; ++i) {
             char c = buf[i];
@@ -418,7 +419,8 @@ int main(int argc, char **argv) {
     auto screen = ScreenInteractive::TerminalOutput();
 
     Component ui = Renderer([&] {
-        auto footer = text("[→] Step [↑/↓] Scroll Memory  [q] Quit") | dim;
+        auto footer =
+            text("[→] Step [↑/pgUp/↓/pgDown] Scroll Memory  [q] Quit") | dim;
 
         return vbox({render_pipeline(),
                      hbox({render_registers() | flex, render_perip()}) |
@@ -439,6 +441,10 @@ int main(int argc, char **argv) {
             mem_center -= 4;
         if (e == Event::ArrowDown)
             mem_center += 4;
+        if (e == Event::PageDown)
+            mem_center += 64;
+        if (e == Event::PageUp && mem_center >= 64)
+            mem_center -= 64;
         return true;
     });
 

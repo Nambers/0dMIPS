@@ -45,7 +45,7 @@ package structures;
     typedef struct packed {
         logic [63:0] A_data, B_data, pc4, pc_branch, jumpAddr;
         // logic [31:0] inst; // move to buttom for debugger convenience
-        logic [4:0] W_regnum;
+        logic [4:0] W_regnum, cp0_rd;
         logic [2:0] alu_op, sel;
         logic [1:0] alu_src2, shifter_plus32;
         control_type_t control_type;
@@ -71,7 +71,8 @@ package structures;
             // -- CP0 --
             MFC0,
             MTC0,
-            ERET
+            ERET,
+            syscall
         ;
         logic [31:0] inst;
         // for store EPC and debugger
@@ -80,7 +81,7 @@ package structures;
 
     typedef struct packed {
         logic [63:0] out, B_data, pc4, pc_branch;
-        logic [4:0] W_regnum;
+        logic [4:0] W_regnum, cp0_rd;
         logic [2:0] sel;
         mem_load_type_t mem_load_type;
         mem_store_type_t mem_store_type;
@@ -90,6 +91,7 @@ package structures;
             MFC0,
             MTC0,
             ERET,
+            syscall,
             write_enable,
             BEQ,
             BNE,

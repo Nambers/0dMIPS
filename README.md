@@ -29,7 +29,7 @@
 - [ ] Interrupts
     - [x] Timer interrupt
     - [ ] Break
-    - [ ] Syscall
+    - [x] Syscall
 - [ ] ~~out-of-order execution~~ double-issue in-order
 - [ ] AXI
     - [ ] Memory

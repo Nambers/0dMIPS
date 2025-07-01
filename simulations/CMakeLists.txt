@@ -7,6 +7,7 @@ set(VGA_SRCS
 )
 
 set(SDL3_ENABLED SOC_VGA VGA)
+set(SOC_run_C_flag -O3 -lto)
 
 find_package(SDL3)
 # find_package(capstone REQUIRED)
@@ -30,15 +31,21 @@ foreach(sim_src IN LISTS SIM_SOURCES)
     capitalize_first(target unitCap)
 
     add_executable(${target_name} common.cpp ${sim_src})
+    if(${target}_C_flag)
+        target_compile_options(${target_name} PRIVATE ${${target}_C_flag})
+    endif()
     verilate(${target_name}
         SOURCES ${${srclist}}
         TOP_MODULE ${base_target}
         PREFIX ${unitCap}_sim
         DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${target}
-        TRACE_VCD
+        # TRACE_VCD
     )
-    target_link_libraries(${target_name} PRIVATE ${CAPSTONE_LIBRARIES})
-    target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${target} ${CAPSTONE_INCLUDE_DIRS})
+    target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${target})
+    if(NOT target IN_LIST CAPSTONE_DISABLED)
+        target_link_libraries(${target_name} PRIVATE ${CAPSTONE_LIBRARIES})
+        target_include_directories(${target_name} PRIVATE ${CAPSTONE_INCLUDE_DIRS})
+    endif()
     if(target IN_LIST SDL3_ENABLED)
         if(NOT SDL3_FOUND)
             message(FATAL_ERROR "SDL3 not found. Please install SDL3 development files.")
@@ -102,6 +109,7 @@ else()
     target_include_directories(debugger_tui
         PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/debugger_tui ${CAPSTONE_INCLUDE_DIRS}
     )
+    target_compile_options(debugger_tui PRIVATE -O3 -lto)
     target_link_libraries(debugger_tui
         PRIVATE ftxui::screen
         PRIVATE ftxui::dom

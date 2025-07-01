@@ -1,6 +1,7 @@
 #ifndef TESTS_COMMON_HPP
 #define TESTS_COMMON_HPP
 
+#include <endian.h>
 #include <gtest/gtest.h>
 #include <limits>
 #include <random>
@@ -8,7 +9,7 @@
 #include <verilated_cov.h>
 
 constexpr inline uint64_t inst_comb(uint32_t a, uint32_t b) {
-    return (static_cast<uint64_t>(a) << 32) | (b);
+    return htole64(be64toh((static_cast<uint64_t>(b) << 32) | (a)));
 }
 
 constexpr inline int64_t sign_extend(uint64_t val, int bits) {

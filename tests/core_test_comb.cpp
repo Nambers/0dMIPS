@@ -1,6 +1,7 @@
 #include "core_test.hpp"
 #include <Core_core_ID.h>
 #include <Core_core_MEM.h>
+#include <Core_core_branch.h>
 #include <Core_data_mem__D100.h>
 #include <Core_regfile__W40.h>
 
@@ -68,10 +69,10 @@ TestGenMemCycle(
         MEM_SEG[0] = inst_comb(build_I_inst(0x4, 1, 2, 4 >> 2),
                                build_I_inst(0xd, 0, 1, 0xabcd));
         MEM_SEG[1] =
-            inst_comb(build_I_inst(0x2b, 0, 1, 0), build_I_inst(0x23, 0, 3, 0));
+            inst_comb(build_I_inst(0x2b, 0, 1, 4), build_I_inst(0x23, 0, 3, 4));
     },
     {
-        EXPECT_EQ(MEM_SEG[0] & MASK32, val & MASK32);
+        EXPECT_EQ(be32toh(MEM_SEG[0]) & MASK32, val & MASK32);
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 3);
         EXPECT_EQ(RF->W_data, sign_extend(val & MASK32, 32));
@@ -149,10 +150,10 @@ TestGenMemOnceCycle(
 TestGenMemOnceCycle(
     LW_ADDI,
     {
-        MEM_SEG[32 / 8] =
-            sign_extend(fixedVal<int32_t>(), 32); // store value into $0
+        MEM_SEG[32 / 8] = htobe32(
+            sign_extend(fixedVal<int32_t>(), 32)); // store value into $0
         MEM_SEG[0] =
-            inst_comb(build_I_inst(0x23, 0, 1, 32),                  // LW
+            inst_comb(build_I_inst(0x23, 0, 1, 32 + 4),              // LW
                       build_I_inst(0x9, 1, 1, fixedVal<int16_t>())); // ADDI
     },
     {
@@ -251,3 +252,45 @@ TestGenMemCycle(
                   (1 << 16) - (1 << 15)); // 0x8000
     },
     4);
+
+// --- CP0 ---
+TestGenMemOnceCycle(
+    MTC0_MFC0,
+    {
+        WRITE_RF(1, fixedVal<uint32_t>());
+        // save and retrive from reg12,0 (status reg)
+        // MTC0 $1, 12, 0
+        // MFC0 $2, 12, 0
+        MEM_SEG[0] =
+            inst_comb(build_CP0_inst(4, 1, 12, 0), build_CP0_inst(0, 2, 12, 0));
+    },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 2);
+        EXPECT_EQ(RF->W_data, fixedVal<uint32_t>());
+    },
+    4 + 1);
+
+TestGenMemOnceCycle(
+    SYSCALL_MFC0, const auto syscallInst = static_cast<uint32_t>(0) << 26 |
+                                           (fixedVal<uint32_t>() << 6) |
+                                           0b001100;
+    {
+        inst_->core->branch_unit->interrupeHandlerAddr = 32;
+        MEM_SEG[0] = inst_comb(syscallInst, // SYSCALL
+                               0);
+        MEM_SEG[32 / 8] =
+            inst_comb(build_CP0_inst(0, 2, 8, 1), 0); // MFC0 $2, 8, 1
+    },
+    {
+        EXPECT_EQ(inst_->core->pc,
+                  32); // syscall jumps to default error handler
+        tick();
+        tick();
+        tick();
+        tick();
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 2);
+        EXPECT_EQ(RF->W_data, syscallInst); // badInstr
+    },
+    4 + 2);

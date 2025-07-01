@@ -4,10 +4,10 @@ set(SCRIPT_DIR ${CMAKE_SOURCE_DIR}/scripts)
 file(GLOB ASM_SCRIPTS ${ASM_DIR}/*.s)
 file(GLOB C_SCRIPTS ${ASM_DIR}/*.c)
 
-set(TOOLCHIAN_FLAGS -mips64r6 -static -lgcc --sysroot=${CMAKE_SOURCE_DIR}/toolchains/mips64el-linux-musl-cross)
+set(TOOLCHIAN_FLAGS -mabi=64 -mips64r6 -static -lgcc --sysroot=${CMAKE_SOURCE_DIR}/toolchains/mips64el-linux-musl-cross)
 if(NOT EXISTS ${CMAKE_SOURCE_DIR}/toolchains/mips64el-linux-musl-cross)
     message(WARNING "Toolchain directory ${CMAKE_SOURCE_DIR}/toolchains/mips64el-linux-musl-cross does not exist. Please set up the toolchain.")
-    set(TOOLCHIAN_FLAGS -mips64r6 -static -lgcc)
+    set(TOOLCHIAN_FLAGS -mabi=64 -mips64r6 -static -lgcc)
 endif()
 # TODO support all compact branches
 set(C_FLAGS ${TOOLCHIAN_FLAGS}

@@ -17,10 +17,10 @@ module core_branch (
     input logic [63:0] EPC,
     input logic takenHandler,
     input logic reset,
-    output logic [63:0] next_pc,
+    output logic [63:0] next_pc /* verilator public */,
     output logic flush
 );
-    logic [63:0] interrupeHandlerAddr, forwarded_A;
+    logic [63:0] interrupeHandlerAddr  /* verilator public */, forwarded_A;
 
     initial begin
         integer fd;
@@ -33,10 +33,21 @@ module core_branch (
             if (interrupeHandlerAddr != 'b0) begin
                 interrupeHandlerAddr = 'h0;  // default value
             end else begin
-                logic [63:0] rawAddr;
-                $fscanf(fd, "%h", rawAddr);
-                interrupeHandlerAddr = {rawAddr[31:0], rawAddr[63:32]};
+                logic [63:0] raw;
+                $fscanf(fd, "%h", raw);
+                interrupeHandlerAddr = {
+                    raw[7:0],
+                    raw[15:8],
+                    raw[23:16],
+                    raw[31:24],
+                    raw[39:32],
+                    raw[47:40],
+                    raw[55:48],
+                    raw[63:56]
+                };
+`ifdef DEBUG
                 $display("Interrupe Handler Address: %h", interrupeHandlerAddr);
+`endif
             end
             $fclose(fd);
         end
