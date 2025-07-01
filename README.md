@@ -34,3 +34,12 @@
 - [ ] AXI
     - [ ] Memory
 - [ ] Branch prediction
+
+## Demo
+
+<details>
+    <summary>Hello world with debugger (GIF)</summary>
+
+    ![Hello world with debugger](docs/hello_world.gif)
+
+</details>
