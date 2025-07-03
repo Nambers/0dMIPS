@@ -35,7 +35,7 @@ module core #(
     EX_regs_t  EX_regs  /* verilator public */;
     MEM_regs_t MEM_regs  /* verilator public */;
 
-    logic [63:0] pc  /* verilator public */, next_pc, EX_A_data_forwarded;
+    logic [63:0] next_fetch_pc, EX_A_data_forwarded;
     logic [31:0] inst  /* verilator public */;
     forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
 
@@ -52,8 +52,8 @@ module core #(
     );
 
     core_hazard #(PERIPHERAL_BASE) hazard_unit (
-        .IF_rs(IF_regs.inst[25:21]),
-        .IF_rt(IF_regs.inst[20:16]),
+        .IF_rs(inst[25:21]),
+        .IF_rt(inst[20:16]),
         .IF_B_is_reg(B_is_reg),
         .ID_W_regnum(ID_regs.W_regnum),
         .ID_mem_read(|ID_regs.mem_load_type),
@@ -72,22 +72,20 @@ module core #(
         .EX_regs(EX_regs),
         .forward_A(forward_A),
         .MEM_data(MEM_regs.W_data),
-        .pc4(IF_regs.pc4),
+        .fetch_pc4(IF_regs.fetch_pc4),
         .EPC(MEM_regs.EPC),
         .takenHandler(MEM_regs.takenHandler),
         .reset(reset),
-        .next_pc(next_pc),
+        .next_fetch_pc(next_fetch_pc),
         .flush(flush)
     );
 
     core_IF IF_stage (
         .clock(clock),
         .reset(reset),
-        .next_pc(next_pc),
-        .inst(inst),
+        .next_fetch_pc(next_fetch_pc),
         .stall(stall),
         .flush(flush),
-        .pc(pc),
         .IF_regs(IF_regs)
     );
 
@@ -95,9 +93,9 @@ module core #(
         .clock(clock),
         .reset(reset),
         .IF_regs(IF_regs),
+        .inst(inst),
         .stall(stall),
         .flush(flush),
-        .next_pc(next_pc),
         .MEM_regs(MEM_regs),
         .ID_regs(ID_regs),
         .B_is_reg(B_is_reg)
@@ -110,7 +108,6 @@ module core #(
         .flush(flush),
         .EX_regs(EX_regs),
         .MEM_data(MEM_regs.W_data),
-        .next_pc(next_pc),
         .forward_A(forward_A),
         .forward_B(forward_B)
     );
@@ -118,10 +115,10 @@ module core #(
     core_MEM MEM_stage (
         .clock(clock),
         .reset(reset),
-        .inst_addr(pc),
-        .next_pc(next_pc),
+        .fetch_pc(IF_regs.fetch_pc),
         .interrupt_sources(interrupt_sources),
-        .flush(flush),
+        .flush(flush),  // for memory fetch
+        .ID_ERET(ID_regs.ERET),
         .d_valid(d_valid),
         .d_ready(d_ready),
         .d_rdata(d_rdata),
@@ -131,7 +128,9 @@ module core #(
     );
 
     // -- peripheral --
-    assign d_store_type = EX_regs.mem_store_type;
-    assign d_addr = EX_regs.out;
-    assign d_wdata = EX_regs.B_data;
+    always_comb begin
+        d_store_type = EX_regs.mem_store_type;
+        d_addr = EX_regs.out;
+        d_wdata = EX_regs.B_data;
+    end
 endmodule  // core

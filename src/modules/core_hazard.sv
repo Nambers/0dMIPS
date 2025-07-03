@@ -18,11 +18,16 @@ module core_hazard #(
     // data peripheral access
     output logic d_valid
 );
-    // if addr is in the peripheral range and it's memory access operations
-    // then it's a valid peripheral access
-    assign d_valid = (EX_mem_write || EX_mem_read) && (addr >= PERIPHERAL_BASE);
-    wire load_use = ID_mem_read &&
+    logic load_use, d_valid_tmp;
+    always_comb begin
+        d_valid = (EX_mem_write || EX_mem_read) && (addr >= PERIPHERAL_BASE);
+        // if addr is in the peripheral range and it's memory access operations
+        // then it's a valid peripheral access
+        load_use = ID_mem_read &&
                   (ID_W_regnum != 0) &&
                   ((IF_rs == ID_W_regnum) || (IF_B_is_reg && (IF_rt == ID_W_regnum)));
-    assign stall = load_use || (d_valid && !d_ready);
+    
+        d_valid_tmp = (EX_mem_write || EX_mem_read) && (addr >= PERIPHERAL_BASE);
+        stall = load_use || (d_valid_tmp && !d_ready);
+    end
 endmodule

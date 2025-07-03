@@ -20,8 +20,8 @@ module VGA (
     output logic VGA_taken,
 
     // --- VGA ports ---
-    output wire Hsync,
-    output wire Vsync,
+    output logic Hsync,
+    output logic Vsync,
     output logic [3:0] VGA_r,
     output logic [3:0] VGA_g,
     output logic [3:0] VGA_b
@@ -30,9 +30,7 @@ module VGA (
     localparam BUF_HEIGHT = V_DISPLAY / SCALE_FACTOR;
 
     // double buffers for write and display
-    logic [11:0]
-        frame_buf0[BUF_WIDTH * BUF_HEIGHT - 1:0],
-        frame_buf1[BUF_WIDTH * BUF_HEIGHT - 1:0];
+    logic [11:0] frame_buf0[BUF_WIDTH * BUF_HEIGHT - 1:0], frame_buf1[BUF_WIDTH * BUF_HEIGHT - 1:0];
 
     // display counters
     logic [9:0] h  /* verilator public */, v  /* verilator public */;
@@ -43,6 +41,13 @@ module VGA (
 
     logic display_buf_sync1, display_buf_sync2;
 
+    logic VGA_enable;
+
+    logic [11:0] w_color;
+    logic [9:0] w_x;
+    logic [9:0] w_y;
+    logic [13:0] read_index;
+
     initial begin
         h = 10'b0;
         v = 10'b0;
@@ -50,16 +55,18 @@ module VGA (
         write_buf = 1'b1;
     end
 
-    wire VGA_enable = (h < H_DISPLAY && v < V_DISPLAY);
+    always_comb begin
+        VGA_enable = (h < H_DISPLAY && v < V_DISPLAY);
 
-    wire [11:0] w_color = w_data[11:0];
-    wire [9:0] w_x = w_data[21:12];
-    wire [9:0] w_y = w_data[31:22];
+        w_color = w_data[11:0];
+        w_x = w_data[21:12];
+        w_y = w_data[31:22];
 
-    wire [13:0] read_index = ({4'b0, h} / SCALE_FACTOR) + ({4'b0, v} / SCALE_FACTOR) * BUF_WIDTH;
+        read_index = ({4'b0, h} / SCALE_FACTOR) + ({4'b0, v} / SCALE_FACTOR) * BUF_WIDTH;
 
-    assign Hsync = (h >= START_H_RETRACE && h <= END_H_RETRACE);
-    assign Vsync = (v >= START_V_RETRACE && v <= END_V_RETRACE);
+        Hsync = (h >= START_H_RETRACE && h <= END_H_RETRACE);
+        Vsync = (v >= START_V_RETRACE && v <= END_V_RETRACE);
+    end
 
     // display control
     always_ff @(posedge VGA_clk or posedge rst) begin
@@ -91,6 +98,7 @@ module VGA (
             end
         end
     end
+
     // write control
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin

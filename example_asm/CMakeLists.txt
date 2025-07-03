@@ -11,7 +11,7 @@ if(NOT EXISTS ${CMAKE_SOURCE_DIR}/toolchains/mips64el-linux-musl-cross)
 endif()
 # TODO support all compact branches
 set(C_FLAGS ${TOOLCHIAN_FLAGS}
-    -O0
+    -O2
     -mcompact-branches=never
     -fomit-frame-pointer
     -fno-asynchronous-unwind-tables
@@ -23,6 +23,7 @@ set(C_FLAGS ${TOOLCHIAN_FLAGS}
     -EL
     -G 8
     -mno-abicalls
+    -fno-delayed-branch
     -Wl,-e,__start
 )
 

@@ -42,102 +42,135 @@ module mips_decoder (
 );
     import mips_define::*;
 
-    wire [5:0] opcode = inst[31:26], funct = inst[5:0];
-    wire [4:0] shamt = inst[10:6];
-    wire op0 = (opcode == OP_OTHER0), opr = (opcode == OP_REGIMM), co = inst[25], no_shamt = (shamt == 'b0);
-    assign rs = inst[25:21];
-    assign rt = inst[20:16];
-    assign rd = inst[15:11];
-
-    // the family means these instruction share same datapath in most stages
-    // but only differ in rare places
-
+    // extract
+    logic [5:0] opcode, funct;
+    logic [4:0] shamt;
+    logic op0, opr, co, no_shamt;
     // add family
-    wire daddu_inst = op0 && (funct == OP0_DADDU) && no_shamt;
-    wire dadd_inst = op0 && (funct == OP0_DADD) && no_shamt;
-    wire addu_inst = op0 && (funct == OP0_ADDU) && no_shamt;
-    wire add_inst = op0 && (funct == OP0_ADD) && no_shamt;
-    wire add_family = add_inst || addu_inst || dadd_inst || daddu_inst;
+    logic daddu_inst, dadd_inst, addu_inst, add_inst, add_family;
     // addi family
-    wire daddiu_inst = (opcode == OP_DADDIU);
-    wire addiu_inst = (opcode == OP_ADDIU);
-    wire daddi_inst = (opcode == OP_DADDI);
-    wire addi_inst = (opcode == OP_ADDI);
-    wire addi_family = addi_inst || addiu_inst || daddi_inst || daddiu_inst;
+    logic daddiu_inst, addiu_inst, daddi_inst, addi_inst, addi_family;
     // sub family
-    wire sub_inst = op0 && (funct == OP0_SUB) && no_shamt;
-    wire subu_inst = op0 && (funct == OP0_SUBU) && no_shamt;
-    wire dsub_inst = op0 && (funct == OP0_DSUB) && no_shamt;
-    wire sub_family = sub_inst || subu_inst || dsub_inst;
-    // LU operations
-    wire or_inst = op0 && (funct == OP0_OR) && no_shamt;
-    wire ori_inst = (opcode == OP_ORI);
-    wire xori_inst = (opcode == OP_XORI);
-    wire xor_inst = op0 && (funct == OP0_XOR) && no_shamt;
-    wire and_inst = op0 && (funct == OP0_AND) && no_shamt;
-    wire nor_inst = op0 && (funct == OP0_NOR);
+    logic sub_inst, subu_inst, dsub_inst, sub_family;
+    // 
+    logic or_inst, ori_inst, xor_inst, xori_inst, and_inst, nor_inst;
     // slt family
-    wire sltu_inst = op0 && (funct == OP0_SLTU) && no_shamt;
-    wire slt_inst = op0 && (funct == OP0_SLT) && no_shamt;
-    wire slti_inst = (opcode == OP_SLTI);
-    wire sltiu_inst = (opcode == OP_SLTIU);
-    wire slt_family = slt_inst || sltu_inst || slti_inst || sltiu_inst;
+    logic sltu_inst, slt_inst, slti_inst, sltiu_inst, slt_family;
     // sll family
-    wire dsll32_inst = op0 && (funct == OP0_DSLL32);
-    wire dsll_inst = op0 && (funct == OP0_DSLL);
-    // sll $0, $0, 0 is NOP
-    // sll $0, $0, 1 is SSNOP
-    wire sll_inst = op0 && (funct == OP0_SLL);
-    wire sll_family = dsll_inst || dsll32_inst || sll_inst;
+    logic dsll32_inst, dsll_inst, sll_inst, sll_family;
     // srl family
-    wire dsrl_inst = op0 && (funct == OP0_DSRL);
-    wire dsrl32_inst = op0 && (funct == OP0_DSRL32);
-    wire srl_inst = op0 && (funct == OP0_SRL);
-    wire srl_family = dsrl_inst || dsrl32_inst || srl_inst;
-
-    wire jalr_inst = op0 && (funct == OP0_JALR) && (rt == 'b0);
-    wire jr_inst = op0 && (funct == OP0_JR) && (rt == 'b0) && (rd == 'b0);
-    wire jal_inst = (opcode == OP_JAL);
-    wire j_inst = (opcode == OP_J);
-    wire j_family = j_inst || jr_inst || jal_inst || jalr_inst;
-
-    wire bal_inst = opr && (rs == 'b0) && (rt == OPR_BAL);
-
-    // or AUI
-    wire lui_inst = (opcode == OP_LUI) && (rs == 'b0);
-    wire ld_inst = (opcode == OP_LD);
-
-    // lw family
-    wire lw_inst = (opcode == OP_LW);
-    wire lwu_inst = (opcode == OP_LWU);
-    wire lw_family = ld_inst || lwu_inst || lw_inst;
-    // lb family
-    wire lb_inst = (opcode == OP_LB);
-    wire lbu_inst = (opcode == OP_LBU);
-    wire lb_family = lbu_inst || lb_inst;
-
-    wire sd_inst = (opcode == OP_SD);
-    wire sw_inst = (opcode == OP_SW);
-    wire sb_inst = (opcode == OP_SB);
-    wire store_family = sd_inst || sw_inst || sb_inst;
-
-    wire nop_inst = (inst == 'b0);
-
+    logic dsrl_inst, dsrl32_inst, srl_inst, srl_family;
+    // jump family
+    logic jalr_inst, jr_inst, jal_inst, j_inst, j_family;
+    logic bal_inst;
     // branch family
-    wire beq_inst = (opcode == OP_BEQ);
-    wire bne_inst = (opcode == OP_BNE);
-    wire bc_inst = (opcode == OP_BC);
-    wire branch_family = beq_inst || bne_inst || bc_inst;
+    logic beq_inst, bne_inst, bc_inst, branch_family;
 
-    // CP0
-    wire CP0_RES = inst[10:3] == '0;
-    wire MFC0_inst = (opcode == OP_Z0) && (rs == OPZ_MFCZ) && CP0_RES;
-    wire MTC0_inst = (opcode == OP_Z0) && (rs == OPZ_MTCZ) && CP0_RES;
-    wire ERET_inst = (opcode == OP_Z0) && (co == OP_CO) && (funct == OPC_ERET) && (inst[24:6] == '0);
-    assign syscall = op0 && (funct == OP0_SYSCALL);
-    wire CP0_family = MFC0_inst || MTC0_inst || ERET_inst;
+    logic lui_inst;
+    // load family
+    logic ld_inst, lw_inst, lwu_inst, lw_family;
+    // load byte family
+    logic lb_inst, lbu_inst, lb_family;
+    // store family
+    logic sd_inst, sw_inst, sb_inst, store_family;
+    logic nop_inst;
+    logic CP0_RES, MFC0_inst, MTC0_inst, ERET_inst, CP0_family;
 
     always_comb begin
+        // --- extracting fields ---
+        opcode = inst[31:26];
+        funct = inst[5:0];
+        shamt = inst[10:6];
+        op0 = (opcode == OP_OTHER0);
+        opr = (opcode == OP_REGIMM);
+        co = inst[25];
+        no_shamt = (shamt == '0);
+        rs = inst[25:21];
+        rt = inst[20:16];
+        rd = inst[15:11];
+
+        // --- Instruction decode ---
+        daddu_inst = op0 && (funct == OP0_DADDU) && no_shamt;
+        dadd_inst = op0 && (funct == OP0_DADD) && no_shamt;
+        addu_inst = op0 && (funct == OP0_ADDU) && no_shamt;
+        add_inst = op0 && (funct == OP0_ADD) && no_shamt;
+        add_family = add_inst || addu_inst || dadd_inst || daddu_inst;
+
+        daddiu_inst = (opcode == OP_DADDIU);
+        addiu_inst = (opcode == OP_ADDIU);
+        daddi_inst = (opcode == OP_DADDI);
+        addi_inst = (opcode == OP_ADDI);
+        addi_family = addi_inst || addiu_inst || daddi_inst || daddiu_inst;
+
+        sub_inst = op0 && (funct == OP0_SUB) && no_shamt;
+        subu_inst = op0 && (funct == OP0_SUBU) && no_shamt;
+        dsub_inst = op0 && (funct == OP0_DSUB) && no_shamt;
+        sub_family = sub_inst || subu_inst || dsub_inst;
+
+        or_inst = op0 && (funct == OP0_OR) && no_shamt;
+        ori_inst = (opcode == OP_ORI);
+        xori_inst = (opcode == OP_XORI);
+        xor_inst = op0 && (funct == OP0_XOR) && no_shamt;
+        and_inst = op0 && (funct == OP0_AND) && no_shamt;
+        nor_inst = op0 && (funct == OP0_NOR);
+
+        sltu_inst = op0 && (funct == OP0_SLTU) && no_shamt;
+        slt_inst = op0 && (funct == OP0_SLT) && no_shamt;
+        slti_inst = (opcode == OP_SLTI);
+        sltiu_inst = (opcode == OP_SLTIU);
+        slt_family = slt_inst || sltu_inst || slti_inst || sltiu_inst;
+
+        dsll32_inst = op0 && (funct == OP0_DSLL32);
+        dsll_inst = op0 && (funct == OP0_DSLL);
+        // sll $0, $0, 0 is NOP
+        // sll $0, $0, 1 is SSNOP
+        sll_inst = op0 && (funct == OP0_SLL) && (rs != '0 || rt != '0);
+        sll_family = dsll_inst || dsll32_inst || sll_inst;
+
+        dsrl_inst = op0 && (funct == OP0_DSRL);
+        dsrl32_inst = op0 && (funct == OP0_DSRL32);
+        srl_inst = op0 && (funct == OP0_SRL);
+        srl_family = dsrl_inst || dsrl32_inst || srl_inst;
+
+        jalr_inst = op0 && (funct == OP0_JALR) && (rt == '0);
+        jr_inst = op0 && (funct == OP0_JR) && (rt == '0) && (rd == '0);
+        jal_inst = (opcode == OP_JAL);
+        j_inst = (opcode == OP_J);
+        j_family = j_inst || jr_inst || jal_inst || jalr_inst;
+
+        bal_inst = opr && (rs == '0) && (rt == OPR_BAL);
+
+        lui_inst = (opcode == OP_LUI) && (rs == '0);
+        ld_inst = (opcode == OP_LD);
+
+        lw_inst = (opcode == OP_LW);
+        lwu_inst = (opcode == OP_LWU);
+        lw_family = ld_inst || lwu_inst || lw_inst;
+
+        lb_inst = (opcode == OP_LB);
+        lbu_inst = (opcode == OP_LBU);
+        lb_family = lbu_inst || lb_inst;
+
+        sd_inst = (opcode == OP_SD);
+        sw_inst = (opcode == OP_SW);
+        sb_inst = (opcode == OP_SB);
+        store_family = sd_inst || sw_inst || sb_inst;
+
+        nop_inst = (inst == '0);
+
+        beq_inst = (opcode == OP_BEQ);
+        bne_inst = (opcode == OP_BNE);
+        bc_inst = (opcode == OP_BC);
+        branch_family = beq_inst || bne_inst || bc_inst;
+
+        CP0_RES = inst[10:3] == '0;
+        MFC0_inst = (opcode == OP_Z0) && (rs == OPZ_MFCZ) && CP0_RES;
+        MTC0_inst = (opcode == OP_Z0) && (rs == OPZ_MTCZ) && CP0_RES;
+        ERET_inst = (opcode == OP_Z0) && (co == OP_CO) && (funct == OPC_ERET) && (inst[24:6] == '0);
+        syscall = op0 && (funct == OP0_SYSCALL);
+        CP0_family = MFC0_inst || MTC0_inst || ERET_inst;
+
+        // --- control signal decoding ---
         // --- stage ID ---
         except = !(add_family || addi_family || sub_family || and_inst || or_inst || xor_inst || nor_inst || ori_inst || xori_inst || branch_family || j_family || lui_inst || slt_family| lw_family || lb_family || ld_inst || store_family || nop_inst || sll_family || srl_family || CP0_family || bal_inst);
         // branch unit resolved in ID stage

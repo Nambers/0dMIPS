@@ -43,3 +43,11 @@
 ![Hello world with debugger](docs/hello_world.gif)
 
 </details>
+
+## Simulation file structure
+- `debugger_tui` GDB-style TUI debugger with information about pipeline(disassembly by `capstone`), registers, memory, peripherals.
+- `SOC_debug` enable debug print and press any key to step.
+- `SOC_sim` run simulation under info log.
+- `SOC_run_sim` run simulation without info log.
+- `SOC_VGA_sim` run simulation with VGA output(provided by `SDL3`).
+- `VGA_sim` run demo VGA simulation.

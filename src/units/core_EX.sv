@@ -10,7 +10,6 @@ module core_EX (
     /* verilator lint_on UNUSEDSIGNAL */
     input logic flush,
     input logic [63:0] MEM_data,
-    input logic [63:0] next_pc,
     // -- forward --
     input forward_type_t forward_A,
     input forward_type_t forward_B,
@@ -29,9 +28,7 @@ module core_EX (
         shifter_plus32_out,
         forwarded_A,
         forwarded_B;
-
-    wire [63:0] SignExtImm = {{48{ID_regs.inst[15]}}, ID_regs.inst[15:0]};
-    wire [63:0] ZeroExtImm = {{48{1'b0}}, ID_regs.inst[15:0]};
+    logic [63:0] SignExtImm, ZeroExtImm;
 
     mux3v #(64) forward_mux_A (
         forwarded_A,
@@ -110,7 +107,7 @@ module core_EX (
         {{32{ID_regs.inst[15]}}, ID_regs.inst[15:0], 16'b0},
         ID_regs.lui
     );
-    mux4v #(64) slt_mux (
+    mux3v #(64) slt_mux (
         slt_out,
         lui_out,
         {
@@ -119,9 +116,13 @@ module core_EX (
             ((forwarded_A[63] ^ B_in[63]) & forwarded_A[63]) | (~(forwarded_A[63] ^ B_in[63]) & negative)
         },
         {63'b0, borrow_out},
-        'z,
         ID_regs.slt_type
     );
+
+    always_comb begin
+        SignExtImm = {{48{ID_regs.inst[15]}}, ID_regs.inst[15:0]};
+        ZeroExtImm = {{48{1'b0}}, ID_regs.inst[15:0]};
+    end
 
     always_ff @(posedge clock, posedge reset) begin
         if (reset || (flush & !ID_regs.linkpc)) begin
@@ -138,7 +139,6 @@ module core_EX (
             EX_regs.mem_store_type <= ID_regs.mem_store_type;
             EX_regs.MFC0 <= ID_regs.MFC0;
             EX_regs.MTC0 <= ID_regs.MTC0;
-            EX_regs.ERET <= ID_regs.ERET;
             EX_regs.syscall <= ID_regs.syscall;
             EX_regs.BEQ <= ID_regs.BEQ;
             EX_regs.BNE <= ID_regs.BNE;
@@ -156,6 +156,6 @@ module core_EX (
 `endif
         end
         // for setting EPC
-        EX_regs.pc <= flush ? next_pc : ID_regs.pc;
+        EX_regs.pc <= ID_regs.pc;
     end
 endmodule

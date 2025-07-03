@@ -10,7 +10,7 @@ module cp0 #(
     input  logic [63:0] wr_data,
     input  logic [ 4:0] regnum,
     input  logic [ 2:0] sel,
-    input  logic [63:0] next_pc,
+    input  logic [63:0] curr_pc,
     input  logic        MTC0,
     input  logic        ERET,
     input  logic [ 7:0] interrupt_source,
@@ -21,13 +21,13 @@ module cp0 #(
     input  logic        syscall,
     input  logic        break_
 );
-    logic [4:0] exc_code  /* verilator public */;
+    logic [4:0] exc_code  /* verilator public */, next_exc_code;
     /* verilator lint_off UNUSEDSIGNAL */
     logic [31:0] user_status;
     /* verilator lint_on UNUSEDSIGNAL */
-    logic [31:0] badinstr_D;
+    logic [31:0] badinstr_D, cause_reg, status_reg;
     logic [63:0] EPC_D;
-    logic exception_level;
+    logic exception_level, takenInterrupt, takenException;
 
     // TODO reset BEV, ERL should be 1
     // but can't rlly set BEV to 1, because I don't use boot vector yet.
@@ -46,8 +46,8 @@ module cp0 #(
         badinstr_D,
         wr_data[31:0],
         clock,
-        overflow || reserved_inst || syscall || break_,
-        reset
+        takenException,
+        ERET || reset
     );
 
     register #(1) exception_lv_reg (
@@ -58,75 +58,79 @@ module cp0 #(
         ERET || reset
     );
 
-    mux2v #(64) m (
+    mux3v #(64) data_pc_mux (
         EPC_D,
         wr_data,
-        next_pc,
-        takenHandler
+        curr_pc,
+        curr_pc + 4,
+        {takenException, takenInterrupt}
     );
     register #(64) EPC_reg (
         EPC,
         EPC_D,
         clock,
         (MTC0 && (regnum == EPC_REGISTER) & (sel == 0)) || takenHandler,
-        reset
+        ERET || reset
     );
 
-    wire [31:0] cause_reg = {
-        16'b0,
-        interrupt_source,  // 7 outside interrupt sources
-        1'b0,
-        exc_code,  // ExcCode
-        2'b0
-    };
-    wire [31:0] status_reg = {
-        user_status[31:3],
-        user_status[2],  // ERL
-        exception_level,  // EXL
-        user_status[0]  // IE
-    };
-
-    wire takenInterrupt = ((|(cause_reg[15:8] & status_reg[15:8])) && // if enabled interrupt sources
-    (!(|exc_code)) &&  // ExcCode = 0
-    (!status_reg[1]) &&  // EXL = 0
-    (status_reg[0]) &&  // IE = 1
-    (!status_reg[2]));  // ERL = 0
-
-    wire takenException = ((|exc_code) &&  // ExcCode != 0
-    (!status_reg[1]));  // EXL = 0
-
-    assign takenHandler = takenInterrupt | takenException;
-
     always_comb begin
-        case (regnum)
-            STATUS_REGISTER: rd_data = {32'b0, status_reg};
-            CAUSE_REGISTER:  rd_data = {32'b0, cause_reg};
-            EPC_REGISTER:    rd_data = EPC;
-            BAD_INSTR_REGISTER: rd_data = {32'b0, badinstr_D};
-            default: rd_data = 'z;
+        cause_reg = {
+            16'b0,
+            interrupt_source,  // 7 outside interrupt sources
+            1'b0,
+            exc_code,  // ExcCode
+            2'b0
+        };
+        status_reg = {
+            user_status[31:3],
+            user_status[2],  // ERL
+            exception_level,  // EXL
+            user_status[0]  // IE
+        };
+
+        unique case ({
+            regnum, sel
+        })
+            {STATUS_REGISTER, 3'b0}: rd_data = {32'b0, status_reg};
+            {CAUSE_REGISTER, 3'b0}:  rd_data = {32'b0, cause_reg};
+            {EPC_REGISTER, 3'b0}:    rd_data = EPC;
+            {BAD_INSTR_REGISTER, 3'b1}: rd_data = {32'b0, badinstr_D};
+            default: rd_data = 'x;
         endcase
+        case (1'b1)
+            overflow:      next_exc_code = 5'h0c;
+            reserved_inst: next_exc_code = 5'h0a;
+            syscall:       next_exc_code = 5'h08;
+            break_:        next_exc_code = 5'h09;
+            default:       next_exc_code = 5'h00;
+        endcase
+
+        takenException = |next_exc_code;  // ExcCode != 0
+        takenInterrupt = ((|(cause_reg[15:8] & status_reg[15:8])) && // if enabled interrupt sources
+        (!(|exc_code)) &&  // ExcCode = 0
+        (status_reg[0]) &&  // IE = 1
+        (!status_reg[2]));  // ERL = 0
+        takenHandler = (takenInterrupt || takenException) && (!status_reg[1]);  // EXL = 0
     end
 
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
-        if (takenHandler) $display("CP0: taken handler, ExcCode = %h", exc_code);
+        if (regnum == 'd8) $display("CP0: readBadInstr = %h", rd_data);
+        if (syscall) $display("CP0: syscall, EPC = %h", EPC);
+        if (takenHandler)
+            $display(
+                "CP0: taken handler, ExcCode = %h, EPC wr = %h B_data=%h",
+                exc_code,
+                curr_pc,
+                wr_data
+            );
         if (ERET) $display("CP0: ERET, EPC = %h", EPC);
         if (MTC0) $display("CP0: MTC0, regnum = %d(sel=%d), data = %h", regnum, sel, wr_data);
 `endif
         if (reset) begin
             exc_code <= 5'h00;
         end else begin
-            if (!exception_level && (overflow || reserved_inst || syscall || break_)) begin
-                unique case (1'b1)
-                    overflow:      exc_code <= 5'h0c;
-                    reserved_inst: exc_code <= 5'h0a;
-                    syscall:       exc_code <= 5'h08;
-                    break_:        exc_code <= 5'h09;
-                    default:       exc_code <= 5'h00;
-                endcase
-            end else if (takenHandler && takenInterrupt) begin
-                exc_code <= 5'h00;
-            end
+            exc_code <= next_exc_code;
         end
     end
 

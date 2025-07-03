@@ -37,10 +37,7 @@ package structures;
         UNSIGNED_CUT
     } alu_cut_t;
 
-    typedef struct packed {
-        logic [31:0] inst;
-        logic [63:0] pc4,  pc;
-    } IF_regs_t;
+    typedef struct packed {logic [63:0] fetch_pc4, fetch_pc;} IF_regs_t;
 
     typedef struct packed {
         logic [63:0] A_data, B_data, pc4, pc_branch, jumpAddr;
@@ -90,7 +87,6 @@ package structures;
             zero,
             MFC0,
             MTC0,
-            ERET,
             syscall,
             write_enable,
             BEQ,

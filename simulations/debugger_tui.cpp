@@ -21,7 +21,7 @@
 #include <SOC_sim_core_ID.h>
 #include <SOC_sim_core_MEM.h>
 #include <SOC_sim_cp0.h>
-#include <SOC_sim_data_mem__D100.h>
+#include <SOC_sim_data_mem__D800.h>
 #include <SOC_sim_regfile__W40.h>
 #include <SOC_sim_stdout.h>
 #include <capstone/capstone.h>
@@ -111,13 +111,10 @@ std::unordered_map<uint64_t, DisasmEntry> disasm_cache;
 
 void update_state_from_sim() {
     TICK;
-    pipeline["IF"] =
-        get_disasm(machine->SOC->core->pc, machine->SOC->core->inst,
-                   disasm_cache, cs_handle);
+    pipeline["IF"] = "N/A";
     pipeline["ID"] =
         get_disasm(vlwide_get(machine->SOC->core->IF_regs, 0, 64),
-                   vlwide_get(machine->SOC->core->IF_regs, 64 * 2, 32),
-                   disasm_cache, cs_handle);
+                   machine->SOC->core->inst, disasm_cache, cs_handle);
     pipeline["EX"] = get_disasm(vlwide_get(machine->SOC->core->ID_regs, 0, 64),
                                 vlwide_get(machine->SOC->core->ID_regs, 64, 32),
                                 disasm_cache, cs_handle);
@@ -165,7 +162,7 @@ void update_state_from_sim() {
     flags["AM"] = (machine->SOC->core->forward_A == 2);
     flags["BA"] = (machine->SOC->core->forward_B == 1);
     flags["BM"] = (machine->SOC->core->forward_B == 2);
-    flags["DR"] = machine->SOC->__PVT__d_ready;
+    flags["DR"] = machine->SOC->core->__PVT__d_ready;
     flags["IE"] = (machine->SOC->core->MEM_stage->cp0_->exc_code == 0xc);
     flags["OE"] = (machine->SOC->core->MEM_stage->cp0_->exc_code == 0xa);
 }
@@ -221,7 +218,7 @@ Element render_pipeline() {
     // PC indicator
     std::ostringstream pc_hex;
     pc_hex << "0x" << std::hex << std::setw(8) << std::setfill('0')
-           << machine->SOC->core->pc;
+           << vlwide_get(machine->SOC->core->IF_regs, 64, 64);
 
     auto pc_panel = vbox({
                         text("📍 PC") | bold,
@@ -269,9 +266,7 @@ Element render_memory(uint64_t center_addr) {
     uint64_t stack_hi = sp + 128;
 
     auto load_byte = [&](uint64_t addr) -> uint8_t {
-        uint64_t word =
-            le64toh(machine->SOC->core->MEM_stage->mem->data_seg[addr >> 3]);
-        return (word >> ((addr & 0x7) * 8)) & 0xFF;
+        return machine->SOC->core->MEM_stage->mem->data_seg[addr];
     };
 
     std::vector<Element> lines;

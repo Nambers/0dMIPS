@@ -14,12 +14,8 @@ def parse_objdump(objdump_output, addr_dividor=1):
 
     def b32toel(vals):
         res = []
-        for i in range(0, len(vals) - 1, 2):
-            res.append(
-                struct.pack("<Q", (int(vals[i + 1], 16) << 32) | int(vals[i], 16)).hex()
-            )
-        if len(vals) % 2 == 1:
-            res.append(struct.pack("<Q", int(vals[-1], 16)).hex())
+        for i in vals:
+            res.append(struct.pack("<I", int(i, 16)).hex(" "))
         return res
 
     next_expected_addr = -1
@@ -36,8 +32,6 @@ def parse_objdump(objdump_output, addr_dividor=1):
                     memory.extend(b32toel(phrase))
                     phrase = []
                 memory.append(f"@{(address // addr_dividor):08x}")
-                if address % addr_dividor != 0:
-                    phrase.append("0")
 
             next_expected_addr = address + 4
             phrase.append(instruction)
@@ -50,6 +44,6 @@ with open(f"{CWD}/memory_dump.dat", "r") as f:
     objdump_output = f.read()
 
 # rebasing text section may have problem in direct jump
-formatted_output = parse_objdump(objdump_output, 8)
+formatted_output = parse_objdump(objdump_output, 1)
 with open(f"{CWD}/memory.mem", "w") as f:
     f.write(formatted_output)

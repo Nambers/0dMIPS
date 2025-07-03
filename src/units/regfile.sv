@@ -37,7 +37,8 @@ module regfile #(
         .rst(reset)
     );
 
-    assign A_data = reg_out[A_addr];
-    assign B_data = reg_out[B_addr];
-
+    always_comb begin
+        A_data = reg_out[A_addr];
+        B_data = reg_out[B_addr];
+    end
 endmodule

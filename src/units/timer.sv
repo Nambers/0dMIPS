@@ -25,8 +25,7 @@ module timer #(
     logic [width - 1:0] cycle_D, cycle_Q;
     // interrupt cycle
     logic [width - 1:0] icycle_Q;
-    // lower
-    logic Acknowledge, TimerWrite, TimerRead;
+    logic Acknowledge, TimerWrite, TimerRead, addr_eq1, addr_eq2;
     logic armed_Q;
 
     // -- cycle counter --
@@ -38,11 +37,6 @@ module timer #(
         1'b1,
         reset
     );
-
-    assign cycle_D = cycle_Q + 1;
-
-    // Tri-state buffer
-    assign cycle   = TimerRead ? cycle_Q : 'z;
 
     // -- interrupt cycle --
 
@@ -72,14 +66,18 @@ module timer #(
         reset | Acknowledge
     );
 
-    // -- lower --
+    always_comb begin
+        addr_eq1 = enable & (address == TIMER_CNT_ADDR);
+        addr_eq2 = enable & (address == TIMER_CRL_ADDR);
+        TimerAddress = addr_eq1 | addr_eq2;
+        Acknowledge = addr_eq2 & MemWrite;
+        TimerRead = addr_eq1 & MemRead;
+        TimerWrite = addr_eq1 & MemWrite;
 
-    wire addr_eq1 = enable & (address == TIMER_CNT_ADDR);
-    wire addr_eq2 = enable & (address == TIMER_CRL_ADDR);
-    assign TimerAddress = addr_eq1 | addr_eq2;
-    assign Acknowledge = addr_eq2 & MemWrite;
-    assign TimerRead = addr_eq1 & MemRead;
-    assign TimerWrite = addr_eq1 & MemWrite;
+        cycle_D = cycle_Q + 1;
+        // Tri-state buffer
+        cycle = TimerRead ? cycle_Q : 'x;
+    end
 
     always_ff @(posedge clock or posedge reset) begin
 `ifdef DEBUG
@@ -97,5 +95,4 @@ module timer #(
         end
 `endif
     end
-
 endmodule

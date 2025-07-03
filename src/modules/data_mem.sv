@@ -3,17 +3,25 @@ import structures::NO_STORE;
 import structures::STORE_BYTE;
 import structures::STORE_WORD;
 import structures::STORE_DWORD;
+import structures::mem_load_type_t;
+import structures::NO_LOAD;
+import structures::LOAD_BYTE;
+import structures::LOAD_WORD;
+import structures::LOAD_DWORD;
 
 module data_mem #(
     // size of data segment
-    parameter data_words = 'h4000,
-    parameter index_bits = $clog2(data_words)
+    parameter DATA_LEN = 'h20000,  // 0x4000 * 8, unit: byte
+    parameter INDEX_LEN = $clog2(DATA_LEN)
 ) (
     output logic [63:0] data_out,
     /* verilator lint_off UNUSEDSIGNAL */
     input logic [63:0] addr  /* verilator public */,
     /* verilator lint_on UNUSEDSIGNAL */
     input logic [63:0] data_in,
+    input logic flush,
+    input logic signed_type,
+    input mem_load_type_t mem_load_type,
     input mem_store_type_t mem_store_type,
     input logic clk,
     input logic reset,
@@ -22,87 +30,79 @@ module data_mem #(
     input logic [63:0] inst_addr
     /* verilator lint_on UNUSEDSIGNAL */
 );
-    // Memory segments
-    // note: logic is a 0/1 type not a 4-state type
-    logic   [63:0] data_seg[0:data_words-1]  /* verilator public */;
-
-    // Verilog implementation stuff
-    integer        i;
-
     initial begin
         // Grab initial memory values
         $readmemh("memory.mem", data_seg);
     end
 
-    wire [index_bits-1:0] index = addr[index_bits+2:3], inst_index = inst_addr[index_bits+2:3];
-    assign data_out = {
-        data_seg[index][7:0],
-        data_seg[index][15:8],
-        data_seg[index][23:16],
-        data_seg[index][31:24],
-        data_seg[index][39:32],
-        data_seg[index][47:40],
-        data_seg[index][55:48],
-        data_seg[index][63:56]
-    };
+    logic [7:0] data_seg[0:DATA_LEN-1]  /* verilator public */;
+
+    logic [INDEX_LEN-1:0] baddr, i_baddr;
 
     always_comb begin
-        if (inst_addr[2])
-            inst = {
-                data_seg[inst_index][7:0],
-                data_seg[inst_index][15:8],
-                data_seg[inst_index][23:16],
-                data_seg[inst_index][31:24]
-            };
-        else
-            inst = {
-                data_seg[inst_index][39:32],
-                data_seg[inst_index][47:40],
-                data_seg[inst_index][55:48],
-                data_seg[inst_index][63:56]
-            };
+        baddr   = addr[INDEX_LEN-1:0];
+        i_baddr = inst_addr[INDEX_LEN-1:0];
     end
 
-    always @(negedge clk or posedge reset) begin
-        if (reset) begin
-            for (i = 0; i < data_words; i = i + 1) data_seg[i] <= 'b0;
-            $readmemh("memory.mem", data_seg);
-        end else begin
-            unique case (mem_store_type)
-                STORE_BYTE:
-                unique case (addr[2:0])
-                    'd7: data_seg[index][7:0] <= data_in[7:0];
-                    'd6: data_seg[index][15:8] <= data_in[7:0];
-                    'd5: data_seg[index][23:16] <= data_in[7:0];
-                    'd4: data_seg[index][31:24] <= data_in[7:0];
-                    'd3: data_seg[index][39:32] <= data_in[7:0];
-                    'd2: data_seg[index][47:40] <= data_in[7:0];
-                    'd1: data_seg[index][55:48] <= data_in[7:0];
-                    'd0: data_seg[index][63:56] <= data_in[7:0];
-                endcase
-                STORE_WORD:
-                if (addr[2])
-                    data_seg[index][31:0] <= {
-                        data_in[7:0], data_in[15:8], data_in[23:16], data_in[31:24]
-                    };
-                else
-                    data_seg[index][63:32] <= {
-                        data_in[7:0], data_in[15:8], data_in[23:16], data_in[31:24]
-                    };
-                STORE_DWORD: begin
-                    data_seg[index] <= {
-                        data_in[7:0],
-                        data_in[15:8],
-                        data_in[23:16],
-                        data_in[31:24],
-                        data_in[39:32],
-                        data_in[47:40],
-                        data_in[55:48],
-                        data_in[63:56]
-                    };
-                end
-                NO_STORE: ;  // we = 0
-            endcase
-        end
+    // TODO move to async
+    always_comb begin
+        unique case (mem_load_type)
+            LOAD_BYTE: data_out = {{56{signed_type & data_seg[baddr][7]}}, data_seg[baddr]};
+
+            LOAD_WORD:
+            data_out = {
+                {32{signed_type & data_seg[baddr+3][7]}},
+                data_seg[baddr+3],
+                data_seg[baddr+2],
+                data_seg[baddr+1],
+                data_seg[baddr+0]
+            };
+
+            LOAD_DWORD:
+            data_out = {
+                data_seg[baddr+7],
+                data_seg[baddr+6],
+                data_seg[baddr+5],
+                data_seg[baddr+4],
+                data_seg[baddr+3],
+                data_seg[baddr+2],
+                data_seg[baddr+1],
+                data_seg[baddr+0]
+            };
+            NO_LOAD: data_out = 'x;  // no load
+        endcase
+
+        if (!flush)
+            inst = {
+                data_seg[i_baddr+3], data_seg[i_baddr+2], data_seg[i_baddr+1], data_seg[i_baddr+0]
+            };
+        else inst = '0;
+    end
+
+    always_ff @(negedge clk or posedge reset) begin
+        // TODO reset behavior
+        unique case (mem_store_type)
+            STORE_BYTE: data_seg[baddr] <= data_in[7:0];
+
+            STORE_WORD: begin
+                data_seg[baddr+0] <= data_in[7:0];
+                data_seg[baddr+1] <= data_in[15:8];
+                data_seg[baddr+2] <= data_in[23:16];
+                data_seg[baddr+3] <= data_in[31:24];
+            end
+
+            STORE_DWORD: begin
+                data_seg[baddr+0] <= data_in[7:0];
+                data_seg[baddr+1] <= data_in[15:8];
+                data_seg[baddr+2] <= data_in[23:16];
+                data_seg[baddr+3] <= data_in[31:24];
+                data_seg[baddr+4] <= data_in[39:32];
+                data_seg[baddr+5] <= data_in[47:40];
+                data_seg[baddr+6] <= data_in[55:48];
+                data_seg[baddr+7] <= data_in[63:56];
+            end
+
+            NO_STORE: ;  // NO_STORE
+        endcase
     end
 endmodule  // data_mem

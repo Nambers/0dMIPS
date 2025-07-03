@@ -81,9 +81,9 @@ module SOC (
     );
 
     always_comb begin
-        unique case (1'b1)
+        case (1'b1)
             timer_taken & ~reset: d_rdata = timer_out;
-            default: d_rdata = 'z;
+            default: d_rdata = 'x;
         endcase
         // in-cycle peripheral access
         d_ready = ~reset & (timer_taken | VGA_taken | stdout_taken);

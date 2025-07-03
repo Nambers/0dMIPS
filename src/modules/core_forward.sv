@@ -14,7 +14,6 @@ module core_forward (
     output forward_type_t forward_A,
     output forward_type_t forward_B
 );
-
     always_comb begin
         forward_A = NO_FORWARD;
         forward_B = NO_FORWARD;

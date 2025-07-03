@@ -1,7 +1,7 @@
 #include "core_test.hpp"
 #include <Core_core_ID.h>
 #include <Core_core_MEM.h>
-#include <Core_data_mem__D100.h>
+#include <Core_data_mem__D800.h>
 #include <Core_regfile__W40.h>
 
 #include <fstream>
@@ -12,13 +12,14 @@
     TestGenMem(                                                                \
         name,                                                                  \
         {                                                                      \
-            MEM_SEG[0] = inst_comb(build_I_inst(opcode, 0, 1, 16), 0);         \
-            MEM_SEG[2] = htobe64(val);                                         \
+            write_mem_seg(MEM_SEG, 0,                                          \
+                          inst_comb(build_I_inst(opcode, 0, 1, 16), 0));       \
+            write_mem_seg(MEM_SEG, (2) * 8, val);                              \
         },                                                                     \
         {                                                                      \
             EXPECT_TRUE(RF->wr_enable);                                        \
             EXPECT_EQ(RF->W_addr, 1);                                          \
-            EXPECT_EQ(RF->W_data, check_W_data);                      \
+            EXPECT_EQ(RF->W_data, check_W_data);                               \
         })
 
 TestGenRead(LB, 0x20, (val & 0xff) | ((val & 0x80) ? BYTE_HIGH_FULL : 0));
@@ -33,10 +34,11 @@ TestGenRead(LD, 0x37, val);
     TestGenMem(                                                                \
         name,                                                                  \
         {                                                                      \
-            WRITE_RF(1, (val)); /* store val into reg $1*/              \
-            MEM_SEG[0] = inst_comb(build_I_inst(opcode, 0, 1, 8), 0);          \
+            WRITE_RF(1, (val)); /* store val into reg $1*/                     \
+            write_mem_seg(MEM_SEG, 0,                                          \
+                          inst_comb(build_I_inst(opcode, 0, 1, 8), 0));        \
         },                                                                     \
-        { EXPECT_EQ(be64toh(MEM_SEG[1]), check_mem); })
+        { EXPECT_EQ(*reinterpret_cast<uint64_t *>(&MEM_SEG[8]), check_mem); })
 
 TestGenWrite(SW, 0x2b, val &MASK32);
 TestGenWrite(SB, 0x28, val & 0xff);
@@ -59,8 +61,10 @@ TestGenWrite(SD, 0x3f, val);
         {                                                                      \
             WRITE_RF(1, fixed_val); /* store 1 into reg $1*/                   \
             WRITE_RF(2, val);       /* store val into reg $2*/                 \
-            /* $3 = $1 <OP> $2 */                                              \
-            MEM_SEG[0] = inst_comb(build_R_inst(0, 1, 2, 3, shamt, funct), 0); \
+                                    /* $3 = $1 <OP> $2 */                      \
+            write_mem_seg(                                                     \
+                MEM_SEG, 0,                                                    \
+                inst_comb(build_R_inst(0, 1, 2, 3, shamt, funct), 0));         \
         },                                                                     \
         {                                                                      \
             EXPECT_TRUE(RF->wr_enable);                                        \
@@ -139,7 +143,11 @@ TestGenArith2(TestDSub, val -);
 
 /* #region I type arithemtics operations test */
 TestGenMem(
-    LUI, { MEM_SEG[0] = inst_comb(build_I_inst(0xf, 0, 1, val & MASK16), 0); },
+    LUI,
+    {
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb(build_I_inst(0xf, 0, 1, val & MASK16), 0));
+    },
     {
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
@@ -150,8 +158,9 @@ TestGenMem(
         name,                                                                  \
         {                                                                      \
             WRITE_RF(1, fixed_val); /* store 1 into reg $1*/                   \
-            /* $2 = $1 <OP> val */                                             \
-            MEM_SEG[0] = inst_comb(build_I_inst(funct, 1, 2, val), 0);         \
+                                    /* $2 = $1 <OP> val */                     \
+            write_mem_seg(MEM_SEG, 0,                                          \
+                          inst_comb(build_I_inst(funct, 1, 2, val), 0));       \
         },                                                                     \
         {                                                                      \
             EXPECT_TRUE(RF->wr_enable);                                        \
@@ -194,20 +203,22 @@ TestGenMem(
         WRITE_RF(1, val);
         WRITE_RF(2, val);
         // beq $1, $2, +512
-        MEM_SEG[0] = inst_comb(build_I_inst(0x4, 1, 2, 512 >> 2), 0);
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb(build_I_inst(0x4, 1, 2, 512 >> 2), 0));
     },
-    { EXPECT_EQ(inst_->core->pc, 512 + 4); });
+    { EXPECT_EQ(FETCH_PC, 512 + 4); });
 TestGenMem(
     BEQ_Fail,
     {
         WRITE_RF(1, val);
         WRITE_RF(2, val + 1);
         // beq $1, $2, +512
-        MEM_SEG[0] = inst_comb(build_I_inst(0x4, 1, 2, 512 >> 2), 0);
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb(build_I_inst(0x4, 1, 2, 512 >> 2), 0));
     },
     {
         // 4 stages
-        EXPECT_EQ(inst_->core->pc, 4 * 4);
+        EXPECT_EQ(FETCH_PC, 4 * 3);
     });
 TestGenMem(
     BNE,
@@ -215,90 +226,95 @@ TestGenMem(
         WRITE_RF(1, val);
         WRITE_RF(2, val + 1);
         // bne $1, $2, +512
-        MEM_SEG[0] = inst_comb(build_I_inst(0x5, 1, 2, 512 >> 2), 0);
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb(build_I_inst(0x5, 1, 2, 512 >> 2), 0));
     },
-    { EXPECT_EQ(inst_->core->pc, 512 + 4); });
+    { EXPECT_EQ(FETCH_PC, 512 + 4); });
 TestGenMem(
     BNE_Fail,
     {
         WRITE_RF(1, val);
         WRITE_RF(2, val);
         // bne $1, $2, +512
-        MEM_SEG[0] = inst_comb(build_I_inst(0x5, 1, 2, 512 >> 2), 0);
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb(build_I_inst(0x5, 1, 2, 512 >> 2), 0));
     },
-    { EXPECT_EQ(inst_->core->pc, 4 * 4); });
+    { EXPECT_EQ(FETCH_PC, 4 * 3); });
 TestGenMemOnce(
     BC,
     {
         // bc $1, +512
-        MEM_SEG[0] = inst_comb(build_J_inst(0x32, 512 >> 2), 0);
+        write_mem_seg(MEM_SEG, 0, inst_comb(build_J_inst(0x32, 512 >> 2), 0));
     },
-    { EXPECT_EQ(inst_->core->pc, 512 + 4); });
+    { EXPECT_EQ(FETCH_PC, 512 + 4); });
 TestGenMemOnceCycle(
     J,
     {
         // j +512
-        MEM_SEG[0] = inst_comb(build_J_inst(0x2, 512 >> 2), 0);
+        write_mem_seg(MEM_SEG, 0, inst_comb(build_J_inst(0x2, 512 >> 2), 0));
     },
-    { EXPECT_EQ(inst_->core->pc, 512); }, 3);
+    { EXPECT_EQ(FETCH_PC, 512); }, 2);
 
 TestGenMemOnceCycle(
     JAL,
     {
         // jal +512 (target = (512 >> 2))
-        MEM_SEG[0] = inst_comb(build_J_inst(0x3, 512 >> 2), 0);
+        write_mem_seg(MEM_SEG, 0, inst_comb(build_J_inst(0x3, 512 >> 2), 0));
     },
     {
         // jal should jump to pc + 512, and store return address to $ra ($31)
         // EX stage
-        EXPECT_EQ(inst_->core->pc, 512);
+        EXPECT_EQ(FETCH_PC, 512);
         tick(); // MEM stage
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 31);
-        EXPECT_EQ(RF->W_data, 8); // return address is pc + 8
+        EXPECT_EQ(RF->W_data, 4); // return address is pc + 4
     },
-    3);
+    2);
 TestGenMemOnceCycle(
     JR,
     {
         // Set $4 = 0x0d00
         WRITE_RF(4, 0x0d00);
         // jr $4
-        MEM_SEG[0] = inst_comb(build_R_inst(0x0, 4, 0, 0, 0, 0x08), 0);
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb(build_R_inst(0x0, 4, 0, 0, 0, 0x08), 0));
     },
-    { EXPECT_EQ(inst_->core->pc, 0x0d00); }, 3);
+    { EXPECT_EQ(FETCH_PC, 0x0d00); }, 2);
 TestGenMemOnceCycle(
     JALR,
     {
         // Set $4 = 0x0d00
         WRITE_RF(4, 0x0d00);
         // jalr $4
-        MEM_SEG[0] = inst_comb(build_R_inst(0x0, 4, 0, 1, 0, 0x09), 0);
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb(build_R_inst(0x0, 4, 0, 1, 0, 0x09), 0));
     },
     {
-        EXPECT_EQ(inst_->core->pc, 0x0d00);
+        EXPECT_EQ(FETCH_PC, 0x0d00);
         tick(); // MEM stage
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
-        EXPECT_EQ(RF->W_data, 8); // return address is pc + 8
+        EXPECT_EQ(RF->W_data, 4); // return address is pc + 4
     },
-    3);
+    2);
 TestGenMemOnceCycle(
     BAL,
     {
         // bal +512 (offset = 512 / 4 = 128)
-        MEM_SEG[0] = inst_comb(build_REGIMM_inst(0x1, 0x11, 0, 512 >> 2),
-                               0); // opcode=1, rt=17(BAL), rs=0
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb(build_REGIMM_inst(0x1, 0x11, 0, 512 >> 2),
+                                0)); // opcode=1, rt=17(BAL), rs=0
     },
     {
         // bal should jump to pc + 512, and store return address to $ra ($31)
-        EXPECT_EQ(inst_->core->pc, 512 + 4); // PC updated after EX
+        EXPECT_EQ(FETCH_PC, 512 + 4); // FETCH_PC updated after EX
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 31);
         EXPECT_EQ(RF->W_data,
-                  8); // return address = pc + 8 from ID stage (pc = 0 + 8)
+                  4); // return address = pc + 4 from ID stage (pc = 0 + 4)
     },
-    4);
+    3);
 
 /* #endregion */
 
@@ -307,8 +323,9 @@ TestGenMem(
     {
         WRITE_RF(1, val); // store val into reg $1
         WRITE_RF(2, 0);
-        MEM_SEG[0] =
-            inst_comb(build_R_inst(0, 1, 2, 3, 0, 0x2a), 0); // slt $2, $1, $3
+        write_mem_seg(
+            MEM_SEG, 0,
+            inst_comb(build_R_inst(0, 1, 2, 3, 0, 0x2a), 0)); // slt $2, $1, $3
     },
     {
         EXPECT_TRUE(RF->wr_enable);
@@ -320,8 +337,9 @@ TestGenMem(
     SLTI,
     {
         WRITE_RF(1, val); // store val into reg $1
-        MEM_SEG[0] =
-            inst_comb(build_I_inst(0xa, 1, 2, 16), 0); // slti $2, $1, 16
+        write_mem_seg(
+            MEM_SEG, 0,
+            inst_comb(build_I_inst(0xa, 1, 2, 16), 0)); // slti $2, $1, 16
     },
     {
         EXPECT_TRUE(RF->wr_enable);
@@ -333,8 +351,9 @@ TestGenMem(
     SLTU,
     {
         WRITE_RF(1, val); // store val into reg $1
-        MEM_SEG[0] =
-            inst_comb(build_R_inst(0, 1, 2, 3, 0, 0x2b), 0); // sltu $2, $1, $3
+        write_mem_seg(
+            MEM_SEG, 0,
+            inst_comb(build_R_inst(0, 1, 2, 3, 0, 0x2b), 0)); // sltu $2, $1, $3
     },
     {
         EXPECT_TRUE(RF->wr_enable);
@@ -346,8 +365,9 @@ TestGenMem(
     SLTIU,
     {
         WRITE_RF(1, val); // store val into reg $1
-        MEM_SEG[0] =
-            inst_comb(build_I_inst(0xb, 1, 2, 16), 0); // sltiu $2, $1, 16
+        write_mem_seg(
+            MEM_SEG, 0,
+            inst_comb(build_I_inst(0xb, 1, 2, 16), 0)); // sltiu $2, $1, 16
     },
     {
         EXPECT_TRUE(RF->wr_enable);

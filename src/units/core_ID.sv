@@ -11,12 +11,12 @@ module core_ID (
     input logic clock,
     input logic reset,
     input IF_regs_t IF_regs,
+    input logic [31:0] inst,
     input logic stall,
     input logic flush,
     /* verilator lint_off UNUSEDSIGNAL */
     input MEM_regs_t MEM_regs,
     /* verilator lint_on UNUSEDSIGNAL */
-    input logic [63:0] next_pc,
     output ID_regs_t ID_regs,
     output logic B_is_reg
 );
@@ -49,6 +49,7 @@ module core_ID (
         signed_byte,
         signed_word,
         ignore_overflow;
+    logic [63:0] BranchAddr, CompactBranchAddr, JumpAddr;
 
     // -- decoder --
     mips_decoder decoder (
@@ -83,7 +84,7 @@ module core_ID (
         .rt(rt),
         .rd(rd),
         .B_is_reg(B_is_reg),
-        .inst(IF_regs.inst)
+        .inst(inst)
     );
 
     // -- reg --
@@ -116,7 +117,7 @@ module core_ID (
     mux2v #(64) badinstr_B (
         B_data_badinst,
         B_data_forwarded,
-        {32'b0, IF_regs.inst},
+        {32'b0, inst},
         syscall || reserved_inst_E
     );
 
@@ -128,17 +129,18 @@ module core_ID (
         rd_src
     );
 
-    wire [63:0] BranchAddr = {{46{IF_regs.inst[15]}}, IF_regs.inst[15:0], 2'b0};
-    wire [63:0] CompactBranchAddr = {{36{IF_regs.inst[25]}}, IF_regs.inst[25:0], 2'b0};
-
-    wire [63:0] JumpAddr = {{32{1'b0}}, IF_regs.pc4[63:60], IF_regs.inst[25:0], 2'b0};
-
     mux2v #(64) BranchAddr_mux (
         BranchAddrFinal,
-        IF_regs.pc + BranchAddr,
-        IF_regs.pc + CompactBranchAddr,
+        IF_regs.fetch_pc4 + BranchAddr,
+        IF_regs.fetch_pc4 + CompactBranchAddr,
         BC
     );
+
+    always_comb begin
+        BranchAddr = {{46{inst[15]}}, inst[15:0], 2'b0};
+        CompactBranchAddr = {{36{inst[25]}}, inst[25:0], 2'b0};
+        JumpAddr = {IF_regs.fetch_pc[63:28], inst[25:0], 2'b0};
+    end
 
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
@@ -146,8 +148,7 @@ module core_ID (
             $display("writeback regnum = %d, data = %h", MEM_regs.W_regnum, MEM_regs.W_data);
         end
         if (reserved_inst_E) begin
-            $display("reserved instruction detected op=0x%h, inst=0x%h", IF_regs.inst[31:26],
-                     IF_regs.inst);
+            $display("reserved instruction detected op=0x%h, inst=0x%h", inst[31:26], inst);
         end
 `endif
         // add bubble for load-use hazard instead of freeze-like stall
@@ -178,8 +179,8 @@ module core_ID (
             ID_regs.shifter_plus32 <= shifter_plus32;
             ID_regs.A_data <= A_data_forwarded;
             ID_regs.B_data <= B_data_badinst;
-            ID_regs.inst <= IF_regs.inst;
-            ID_regs.pc4 <= IF_regs.pc4;
+            ID_regs.inst <= inst;
+            ID_regs.pc4 <= IF_regs.fetch_pc4;
             ID_regs.pc_branch <= BranchAddrFinal;
             ID_regs.jumpAddr <= JumpAddr;
             ID_regs.lui <= lui;
@@ -188,9 +189,9 @@ module core_ID (
             ID_regs.signed_word <= signed_word;
             ID_regs.ignore_overflow <= ignore_overflow;
             ID_regs.B_is_reg <= B_is_reg;
-            ID_regs.cp0_rd <= IF_regs.inst[15:11];
+            ID_regs.cp0_rd <= inst[15:11];
         end
         // for setting EPC
-        ID_regs.pc <= flush ? next_pc : IF_regs.pc;
+        ID_regs.pc <= IF_regs.fetch_pc;
     end
 endmodule

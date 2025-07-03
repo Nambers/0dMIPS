@@ -37,6 +37,7 @@ module au #(
         .cin(sub),
         .sub(sub)
     );
+
     genvar i;
     generate
         for (i = 1; i < width; i++) begin
@@ -51,8 +52,10 @@ module au #(
         end
     endgenerate
 
-    assign negative = out[width-1];
-    assign zero = ~|out;
-    assign overflow = c_out[width-1] ^ c_out[width-2];
-    assign borrow_out = ~c_out[width-1];
+    always_comb begin
+        negative = out[width-1];
+        zero = ~|out;
+        overflow = c_out[width-1] ^ c_out[width-2];
+        borrow_out = ~c_out[width-1];
+    end
 endmodule
