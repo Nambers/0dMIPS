@@ -38,9 +38,9 @@
 ## Demo
 
 <details>
-    <summary>Hello world with debugger (GIF)</summary>
+    <summary>Hello world with debugger (asciinema)</summary>
 
-![Hello world with debugger](docs/hello_world.gif)
+[![Hello world with debugger](https://asciinema.org/a/bU0a0fpWcxJT1erWZx5JkgBuQ.svg)](https://asciinema.org/a/bU0a0fpWcxJT1erWZx5JkgBuQ)
 
 </details>
 
