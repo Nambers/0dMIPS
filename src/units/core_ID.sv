@@ -6,6 +6,7 @@ import structures::mem_load_type_t;
 import structures::mem_store_type_t;
 import structures::slt_type_t;
 import structures::alu_cut_t;
+import structures::alu_shifter_as_inp_t;
 
 module core_ID (
     input logic clock,
@@ -22,7 +23,7 @@ module core_ID (
 );
     logic [63:0]
         A_data, B_data, A_data_forwarded, B_data_forwarded, B_data_badinst, BranchAddrFinal;
-    logic [4:0] W_regnum, rs, rt, rd;
+    logic [4:0] W_regnum, rs, rt, rd, shamt;
     logic [2:0] alu_op;
     logic [1:0] alu_src2, shifter_plus32, rd_src;
     control_type_t control_type;
@@ -30,6 +31,7 @@ module core_ID (
     mem_store_type_t mem_store_type;
     slt_type_t slt_type;
     alu_cut_t alu_cut;
+    alu_shifter_as_inp_t alu_shifter_as_inp;
     logic
         reserved_inst_E,
         write_enable,
@@ -37,7 +39,9 @@ module core_ID (
         linkpc,
         cut_shifter_out32,
         shift_right,
-        alu_shifter_src,
+        shift_arith,
+        ex_out_src,
+        shift_src,
         MFC0,
         MTC0,
         ERET,
@@ -65,8 +69,11 @@ module core_ID (
         .lui_out(lui),
         .linkpc(linkpc),
         .shift_right(shift_right),
+        .shift_arith(shift_arith),
         .shifter_plus32(shifter_plus32),
-        .alu_shifter_src(alu_shifter_src),
+        .ex_out_src(ex_out_src),
+        .alu_shifter_as_inp(alu_shifter_as_inp),
+        .shift_src(shift_src),
         .cut_shifter_out32(cut_shifter_out32),
         .cut_alu_out32(alu_cut),
         .MFC0(MFC0),
@@ -83,6 +90,7 @@ module core_ID (
         .rs(rs),
         .rt(rt),
         .rd(rd),
+        .shamt(shamt),
         .B_is_reg(B_is_reg),
         .inst(inst)
     );
@@ -125,7 +133,7 @@ module core_ID (
         W_regnum,
         rd,
         rt,
-        'h1f,  // $ra
+        5'd31,  // $ra
         rd_src
     );
 
@@ -156,6 +164,7 @@ module core_ID (
             ID_regs <= '0;
         end else begin
             ID_regs.W_regnum <= W_regnum;
+            ID_regs.shamt <= shamt;
             ID_regs.reserved_inst_E <= reserved_inst_E;
             ID_regs.alu_op <= alu_op;
             ID_regs.write_enable <= write_enable;
@@ -165,7 +174,10 @@ module core_ID (
             ID_regs.cut_shifter_out32 <= cut_shifter_out32;
             ID_regs.cut_alu_out32 <= alu_cut;
             ID_regs.shift_right <= shift_right;
-            ID_regs.alu_shifter_src <= alu_shifter_src;
+            ID_regs.shift_arith <= shift_arith;
+            ID_regs.ex_out_src <= ex_out_src;
+            ID_regs.alu_shifter_as_inp <= alu_shifter_as_inp;
+            ID_regs.shift_src <= shift_src;
             ID_regs.MFC0 <= MFC0;
             ID_regs.MTC0 <= MTC0;
             ID_regs.ERET <= ERET;

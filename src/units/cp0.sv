@@ -70,7 +70,7 @@ module cp0 #(
         EPC_D,
         clock,
         (MTC0 && (regnum == EPC_REGISTER) & (sel == 0)) || takenHandler,
-        ERET || reset
+        reset
     );
 
     always_comb begin
@@ -115,14 +115,17 @@ module cp0 #(
 
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
-        if (regnum == 'd8) $display("CP0: readBadInstr = %h", rd_data);
+        if (regnum == BAD_INSTR_REGISTER) $display("CP0: readBadInstr = %h", rd_data);
+        if (regnum == CAUSE_REGISTER && sel == 0) $display("CP0: readCause = %h", rd_data);
+        if (regnum == STATUS_REGISTER && sel == 0) $display("CP0: readStatus = %h", rd_data);
         if (syscall) $display("CP0: syscall, EPC = %h", EPC);
         if (takenHandler)
             $display(
-                "CP0: taken handler, ExcCode = %h, EPC wr = %h B_data=%h",
-                exc_code,
+                "CP0: taken handler, ExcCode = %h, EPC wr = %h B_data = %h, pc = %h",
+                next_exc_code,
                 curr_pc,
-                wr_data
+                wr_data,
+                curr_pc
             );
         if (ERET) $display("CP0: ERET, EPC = %h", EPC);
         if (MTC0) $display("CP0: MTC0, regnum = %d(sel=%d), data = %h", regnum, sel, wr_data);
@@ -130,7 +133,8 @@ module cp0 #(
         if (reset) begin
             exc_code <= 5'h00;
         end else begin
-            exc_code <= next_exc_code;
+            if (takenHandler) exc_code <= next_exc_code;
+            else if (ERET) exc_code <= '0;
         end
     end
 

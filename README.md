@@ -45,6 +45,7 @@
 </details>
 
 ## Simulation file structure
+
 - `debugger_tui` GDB-style TUI debugger with information about pipeline(disassembly by `capstone`), registers, memory, peripherals.
 - `SOC_debug` enable debug print and press any key to step.
 - `SOC_sim` run simulation under info log.

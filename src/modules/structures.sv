@@ -37,12 +37,18 @@ package structures;
         UNSIGNED_CUT
     } alu_cut_t;
 
+    typedef enum bit [1:0]{
+        ORIGIN,
+        A,
+        B
+    } alu_shifter_as_inp_t;
+
     typedef struct packed {logic [63:0] fetch_pc4, fetch_pc;} IF_regs_t;
 
     typedef struct packed {
         logic [63:0] A_data, B_data, pc4, pc_branch, jumpAddr;
         // logic [31:0] inst; // move to buttom for debugger convenience
-        logic [4:0] W_regnum, cp0_rd;
+        logic [4:0] W_regnum, cp0_rd, shamt;
         logic [2:0] alu_op, sel;
         logic [1:0] alu_src2, shifter_plus32;
         control_type_t control_type;
@@ -50,11 +56,14 @@ package structures;
         mem_store_type_t mem_store_type;
         slt_type_t slt_type;
         alu_cut_t cut_alu_out32;
+        alu_shifter_as_inp_t alu_shifter_as_inp;
         logic reserved_inst_E,
             write_enable,
             cut_shifter_out32,
             shift_right,
-            alu_shifter_src,
+            shift_arith,
+            ex_out_src,
+            shift_src,
             BEQ,
             BNE,
             BC,

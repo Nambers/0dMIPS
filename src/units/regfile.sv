@@ -15,11 +15,10 @@ module regfile #(
     logic [31:0][width - 1:0] reg_out;
     logic [31:0] reg_enable, reg_enable_tmp;
 
-    barrel_shifter32 #(32) barrel_shifter32_ (
-        .data_out(reg_enable_tmp),
-        .data_in(32'b1),
-        .shift_amount(W_addr),
-        .direction(1'b0)  // shift left
+    barrel_shifter_left #(32) barrel_shifter32_ (
+        .w5(reg_enable_tmp),
+        .w0(32'b1),
+        .shift_amount(W_addr)
     );
 
     mux2v #(32) mux2v_0 (

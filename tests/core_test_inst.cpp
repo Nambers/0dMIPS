@@ -54,7 +54,7 @@ TestGenWrite(SD, 0x3f, val);
 #define TEST64OVERFLOW(expr) ((expr) > INT64_MAX || (expr) < INT64_MIN)
 
 /* #region R type arithmetics operations test */
-#define TestGenArithR(name, shamt, funct, check_W_data, overflow_cond,         \
+#define TestGenArithR(name, rs, shamt, funct, check_W_data, overflow_cond,     \
                       fixed_val)                                               \
     TestGenMem(                                                                \
         name,                                                                  \
@@ -64,7 +64,7 @@ TestGenWrite(SD, 0x3f, val);
                                     /* $3 = $1 <OP> $2 */                      \
             write_mem_seg(                                                     \
                 MEM_SEG, 0,                                                    \
-                inst_comb(build_R_inst(0, 1, 2, 3, shamt, funct), 0));         \
+                inst_comb(build_R_inst(0, rs, 2, 3, shamt, funct), 0));        \
         },                                                                     \
         {                                                                      \
             EXPECT_TRUE(RF->wr_enable);                                        \
@@ -82,10 +82,10 @@ TestGenWrite(SD, 0x3f, val);
     num: resevered arg for TestGenArithR2
 */
 #define Arith32(name, opcode, overflow_expr, expr, num)                        \
-    TestGenArithR(name, 0, opcode, sign_extend((expr) & MASK32, 32),           \
+    TestGenArithR(name, 1, 0, opcode, sign_extend((expr) & MASK32, 32),        \
                   TEST32OVERFLOW(overflow_expr), num);
 #define Arith32Shamt(name, opcode, overflow_expr, expr, num)                   \
-    TestGenArithR(name, num, opcode, sign_extend((expr) & MASK32, 32),         \
+    TestGenArithR(name, 0, num, opcode, sign_extend((expr) & MASK32, 32),      \
                   TEST32OVERFLOW(overflow_expr), 0);
 
 #define TestAdd(AName, expr, num)                                              \
@@ -104,9 +104,14 @@ TestGenWrite(SD, 0x3f, val);
     Arith32Shamt(SLL##AName, 0x00, (val & MASK16) << num, expr, num);
 #define TestSRL(AName, expr, num)                                              \
     Arith32Shamt(SRL##AName, 0x02, (val & MASK16) >> num, expr, num);
+#define TestSRA(AName, expr, num)                                              \
+    Arith32Shamt(SRA##AName, 0x03,                                             \
+                 ((val & MASK16) >> num) |                                     \
+                     ((val & MASK16) & 0x8000 ? 0xffff0000 : 0),               \
+                 expr, num);
 
 #define Arith64(name, opcode, overflow_expr, expr, num)                        \
-    TestGenArithR(name, 0, opcode, expr, TEST64OVERFLOW(overflow_expr), num);
+    TestGenArithR(name, 1, 0, opcode, expr, TEST64OVERFLOW(overflow_expr), num);
 #define TestDAdd(AName, expr, num)                                             \
     Arith64(DADD##AName, 0x2c, static_cast<int64_t>(num) + val, expr, num)
 #define TestDAddU(AName, expr, num)                                            \

@@ -22,14 +22,18 @@
 ## Logical Operations
 
 - Bitwise Operations
-  - `AND` - Bitwise AND
+  - `AND` / `ANDI` - Bitwise AND
   - `OR` / `ORI` - Bitwise OR
   - `XOR` / `XORI` - Bitwise XOR
   - `NOR` - Bitwise NOR
 - Shift Operations
-  - `SLL` / `SRL` - Regular Shift
-  - `DSLL`₆₄ / `DSRL`₆₄ - Double Word Shift
+  - `SLL` / `SRL` / `SRA` - Regular Shift
+  - `DSLL`₆₄ / `DSRL`₆₄ / `DSRA`₆₄ - Double Word Shift
   - `DSLL32`₆₄ / `DSRL32`₆₄ - Double Word Shift Logical Plus 32 (shift 32-63 bits)
+
+## Mixed Operations
+
+- `LSA` / `DLSA`₆₄ - Load scaled address
 
 ## Comparison Instructions
 
@@ -67,3 +71,4 @@
 - `ERET` - Exception Return To Previous PC
 - `MFC0` / `MTC0` - Coprocessor0 Register Read / Write
 - `SYSCALL` - System Call
+- `EHB` - enhanced Hazard Barrier (used to clear hazards in pipeline)

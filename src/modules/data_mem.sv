@@ -80,29 +80,33 @@ module data_mem #(
     end
 
     always_ff @(negedge clk or posedge reset) begin
-        // TODO reset behavior
-        unique case (mem_store_type)
-            STORE_BYTE: data_seg[baddr] <= data_in[7:0];
-
-            STORE_WORD: begin
-                data_seg[baddr+0] <= data_in[7:0];
-                data_seg[baddr+1] <= data_in[15:8];
-                data_seg[baddr+2] <= data_in[23:16];
-                data_seg[baddr+3] <= data_in[31:24];
+        if (reset) begin
+            for (int i = 0; i < DATA_LEN; i++) begin
+                data_seg[i] <= '0;
             end
+        end else
+            unique case (mem_store_type)
+                STORE_BYTE: data_seg[baddr] <= data_in[7:0];
 
-            STORE_DWORD: begin
-                data_seg[baddr+0] <= data_in[7:0];
-                data_seg[baddr+1] <= data_in[15:8];
-                data_seg[baddr+2] <= data_in[23:16];
-                data_seg[baddr+3] <= data_in[31:24];
-                data_seg[baddr+4] <= data_in[39:32];
-                data_seg[baddr+5] <= data_in[47:40];
-                data_seg[baddr+6] <= data_in[55:48];
-                data_seg[baddr+7] <= data_in[63:56];
-            end
+                STORE_WORD: begin
+                    data_seg[baddr+0] <= data_in[7:0];
+                    data_seg[baddr+1] <= data_in[15:8];
+                    data_seg[baddr+2] <= data_in[23:16];
+                    data_seg[baddr+3] <= data_in[31:24];
+                end
 
-            NO_STORE: ;  // NO_STORE
-        endcase
+                STORE_DWORD: begin
+                    data_seg[baddr+0] <= data_in[7:0];
+                    data_seg[baddr+1] <= data_in[15:8];
+                    data_seg[baddr+2] <= data_in[23:16];
+                    data_seg[baddr+3] <= data_in[31:24];
+                    data_seg[baddr+4] <= data_in[39:32];
+                    data_seg[baddr+5] <= data_in[47:40];
+                    data_seg[baddr+6] <= data_in[55:48];
+                    data_seg[baddr+7] <= data_in[63:56];
+                end
+
+                NO_STORE: ;  // NO_STORE
+            endcase
     end
 endmodule  // data_mem

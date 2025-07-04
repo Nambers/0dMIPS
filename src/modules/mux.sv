@@ -8,7 +8,9 @@ module mux2v #(
     input logic [width-1:0] b,
     input logic sel
 );
-    assign out = ({{width{~sel}}} & a) | ({{width{sel}}} & b);
+    always_comb begin
+        out = ({{width{~sel}}} & a) | ({{width{sel}}} & b);
+    end
 endmodule
 
 module mux3v #(

@@ -18,6 +18,9 @@ module core_EX (
     logic negative, overflow, zero, borrow_out;
     logic [63:0]
         B_in,
+        B_in_shift,
+        A_in_shift,
+        shift_in,
         slt_out,
         alu_tmp_out,
         alu_out,
@@ -54,6 +57,27 @@ module core_EX (
         ID_regs.alu_src2
     );
 
+    mux2v #(64) B_in_shift_mux (
+        B_in_shift,
+        B_in,
+        shifter_out,
+        ID_regs.alu_shifter_as_inp[1]
+    );
+
+    mux2v #(64) A_in_shift_mux (
+        A_in_shift,
+        forwarded_A,
+        shifter_out,
+        ID_regs.alu_shifter_as_inp[0]
+    );
+
+    mux2v #(64) shift_in_mux (
+        shift_in,
+        forwarded_B,
+        forwarded_A,
+        ID_regs.shift_src
+    );
+
     // -- ALU --
     alu #(64) alu_ (
         .out(alu_tmp_out),
@@ -61,8 +85,8 @@ module core_EX (
         .zero(zero),
         .negative(negative),
         .borrow_out(borrow_out),
-        .a(forwarded_A),
-        .b(B_in),
+        .a(A_in_shift),
+        .b(B_in_shift),
         .alu_op(ID_regs.alu_op)
     );
     mux3v #(64) cut_alu_out (
@@ -76,9 +100,10 @@ module core_EX (
     // -- shifter --
     barrel_shifter32 #(64) shifter (
         shifter_tmp_out,
-        forwarded_B,
-        ID_regs.inst[10:6],
-        ID_regs.shift_right
+        shift_in,
+        ID_regs.shamt,
+        ID_regs.shift_right,
+        ID_regs.shift_arith
     );
     mux2v #(64) cut_shifter_out (
         shifter_out,
@@ -98,7 +123,7 @@ module core_EX (
         out,
         alu_out,
         shifter_plus32_out,
-        ID_regs.alu_shifter_src
+        ID_regs.ex_out_src
     );
 
     mux2v #(64) lui_mux (
