@@ -2,11 +2,15 @@
 #include <verilated.h>
 #include <verilated_cov.h>
 
+bool dumpCov = false;
+
 int main(int argc, char **argv) {
-    Verilated::commandArgs(argc, argv);
-    testing::InitGoogleTest(&argc, argv);
-    auto res = RUN_ALL_TESTS();
     Verilated::mkdir("logs");
-    VerilatedCov::write("logs/coverage.dat");
-    return res;
+    testing::InitGoogleTest(&argc, argv);
+    Verilated::commandArgs(argc, argv);
+    if (const char* dump = std::getenv("DUMP_COV"))
+        dumpCov = std::string(dump) == "1" || std::string(dump) == "true";
+    Verilated::assertOn(true);
+    Verilated::traceEverOn(true);
+    return RUN_ALL_TESTS();
 }

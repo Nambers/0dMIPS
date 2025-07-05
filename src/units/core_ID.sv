@@ -6,7 +6,10 @@ import structures::mem_load_type_t;
 import structures::mem_store_type_t;
 import structures::slt_type_t;
 import structures::alu_cut_t;
-import structures::alu_shifter_as_inp_t;
+import structures::alu_a_src_t;
+import structures::alu_b_src_t;
+import structures::EX_out_src_t;
+import structures::BranchAddr_src_t;
 
 module core_ID (
     input logic clock,
@@ -22,16 +25,25 @@ module core_ID (
     output logic B_is_reg
 );
     logic [63:0]
-        A_data, B_data, A_data_forwarded, B_data_forwarded, B_data_badinst, BranchAddrFinal;
+        A_data,
+        B_data,
+        A_data_forwarded,
+        B_data_forwarded,
+        B_data_badinst,
+        BranchAddrFinal,
+        PCRelAddr;
     logic [4:0] W_regnum, rs, rt, rd, shamt;
     logic [2:0] alu_op;
-    logic [1:0] alu_src2, shifter_plus32, rd_src;
+    logic [1:0] shifter_plus32, rd_src;
     control_type_t control_type;
     mem_load_type_t mem_load_type;
     mem_store_type_t mem_store_type;
     slt_type_t slt_type;
     alu_cut_t alu_cut;
-    alu_shifter_as_inp_t alu_shifter_as_inp;
+    alu_a_src_t alu_a_src;
+    alu_b_src_t alu_b_src;
+    EX_out_src_t ex_out_src;
+    BranchAddr_src_t branchAddr_src;
     logic
         reserved_inst_E,
         write_enable,
@@ -40,7 +52,6 @@ module core_ID (
         cut_shifter_out32,
         shift_right,
         shift_arith,
-        ex_out_src,
         shift_src,
         MFC0,
         MTC0,
@@ -60,7 +71,6 @@ module core_ID (
         .alu_op(alu_op),
         .writeenable(write_enable),
         .rd_src(rd_src),
-        .alu_src2(alu_src2),
         .except(reserved_inst_E),
         .control_type(control_type),
         .mem_store_type(mem_store_type),
@@ -72,7 +82,8 @@ module core_ID (
         .shift_arith(shift_arith),
         .shifter_plus32(shifter_plus32),
         .ex_out_src(ex_out_src),
-        .alu_shifter_as_inp(alu_shifter_as_inp),
+        .alu_a_src(alu_a_src),
+        .alu_b_src(alu_b_src),
         .shift_src(shift_src),
         .cut_shifter_out32(cut_shifter_out32),
         .cut_alu_out32(alu_cut),
@@ -87,6 +98,7 @@ module core_ID (
         .signed_byte(signed_byte),
         .signed_word(signed_word),
         .ignore_overflow(ignore_overflow),
+        .branchAddr_src(branchAddr_src),
         .rs(rs),
         .rt(rt),
         .rd(rd),
@@ -129,23 +141,26 @@ module core_ID (
         syscall || reserved_inst_E
     );
 
-    mux3v #(5) rd_mux (
+    mux4v #(5) rd_mux (
         W_regnum,
         rd,
         rt,
+        rs,  // e.g. lsa
         5'd31,  // $ra
         rd_src
     );
 
-    mux2v #(64) BranchAddr_mux (
+    mux3v #(64) BranchAddr_mux (
         BranchAddrFinal,
         IF_regs.fetch_pc4 + BranchAddr,
         IF_regs.fetch_pc4 + CompactBranchAddr,
-        BC
+        IF_regs.fetch_pc + PCRelAddr,  // e.g. addiupc
+        branchAddr_src
     );
 
     always_comb begin
         BranchAddr = {{46{inst[15]}}, inst[15:0], 2'b0};
+        PCRelAddr = {{43{inst[18]}}, inst[18:0], 2'b0};
         CompactBranchAddr = {{36{inst[25]}}, inst[25:0], 2'b0};
         JumpAddr = {IF_regs.fetch_pc[63:28], inst[25:0], 2'b0};
     end
@@ -176,7 +191,6 @@ module core_ID (
             ID_regs.shift_right <= shift_right;
             ID_regs.shift_arith <= shift_arith;
             ID_regs.ex_out_src <= ex_out_src;
-            ID_regs.alu_shifter_as_inp <= alu_shifter_as_inp;
             ID_regs.shift_src <= shift_src;
             ID_regs.MFC0 <= MFC0;
             ID_regs.MTC0 <= MTC0;
@@ -186,7 +200,8 @@ module core_ID (
             ID_regs.BNE <= BNE;
             ID_regs.BC <= BC;
             ID_regs.BAL <= BAL;
-            ID_regs.alu_src2 <= alu_src2;
+            ID_regs.alu_a_src <= alu_a_src;
+            ID_regs.alu_b_src <= alu_b_src;
             ID_regs.control_type <= control_type;
             ID_regs.shifter_plus32 <= shifter_plus32;
             ID_regs.A_data <= A_data_forwarded;

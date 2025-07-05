@@ -124,6 +124,8 @@ TestSLL(Pos, ((val & MASK16) << 1), 1);
 // TestSLL(Neg, ((val & MASK16) << (-1)), -1);
 TestSRL(Pos, ((val & MASK16) >> 1), 1);
 // TestSRL(Neg, ((val & MASK16) >> (-1)), -1);
+TestSRA(Pos, ((val & MASK16) >> 1) | ((val & MASK16) & 0x8000 ? 0xffff0000 : 0),
+        1);
 TestNor(Pos, ~(val | 1), 1);
 TestNor(Neg, ~(val | (-1)), -1);
 
@@ -318,6 +320,20 @@ TestGenMemOnceCycle(
         EXPECT_EQ(RF->W_addr, 31);
         EXPECT_EQ(RF->W_data,
                   4); // return address = pc + 4 from ID stage (pc = 0 + 4)
+    },
+    3);
+TestGenMemOnceCycle(
+    ADDIUPC,
+    {
+        // addiupc $1, 0xff
+        write_mem_seg(
+            MEM_SEG, 0,
+            inst_comb(build_I_inst(0x3b, 1, 0, fixedVal<uint16_t>() >> 2), 0));
+    },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data, fixedVal<uint16_t>() & (~0b00));
     },
     3);
 

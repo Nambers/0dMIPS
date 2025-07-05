@@ -72,3 +72,7 @@
 - `MFC0` / `MTC0` - Coprocessor0 Register Read / Write
 - `SYSCALL` - System Call
 - `EHB` - enhanced Hazard Barrier (used to clear hazards in pipeline)
+
+## PC related Instructions
+
+- `ADDIUPC` - Add Immediate to Program Counter

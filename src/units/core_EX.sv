@@ -17,7 +17,6 @@ module core_EX (
 );
     logic negative, overflow, zero, borrow_out;
     logic [63:0]
-        B_in,
         B_in_shift,
         A_in_shift,
         shift_in,
@@ -49,26 +48,21 @@ module core_EX (
         forward_B
     );
 
-    mux3v #(64) B_in_mux (
-        B_in,
+    mux4v #(64) B_in_shift_mux (
+        B_in_shift,
         forwarded_B,
+        shifter_out,
         SignExtImm,
         ZeroExtImm,
-        ID_regs.alu_src2
+        ID_regs.alu_b_src
     );
 
-    mux2v #(64) B_in_shift_mux (
-        B_in_shift,
-        B_in,
-        shifter_out,
-        ID_regs.alu_shifter_as_inp[1]
-    );
-
-    mux2v #(64) A_in_shift_mux (
+    mux3v #(64) A_in_shift_mux (
         A_in_shift,
         forwarded_A,
         shifter_out,
-        ID_regs.alu_shifter_as_inp[0]
+        ID_regs.pc,
+        ID_regs.alu_a_src
     );
 
     mux2v #(64) shift_in_mux (
@@ -119,10 +113,11 @@ module core_EX (
         ID_regs.shifter_plus32
     );
 
-    mux2v #(64) alu_shifter_mux (
+    mux3v #(64) alu_shifter_mux (
         out,
         alu_out,
         shifter_plus32_out,
+        ID_regs.pc_branch,
         ID_regs.ex_out_src
     );
 
@@ -138,7 +133,7 @@ module core_EX (
         {
             63'b0,
             // if different sign, check if A < 0, else check negative flag from alu
-            ((forwarded_A[63] ^ B_in[63]) & forwarded_A[63]) | (~(forwarded_A[63] ^ B_in[63]) & negative)
+            ((forwarded_A[63] ^ forwarded_B[63]) & forwarded_A[63]) | (~(forwarded_A[63] ^ forwarded_B[63]) & negative)
         },
         {63'b0, borrow_out},
         ID_regs.slt_type

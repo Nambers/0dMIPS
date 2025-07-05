@@ -5,13 +5,6 @@
 #include <Core_data_mem__D800.h>
 #include <Core_regfile__W40.h>
 
-template <typename T> inline constexpr T fixedVal() {
-    return static_cast<T>((0x0d00 << 16) | 0x0d00);
-}
-template <typename T> inline constexpr T fixedVal2() {
-    return static_cast<T>((0xc100 << 16) | 0xc100);
-}
-
 TestGenMemCycle(
     BEQ_Multi,
     {

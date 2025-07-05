@@ -8,6 +8,8 @@
 #include <verilated.h>
 #include <verilated_cov.h>
 
+extern bool dumpCov;
+
 constexpr inline uint64_t inst_comb(uint32_t a, uint32_t b) {
     return (static_cast<uint64_t>(b) << 32) | a;
 }
@@ -45,6 +47,13 @@ template <class T> class TestBase : public TestBaseI<T> {
     }
     void TearDown() override {
         this->inst_->final();
+        if (dumpCov)
+            Verilated::threadContextp()->coveragep()->write(
+                std::string("logs/coverage_") +
+                ::testing::UnitTest::GetInstance()
+                    ->current_test_info()
+                    ->name() +
+                ".dat");
         delete this->inst_;
     };
     void reset() {
@@ -55,12 +64,5 @@ template <class T> class TestBase : public TestBaseI<T> {
         this->ctx.time(0);
     }
 };
-
-template <class T, class Param>
-class TestBaseWithParamI : public ::testing::WithParamInterface<Param>,
-                           public TestBaseI<T> {};
-template <class T, class Param>
-class TestBaseWithParam : public ::testing::WithParamInterface<Param>,
-                          public TestBase<T> {};
 
 #endif // TESTS_COMMON_HPP

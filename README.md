@@ -1,4 +1,13 @@
-# MIPS64
+# 0dMIPS
+
+<div align="center">
+
+[![Codecov](https://img.shields.io/codecov/c/github/Nambers/0dMIPS)](https://app.codecov.io/github/nambers/0dmips)
+
+
+In order 5-stages pipeline MIPS64r6 SoC implementation with peripheral components, simulated and tested with verilator.
+
+</div>
 
 ## Dependenices
 
@@ -13,7 +22,7 @@
 1. `cmake -B build .`
 2. `cmake --build build -j ${$(nproc)-1}` to build all. All binaries are placed under `build/bin`
 3. `cmake --build build --target help` to list all targets
-4. `./runAllTest.sh` to run all generated tests under `build/bin`
+4. `./runAllTest.sh` to run all generated tests under `build/bin` and use `DUMP_COV=1 ./runAllTest.sh` to dump coverage data
 5. `cmake --build build --target <script_name>` to compile script into memory.dat, e.g. `fabonacci`
 
 ## Plan

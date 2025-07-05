@@ -33,6 +33,7 @@ package mips_define;
     localparam OP_SW = 6'h2b;
     localparam OP_BC = 6'h32;
     localparam OP_LD = 6'h37;
+    localparam OP_PCREL = 6'h3b;
     localparam OP_SD = 6'h3f;
 
     // Secondary opcodes (funct2 field; OP_OTHER0)

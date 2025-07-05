@@ -23,6 +23,13 @@ constexpr std::array<T, sizeof...(U)> make_array(U &&...u) {
     return {static_cast<T>(u)...};
 };
 
+template <typename T> inline constexpr T fixedVal() {
+    return static_cast<T>((0x0d00 << 16) | 0x0d00);
+}
+template <typename T> inline constexpr T fixedVal2() {
+    return static_cast<T>((0xc100 << 16) | 0xc100);
+}
+
 template <typename Wide>
 uint64_t vlwide_get(const Wide &wide, int idx /* low_bit */, int width) {
     int high_bit = idx + width - 1;
@@ -139,7 +146,6 @@ inline VlWide<5> buildMemRegs(int addr, uint64_t data) {
 class CoreTest : public TestBase<Core> {
   protected:
     void SetUp() override {
-        std::system("mkdir -p test_tmp >> /dev/null");
         this->inst_ = new Core{&this->ctx};
         this->inst_->clock = 1;
         this->inst_->reset = 1;
