@@ -61,14 +61,13 @@ module core_branch (
             flush = 1'b1;
         end else if (ID_regs.ERET) begin
             next_fetch_pc = EPC;
-            // TODO eret next inst will be executed
-            // flush   = 1'b1;
+            flush = 1'b1;
             // branch resolve in EX stage
         end else if (EX_regs.BC || EX_regs.BAL || (EX_regs.BEQ && EX_regs.zero) || (EX_regs.BNE && !EX_regs.zero)) begin
             next_fetch_pc = EX_regs.pc_branch;
             flush = 1'b1;
         end else
-            // others resolve in ID stage
+            // jump resolve in ID stage
             /* verilator lint_off CASEINCOMPLETE */
             unique case (ID_regs.control_type)
                 NORMAL: begin

@@ -339,6 +339,7 @@ TestGenMemOnceCycle(
 
 /* #endregion */
 
+/* #region slt test */
 TestGenMem(
     SLT,
     {
@@ -394,4 +395,47 @@ TestGenMem(
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 2);
         EXPECT_EQ(RF->W_data, val < 16);
+    });
+/* #endregion */
+
+TestGenMem(
+    LSA,
+    {
+        WRITE_RF(1, val);
+        WRITE_RF(2, fixedVal<uint64_t>());
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb((2ULL << 21) | (1ULL << 16) | (3ULL << 11) |
+                                    (4 << 6) | 0b101,
+                                0)); // lsa $3, $2, $1, 4
+    },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 3);
+        EXPECT_EQ(RF->W_data,
+                  sign_extend((fixedVal<uint64_t>() << 4) + val, 32));
+    });
+TestGenMem(
+    DLSA,
+    {
+        WRITE_RF(1, val);
+        WRITE_RF(2, fixedVal<uint64_t>());
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb((2ULL << 21) | (1ULL << 16) | (3ULL << 11) |
+                                    (4 << 6) | 0b10101,
+                                0)); // lsa $3, $2, $1, 4
+    },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 3);
+        EXPECT_EQ(RF->W_data, (fixedVal<uint64_t>() << 4) + val);
+    });
+
+TestGenMemOnce(
+    NOP,
+    {
+        write_mem_seg(MEM_SEG, 0, inst_comb(0, 0)); // nop
+    },
+    {
+        EXPECT_EQ(FETCH_PC, 4 * 3);
+        EXPECT_FALSE(RF->wr_enable);
     });
