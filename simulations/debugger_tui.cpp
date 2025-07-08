@@ -413,9 +413,12 @@ int main(int argc, char **argv) {
 
     auto screen = ScreenInteractive::TerminalOutput();
 
+    bool showModal = false;
+
     Component ui = Renderer([&] {
-        auto footer =
-            text("[→] Step [↑/pgUp/↓/pgDown] Scroll Memory  [q] Quit") | dim;
+        auto footer = text("[→] Step [↑/pgUp/↓/pgDown] Scroll Memory  [q] Quit "
+                           "[c] jump to cycle") |
+                      dim;
 
         return vbox({render_pipeline(),
                      hbox({render_registers() | flex, render_perip()}) |
@@ -424,22 +427,98 @@ int main(int argc, char **argv) {
                flex;
     });
 
-    ui = CatchEvent(ui, [&](Event e) {
-        if (e == Event::Character('q')) {
-            screen.Exit();
-            return true;
-        }
-        if (e == Event::ArrowRight || e == Event::Character('s')) {
+    Component jumpModal = ([&] {
+        // input box and button
+        static std::string cycleStr;
+        static std::string errMsg;
+        auto cycleInp = Input(&cycleStr, "200");
+
+        auto onClick = [&] {
+            errMsg.clear();
+            if (cycleStr.empty()) {
+                showModal = false;
+                return;
+            }
+            uint64_t cycle = std::stoull(cycleStr, nullptr) *
+                             2; // ctx time is for both 2 edges
+            if (cycle <= ctx->time()) {
+                errMsg = "Err: Cycle already passed.";
+                cycleInp->TakeFocus();
+                return;
+            }
+            uint64_t diff = cycle - ctx->time();
+            if (diff > 2)
+                for (uint64_t i = 0; i < diff - 2; i += 2) {
+                    TICK;
+                }
+            showModal = false;
             update_state_from_sim();
-        }
-        if (e == Event::ArrowUp && mem_center > 0)
-            mem_center -= 4;
-        if (e == Event::ArrowDown)
-            mem_center += 4;
-        if (e == Event::PageDown)
-            mem_center += 64;
-        if (e == Event::PageUp && mem_center >= 64)
-            mem_center -= 64;
+        };
+
+        auto jumpButton = Button("Jump", onClick, ButtonOption::Ascii());
+        jumpButton |= CatchEvent([&](Event event) {
+            if (event == Event::Return) {
+                onClick();
+            } else if (event == Event::Tab)
+                cycleInp->TakeFocus();
+            else
+                return false;
+            return true;
+        });
+
+        cycleInp |= CatchEvent([&](Event event) {
+            if (event.is_character() && !std::isxdigit(event.character()[0])) {
+            } else if (event == Event::Return) {
+                onClick();
+            } else if (event == Event::Tab)
+                jumpButton->TakeFocus();
+            else
+                return false;
+            return true;
+        });
+
+        auto container = Container::Horizontal({
+            cycleInp,
+            jumpButton,
+        });
+
+        return Renderer(container, [&] {
+            return vbox({
+                       text("Jump to cycle") | bold,
+                       text(errMsg) | color(Color::Red),
+                       hbox({
+                           text("0d") | color(Color::GrayLight),
+                           cycleInp->Render(),
+                           separator(),
+                           jumpButton->Render(),
+                       }),
+                   }) |
+                   border | size(HEIGHT, EQUAL, 5);
+        });
+    })();
+
+    ui |= Modal(jumpModal, &showModal);
+
+    ui = CatchEvent(ui, [&](Event e) {
+        if (e == Event::Character('q'))
+            screen.Exit();
+        else if (!showModal) {
+            if (e == Event::ArrowRight || e == Event::Character('s'))
+                update_state_from_sim();
+            else if (e == Event::Character('c'))
+                showModal = true;
+            else if (e == Event::ArrowUp && mem_center > 0)
+                mem_center -= 4;
+            else if (e == Event::ArrowDown)
+                mem_center += 4;
+            else if (e == Event::PageDown)
+                mem_center += 64;
+            else if (e == Event::PageUp && mem_center >= 64)
+                mem_center -= 64;
+            else
+                return false;
+        } else
+            return false;
         return true;
     });
 
