@@ -11,18 +11,18 @@ In order 5-stages pipeline MIPS64r6 SoC implementation with peripheral component
 
 ## Dependenices
 
-- `mips64el-linux-gnu-binutils` toolchains(`as` and `objdump`), they're under [mips64el-linux-gnu-binutils](https://aur.archlinux.org/packages/mips64-linux-gnu-binutils) in Arch.
-- \[OPTIONAL\] `mips64el-linux-gnu-gcc` if you like to write C directly.
-- \[OPTIONAL\] I mainly use `mips64el-linux-gnu-gcc-bootstrap` with `musl` as `sysroot`. Use `scripts/install_mips64el_musl.sh` to download musl and [mips64el-linux-gnu-gcc-bootstrap](https://aur.archlinux.org/packages/mips64-linux-gnu-gcc-bootstrap).
+- `mips64el-linux-gnu-binutils` toolchains(`as` and `objdump`), they're under [mips64el-linux-gnu-binutils](https://aur.archlinux.org/packages/mips64el-linux-gnu-binutils) in Arch.
+- \[OPTIONAL\] If you like to write C directly, I mainly use `mips64el-linux-gnu-gcc-bootstrap` with `musl` as `sysroot`. Use `scripts/install_mips64el_musl.sh` to download musl and [mips64el-linux-gnu-gcc-bootstrap](https://aur.archlinux.org/packages/mips64el-linux-gnu-gcc-bootstrap).
 - `verilator` <https://github.com/verilator/verilator> for simulations.
 - \[OPTIONAL\] `sdl3` <https://github.com/libsdl-org/SDL> for any simulation with VGA output.
+- \[OPTIONAL\] `lcov` <https://github.com/linux-test-project/lcov> for gather coverage data
 
 ## How to run
 
 1. `cmake -B build .`
 2. `cmake --build build -j ${$(nproc)-1}` to build all. All binaries are placed under `build/bin`
 3. `cmake --build build --target help` to list all targets
-4. `./runAllTest.sh` to run all generated tests under `build/bin` and use `DUMP_COV=1 ./runAllTest.sh` to dump coverage data
+4. `./runAllTest.sh` to run all generated tests under `build/bin`(by cmake), and use `DUMP_COV=1 ./runAllTest.sh` to dump coverage data
 5. `cmake --build build --target <script_name>` to compile script into memory.dat, e.g. `fabonacci`
 
 ## Plan
