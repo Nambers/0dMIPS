@@ -22,8 +22,10 @@
             EXPECT_EQ(RF->W_data, check_W_data);                               \
         })
 
-TestGenRead(LB, 0x20, (val & 0xff) | ((val & 0x80) ? BYTE_HIGH_FULL : 0));
+TestGenRead(LB, 0x20, sign_extend(val & 0xff, 8));
 TestGenRead(LBU, 0x24, val & 0xff);
+TestGenRead(LH, 0x21, sign_extend(val &MASK16, 16));
+TestGenRead(LHU, 0x25, val &MASK16);
 TestGenRead(LW, 0x23, sign_extend(val &MASK32, 32));
 TestGenRead(LWU, 0x27, val &MASK32);
 TestGenRead(LD, 0x37, val);
@@ -41,8 +43,28 @@ TestGenRead(LD, 0x37, val);
         { EXPECT_EQ(*reinterpret_cast<uint64_t *>(&MEM_SEG[8]), check_mem); })
 
 TestGenWrite(SW, 0x2b, val &MASK32);
+TestGenWrite(SH, 0x29, val &MASK16);
 TestGenWrite(SB, 0x28, val & 0xff);
 TestGenWrite(SD, 0x3f, val);
+/* #endregion */
+
+/* #region sign extend test */
+#define TestGenSignExtend(name, opcode, func, check_W_data)                    \
+    TestGenMem(                                                                \
+        name,                                                                  \
+        {                                                                      \
+            write_mem_seg(                                                     \
+                MEM_SEG, 0,                                                    \
+                inst_comb(build_R_inst(0b011111, 0, 1, 2, opcode, func), 0));  \
+            WRITE_RF(1, val); /* store val into reg $1*/                       \
+        },                                                                     \
+        {                                                                      \
+            EXPECT_TRUE(RF->wr_enable);                                        \
+            EXPECT_EQ(RF->W_addr, 2);                                          \
+            EXPECT_EQ(RF->W_data, check_W_data);                               \
+        })
+TestGenSignExtend(SEB, 0b10000, 0b100000, sign_extend(val & 0xff, 8));
+TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
 /* #endregion */
 
 // test both positive and negative 1

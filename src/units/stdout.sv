@@ -2,6 +2,7 @@
 import structures::mem_store_type_t;
 import structures::NO_STORE;
 import structures::STORE_BYTE;
+import structures::STORE_HALF;
 import structures::STORE_WORD;
 import configurations::STDOUT_BASE_ADDR;
 
@@ -32,10 +33,22 @@ module stdout (
                     'd1: buffer[55:48] <= w_data[7:0];
                     'd0: buffer[63:56] <= w_data[7:0];
                 endcase
+                STORE_HALF:
+                unique case (addr[2:1])
+                    'd3: buffer[15:0] <= {w_data[7:0], w_data[15:8]};
+                    'd2: buffer[31:16] <= {w_data[7:0], w_data[15:8]};
+                    'd1: buffer[47:32] <= {w_data[7:0], w_data[15:8]};
+                    'd0: buffer[63:48] <= {w_data[7:0], w_data[15:8]};
+                endcase
                 STORE_WORD:
                 if (addr[2])
-                    buffer[31:0] <= {w_data[7:0], w_data[15:8], w_data[23:16], w_data[31:24]};
-                else buffer[63:32] <= {w_data[7:0], w_data[15:8], w_data[23:16], w_data[31:24]};
+                    buffer[31:0] <= {
+                        w_data[7:0], w_data[15:8], w_data[23:16], w_data[31:24]
+                    };
+                else
+                    buffer[63:32] <= {
+                        w_data[7:0], w_data[15:8], w_data[23:16], w_data[31:24]
+                    };
                 STORE_DWORD: begin
                     buffer <= {
                         w_data[7:0],

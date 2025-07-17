@@ -1,11 +1,13 @@
 import structures::mem_store_type_t;
 import structures::NO_STORE;
 import structures::STORE_BYTE;
+import structures::STORE_HALF;
 import structures::STORE_WORD;
 import structures::STORE_DWORD;
 import structures::mem_load_type_t;
 import structures::NO_LOAD;
 import structures::LOAD_BYTE;
+import structures::LOAD_HALF;
 import structures::LOAD_WORD;
 import structures::LOAD_DWORD;
 
@@ -47,7 +49,17 @@ module data_mem #(
     // TODO move to async
     always_comb begin
         unique case (mem_load_type)
-            LOAD_BYTE: data_out = {{56{signed_type & data_seg[baddr][7]}}, data_seg[baddr]};
+            LOAD_BYTE:
+            data_out = {
+                {56{signed_type & data_seg[baddr][7]}}, data_seg[baddr]
+            };
+
+            LOAD_HALF:
+            data_out = {
+                {48{signed_type & data_seg[baddr+1][7]}},
+                data_seg[baddr+1],
+                data_seg[baddr+0]
+            };
 
             LOAD_WORD:
             data_out = {
@@ -70,11 +82,16 @@ module data_mem #(
                 data_seg[baddr+0]
             };
             NO_LOAD: data_out = 'x;  // no load
+            default: data_out = 'x;  // unknown load type
         endcase
-
+    end
+    always_comb begin
         if (!flush)
             inst = {
-                data_seg[i_baddr+3], data_seg[i_baddr+2], data_seg[i_baddr+1], data_seg[i_baddr+0]
+                data_seg[i_baddr+3],
+                data_seg[i_baddr+2],
+                data_seg[i_baddr+1],
+                data_seg[i_baddr+0]
             };
         else inst = '0;
     end
@@ -87,6 +104,11 @@ module data_mem #(
         end else
             unique case (mem_store_type)
                 STORE_BYTE: data_seg[baddr] <= data_in[7:0];
+
+                STORE_HALF: begin
+                    data_seg[baddr+0] <= data_in[7:0];
+                    data_seg[baddr+1] <= data_in[15:8];
+                end
 
                 STORE_WORD: begin
                     data_seg[baddr+0] <= data_in[7:0];
@@ -107,6 +129,7 @@ module data_mem #(
                 end
 
                 NO_STORE: ;  // NO_STORE
+                default:  ;
             endcase
     end
 endmodule  // data_mem

@@ -8,8 +8,11 @@ package mips_define;
     ////
 
     // Main opcodes (op field)
+    // special opcodes
     localparam OP_OTHER0 = 6'h00;
     localparam OP_REGIMM = 6'h01;
+    localparam OP_SPECIAL3 = 6'h1f;
+
     localparam OP_J = 6'h02;
     localparam OP_JAL = 6'h03;
     localparam OP_BEQ = 6'h04;
@@ -26,10 +29,13 @@ package mips_define;
     localparam OP_DADDI = 6'h18;
     localparam OP_DADDIU = 6'h19;
     localparam OP_LB = 6'h20;
+    localparam OP_LH = 6'h21;
     localparam OP_LW = 6'h23;
     localparam OP_LBU = 6'h24;
+    localparam OP_LHU = 6'h25;
     localparam OP_LWU = 6'h27;
     localparam OP_SB = 6'h28;
+    localparam OP_SH = 6'h29;
     localparam OP_SW = 6'h2b;
     localparam OP_BC = 6'h32;
     localparam OP_LD = 6'h37;
@@ -71,6 +77,11 @@ package mips_define;
 
     // 16-20
     localparam OPR_BAL = 5'h11;
+
+    // SPECIAL3 opcodes
+    localparam OP3_FUNC_BSHFL = 6'h20;
+    localparam OP3_SEH = 5'h18;
+    localparam OP3_SEB = 5'h10;
 
     // ERET stuff
     localparam OP_CO = 1'b1;

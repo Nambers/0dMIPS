@@ -27,9 +27,9 @@ module core_MEM (
         .addr(EX_regs.out),
         .data_in(EX_regs.B_data),
         .flush(flush),
-        .signed_type(EX_regs.signed_byte | EX_regs.signed_word),
-        .mem_load_type(EX_regs.mem_load_type & {2{~d_valid}}), // mmio use memory load type but not load from
-        .mem_store_type(EX_regs.mem_store_type & {2{~d_valid}}), // mmio use memory store type but not store into
+        .signed_type(EX_regs.signed_mem_out),
+        .mem_load_type(EX_regs.mem_load_type & {3{~d_valid}}), // mmio use memory load type but not load from
+        .mem_store_type(EX_regs.mem_store_type & {3{~d_valid}}), // mmio use memory store type but not store into
         .data_out(data_out),
         .inst_addr(fetch_pc),
         .inst(inst)

@@ -21,6 +21,7 @@ module core_EX (
         A_in_shift,
         shift_in,
         slt_out,
+        ext_out,
         alu_tmp_out,
         alu_out,
         out,
@@ -29,8 +30,11 @@ module core_EX (
         shifter_out,
         shifter_plus32_out,
         forwarded_A,
-        forwarded_B;
-    logic [63:0] SignExtImm, ZeroExtImm;
+        forwarded_B,
+        SignExtImm,
+        ZeroExtImm,
+        SEH_out,
+        SEB_out;
 
     mux3v #(64) forward_mux_A (
         forwarded_A,
@@ -139,16 +143,26 @@ module core_EX (
         ID_regs.slt_type
     );
 
+    mux3v #(64) ext_mux (
+        ext_out,
+        slt_out,
+        SEB_out,
+        SEH_out,
+        ID_regs.ext_src
+    );
+
     always_comb begin
         SignExtImm = {{48{ID_regs.inst[15]}}, ID_regs.inst[15:0]};
         ZeroExtImm = {{48{1'b0}}, ID_regs.inst[15:0]};
+        SEH_out = {{48{ID_regs.B_data[15]}}, ID_regs.B_data[15:0]};
+        SEB_out = {{56{ID_regs.B_data[7]}}, ID_regs.B_data[7:0]};
     end
 
     always_ff @(posedge clock, posedge reset) begin
         if (reset || (flush & !ID_regs.linkpc)) begin
             EX_regs <= '0;
         end else begin
-            EX_regs.out <= slt_out;
+            EX_regs.out <= ext_out;
             EX_regs.B_data <= forwarded_B;
             EX_regs.W_regnum <= ID_regs.W_regnum;
             EX_regs.pc4 <= ID_regs.pc4;
@@ -167,8 +181,7 @@ module core_EX (
             EX_regs.pc_branch <= ID_regs.pc_branch;
             EX_regs.write_enable <= ID_regs.write_enable;
             EX_regs.reserved_inst_E <= ID_regs.reserved_inst_E;
-            EX_regs.signed_byte <= ID_regs.signed_byte;
-            EX_regs.signed_word <= ID_regs.signed_word;
+            EX_regs.signed_mem_out <= ID_regs.signed_mem_out;
             EX_regs.linkpc <= ID_regs.linkpc;
             EX_regs.cp0_rd <= ID_regs.cp0_rd;
 `ifdef DEBUGGER

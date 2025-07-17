@@ -11,16 +11,18 @@ package structures;
         FORWARD_MEM
     } forward_type_t;
 
-    typedef enum bit [1:0] {
+    typedef enum bit [2:0] {
         NO_LOAD = 0,
         LOAD_BYTE,
+        LOAD_HALF,
         LOAD_WORD,
         LOAD_DWORD
     } mem_load_type_t;
 
-    typedef enum bit [1:0] {
+    typedef enum bit [2:0] {
         NO_STORE = 0,
         STORE_BYTE,
+        STORE_HALF,
         STORE_WORD,
         STORE_DWORD
     } mem_store_type_t;
@@ -68,6 +70,12 @@ package structures;
         PC_RELATIVE
     } BranchAddr_src_t;
 
+    typedef enum bit [1:0]{
+        NO_EXT = 0,
+        EXT_BYTE,
+        EXT_HALF
+    } ext_src_t;
+
     typedef struct packed {logic [63:0] fetch_pc4, fetch_pc;} IF_regs_t;
 
     typedef struct packed {
@@ -79,6 +87,7 @@ package structures;
         mem_load_type_t mem_load_type;
         mem_store_type_t mem_store_type;
         slt_type_t slt_type;
+        ext_src_t ext_src;
         alu_cut_t cut_alu_out32;
         alu_a_src_t alu_a_src;
         alu_b_src_t alu_b_src;
@@ -96,8 +105,7 @@ package structures;
             lui,
             linkpc,
             B_is_reg,
-            signed_byte,
-            signed_word,
+            signed_mem_out,
             ignore_overflow,
             // -- CP0 --
             MFC0,
@@ -127,8 +135,7 @@ package structures;
             BNE,
             BC,
             BAL,
-            signed_byte,
-            signed_word,
+            signed_mem_out,
             lui,
             linkpc
         ;

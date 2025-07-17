@@ -5,6 +5,7 @@ import structures::control_type_t;
 import structures::mem_load_type_t;
 import structures::mem_store_type_t;
 import structures::slt_type_t;
+import structures::ext_src_t;
 import structures::alu_cut_t;
 import structures::alu_a_src_t;
 import structures::alu_b_src_t;
@@ -39,6 +40,7 @@ module core_ID (
     mem_load_type_t mem_load_type;
     mem_store_type_t mem_store_type;
     slt_type_t slt_type;
+    ext_src_t ext_src;
     alu_cut_t alu_cut;
     alu_a_src_t alu_a_src;
     alu_b_src_t alu_b_src;
@@ -61,8 +63,7 @@ module core_ID (
         BNE,
         BC,
         BAL,
-        signed_byte,
-        signed_word,
+        signed_mem_out,
         ignore_overflow;
     logic [63:0] BranchAddr, CompactBranchAddr, JumpAddr;
 
@@ -76,6 +77,7 @@ module core_ID (
         .mem_store_type(mem_store_type),
         .mem_load_type(mem_load_type),
         .slt_type(slt_type),
+        .ext_src(ext_src),
         .lui_out(lui),
         .linkpc(linkpc),
         .shift_right(shift_right),
@@ -95,8 +97,7 @@ module core_ID (
         .bne(BNE),
         .bc(BC),
         .bal(BAL),
-        .signed_byte(signed_byte),
-        .signed_word(signed_word),
+        .signed_mem_out(signed_mem_out),
         .ignore_overflow(ignore_overflow),
         .branchAddr_src(branchAddr_src),
         .rs(rs),
@@ -186,6 +187,7 @@ module core_ID (
             ID_regs.mem_store_type <= mem_store_type;
             ID_regs.mem_load_type <= mem_load_type;
             ID_regs.slt_type <= slt_type;
+            ID_regs.ext_src <= ext_src;
             ID_regs.cut_shifter_out32 <= cut_shifter_out32;
             ID_regs.cut_alu_out32 <= alu_cut;
             ID_regs.shift_right <= shift_right;
@@ -212,8 +214,7 @@ module core_ID (
             ID_regs.jumpAddr <= JumpAddr;
             ID_regs.lui <= lui;
             ID_regs.linkpc <= linkpc;
-            ID_regs.signed_byte <= signed_byte;
-            ID_regs.signed_word <= signed_word;
+            ID_regs.signed_mem_out <= signed_mem_out;
             ID_regs.ignore_overflow <= ignore_overflow;
             ID_regs.B_is_reg <= B_is_reg;
             ID_regs.cp0_rd <= inst[15:11];

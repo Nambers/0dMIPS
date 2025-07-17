@@ -59,10 +59,12 @@
 
 - Load Operations
   - `LB` / `LBU` - Load Byte
+  - `LH` / `LHU` - Load Halfword
   - `LW` / `LWU` - Load Word
   - `LD`₆₄ - Load Double Word
 - Store Operations
   - `SB` - Store Byte
+  - `SH` - Store Halfword
   - `SW` - Store Word
   - `SD`₆₄ - Store Double Word
 
