@@ -4,8 +4,7 @@
 
 [![Codecov](https://img.shields.io/codecov/c/github/Nambers/0dMIPS)](https://app.codecov.io/github/nambers/0dmips)
 
-
-In order 5-stages pipeline MIPS64r6 SoC implementation with peripheral components, simulated and tested with verilator.
+In order 5-stages pipeline MIPS64r6 SoC implementation with peripheral components, simulated and tested with Verilator.
 
 </div>
 
@@ -15,7 +14,8 @@ In order 5-stages pipeline MIPS64r6 SoC implementation with peripheral component
 - \[OPTIONAL\] If you like to write C directly, I mainly use `mips64el-linux-gnu-gcc-bootstrap` with `musl` as `sysroot`. Use `scripts/install_mips64el_musl.sh` to download musl and [mips64el-linux-gnu-gcc-bootstrap](https://aur.archlinux.org/packages/mips64el-linux-gnu-gcc-bootstrap).
 - `verilator` <https://github.com/verilator/verilator> for simulations.
 - \[OPTIONAL\] `sdl3` <https://github.com/libsdl-org/SDL> for any simulation with VGA output.
-- \[OPTIONAL\] `lcov` <https://github.com/linux-test-project/lcov> for gather coverage data
+- \[OPTIONAL\] `lcov` <https://github.com/linux-test-project/lcov> for gather coverage data.
+- \[OPTIONAL\] `capstone` <https://github.com/capstone-engine/capstone> for show disassembly in debugger TUI.
 
 ## How to run
 
@@ -23,26 +23,28 @@ In order 5-stages pipeline MIPS64r6 SoC implementation with peripheral component
 2. `cmake --build build -j ${$(nproc)-1}` to build all. All binaries are placed under `build/bin`
 3. `cmake --build build --target help` to list all targets
 4. `./runAllTest.sh` to run all generated tests under `build/bin`(by cmake), and use `DUMP_COV=1 ./runAllTest.sh` to dump coverage data
-5. `cmake --build build --target <script_name>` to compile script into memory.dat, e.g. `fabonacci`
+5. `cmake --build build --target <script_name>` to compile script into memory.dat, e.g. `fibonacci`
 
 ## Plan
 
 - [x] Basic 5-stages pipeline
 - [x] TUI GDB-style debugger (simulated)
 - [ ] Peripherals by MMIO
-    - [ ] UART
-    - [x] VGA
-    - [x] Timer
-    - [x] mock stdout
+  - [ ] UART
+  - [x] VGA
+  - [x] Timer
+  - [x] mock stdout
 - [ ] Cache
 - [ ] Interrupts
-    - [x] Timer interrupt
-    - [ ] Break
-    - [x] Syscall
+  - [x] Timer interrupt
+  - [ ] Break
+  - [x] Syscall
 - [ ] ~~out-of-order execution~~ double-issue in-order
 - [ ] AXI
-    - [ ] Memory
+  - [ ] Memory
 - [ ] Branch prediction
+- [ ] Multiplier/Divider
+- [ ] FPU(cp1)
 
 ## Demo
 
