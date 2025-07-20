@@ -21,7 +21,7 @@ module core_MEM (
     logic takenHandler  /* verilator public */;
 
     // -- mem --
-    data_mem #('h800) mem (
+    data_mem #('h1000) mem (
         .clk(clock),
         .reset(reset),
         .addr(EX_regs.out),

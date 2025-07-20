@@ -1,7 +1,7 @@
 #include "core_test.hpp"
 #include <Core_core_ID.h>
 #include <Core_core_MEM.h>
-#include <Core_data_mem__D800.h>
+#include <Core_data_mem__D1000.h>
 #include <Core_regfile__W40.h>
 
 #include <fstream>
