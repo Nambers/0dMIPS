@@ -3,7 +3,7 @@
 #include <SOC_debug_core.h>
 #include <SOC_debug_core_MEM.h>
 #include <SOC_debug_cp0.h>
-#include <SOC_debug_data_mem__D1000.h>
+#include <SOC_debug_data_mem__D2000.h>
 #include <SOC_debug_stdout.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>

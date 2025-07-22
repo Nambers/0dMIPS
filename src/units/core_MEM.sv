@@ -8,6 +8,7 @@ module core_MEM (
     input EX_regs_t EX_regs,
     /* verilator lint_on UNUSEDSIGNAL */
     input logic [63:0] fetch_pc,
+    input logic [63:0] ID_pc,
     input logic [7:0] interrupt_sources,
     input logic flush,
     input logic ID_ERET,
@@ -21,7 +22,7 @@ module core_MEM (
     logic takenHandler  /* verilator public */;
 
     // -- mem --
-    data_mem #('h1000) mem (
+    data_mem #('h2000) mem (
         .clk(clock),
         .reset(reset),
         .addr(EX_regs.out),
@@ -52,7 +53,7 @@ module core_MEM (
         .wr_data(EX_regs.B_data),
         .regnum(EX_regs.cp0_rd),
         .sel(EX_regs.sel),
-        .curr_pc(EX_regs.pc),
+        .curr_pc(ID_pc),
         .MTC0(EX_regs.MTC0),
         .ERET(ID_ERET),
         .interrupt_source(interrupt_sources),

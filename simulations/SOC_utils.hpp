@@ -13,7 +13,8 @@ void mainLoop(T *machine, C *ctx, unsigned int cycle_max, csh &cs_handle,
     std::cout << "Control: I - interrupt, F - flush, R - reset\n"
                  "Data:    S - stall, [A/B][A/M] - forward A/B from EX/MEM in "
                  "EX stage, D - peripheral data access\n"
-              << "         IE - instruction exception, OE - operation exception"
+              << "         IE - instruction exception, SC - syscall, OE - "
+                 "overflow exception"
               << std::endl;
     std::cout << "simulation starting" << std::endl;
     while (ctx->time() < cycle_max * 2) {
@@ -48,10 +49,13 @@ void mainLoop(T *machine, C *ctx, unsigned int cycle_max, csh &cs_handle,
         case 0:
             break;
         case 0xc:
-            flags += "IE|";
+            flags += "OE|";
             break;
         case 0xa:
-            flags += "OE|";
+            flags += "IE|";
+            break;
+        case 0x8:
+            flags += "SC|";
             break;
         }
 

@@ -2,7 +2,7 @@
 #include <Core_core_ID.h>
 #include <Core_core_MEM.h>
 #include <Core_core_branch.h>
-#include <Core_data_mem__D1000.h>
+#include <Core_data_mem__D2000.h>
 #include <Core_regfile__W40.h>
 
 TestGenMemCycle(
@@ -254,7 +254,7 @@ TestGenMemOnceCycle(
     },
     4);
 
-TestGenMemOnceCycle(
+TestGenMemOnceCycleNoCheck(
     SYSCALL_MFC0, const auto syscallInst = ((fixedVal<uint32_t>() << 6) &
                                             ((~0b111111UL) << 26)) |
                                            0b001100;
@@ -278,7 +278,7 @@ TestGenMemOnceCycle(
         EXPECT_EQ(RF->W_data, syscallInst); // badInstr
     },
     4); // handler written in MEM stage + 1 for jump
-TestGenMemOnceCycle(
+TestGenMemOnceCycleNoCheck(
     SYSCALL_ERET,
     {
         inst_->core->branch_unit->interrupeHandlerAddr = 32;

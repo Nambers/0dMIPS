@@ -1,7 +1,7 @@
 #include "core_test.hpp"
 #include <Core_core_ID.h>
 #include <Core_core_MEM.h>
-#include <Core_data_mem__D1000.h>
+#include <Core_data_mem__D2000.h>
 #include <Core_regfile__W40.h>
 
 #include <fstream>
@@ -109,6 +109,9 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
 #define Arith32Shamt(name, opcode, overflow_expr, expr, num)                   \
     TestGenArithR(name, 0, num, opcode, sign_extend((expr) & MASK32, 32),      \
                   TEST32OVERFLOW(overflow_expr), 0);
+#define Arith32ShamtRS1(name, opcode, overflow_expr, expr, num)                \
+    TestGenArithR(name, 1, num, opcode, sign_extend((expr) & MASK32, 32),      \
+                  TEST32OVERFLOW(overflow_expr), 0);
 
 #define TestAdd(AName, expr, num)                                              \
     Arith32(ADD##AName, 0x20, static_cast<int64_t>(num) + val, expr, num)
@@ -131,6 +134,10 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
                  ((val & MASK16) >> num) |                                     \
                      ((val & MASK16) & 0x8000 ? 0xffff0000 : 0),               \
                  expr, num);
+#define TestROTR(AName, expr, num)                                             \
+    Arith32ShamtRS1(ROTR##AName, 0x02,                                         \
+                    ((val & MASK16) >> num) | ((val & MASK16) << (16 - num)),  \
+                    expr, num);
 
 #define Arith64(name, opcode, overflow_expr, expr, num)                        \
     TestGenArithR(name, 1, 0, opcode, expr, TEST64OVERFLOW(overflow_expr), num);
@@ -138,6 +145,12 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
     Arith64(DADD##AName, 0x2c, static_cast<int64_t>(num) + val, expr, num)
 #define TestDAddU(AName, expr, num)                                            \
     Arith64(DADDU##AName, 0x2d, static_cast<int64_t>(num) + val, expr, num);
+#define TestDsll32(AName, expr, num)                                           \
+    Arith64(DSLL32##AName, 0x3c, (val & MASK32) << num, expr, num);
+#define TestDrotr(AName, expr, num)                                            \
+    Arith64(Drotr##AName, 0x3a,                                                \
+            ((val & MASK16) >> num) | ((val & MASK16) << (16 - num)), expr,    \
+            num);
 
 TestGenArith2(TestAnd, val &);
 TestGenArith2(TestOr, val |);
@@ -150,11 +163,14 @@ TestSRA(Pos, ((val & MASK16) >> 1) | ((val & MASK16) & 0x8000 ? 0xffff0000 : 0),
         1);
 TestNor(Pos, ~(val | 1), 1);
 TestNor(Neg, ~(val | (-1)), -1);
+TestROTR(Pos, ((val & MASK16) >> 1) | ((val & MASK16) << 15), 1);
 
 TestGenArith2(TestAdd, val +);
 TestGenArith2(TestAddU, val +);
 TestGenArith2(TestDAdd, val +);
 TestGenArith2(TestDAddU, val +);
+TestDsll32(Pos, ((val & MASK32) << 1), 1);
+TestDrotr(Pos, ((val & MASK16) >> 1) | ((val & MASK16) << 15), 1);
 
 #define TestSub(AName, expr, num)                                              \
     Arith32(SUB##AName, 0x22, static_cast<int64_t>(num) - val, expr, num);

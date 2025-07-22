@@ -116,6 +116,7 @@ module core #(
         .clock(clock),
         .reset(reset),
         .fetch_pc(IF_regs.fetch_pc),
+        .ID_pc(ID_regs.pc),
         .interrupt_sources(interrupt_sources),
         .flush(flush),  // for memory fetch
         .ID_ERET(ID_regs.ERET),

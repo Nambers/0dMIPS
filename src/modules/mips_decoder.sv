@@ -9,46 +9,47 @@ import structures::alu_b_src_t;
 import structures::B_DATA;
 import structures::BranchAddr_src_t;
 import structures::EX_out_src_t;
+import structures::cut_barrel_out32_t;
 
 module mips_decoder (
-    output logic            [ 2:0] alu_op,
-    output logic                   writeenable,
-    output logic            [ 1:0] rd_src,
-    output logic                   except,
-    output control_type_t          control_type,
-    output mem_store_type_t        mem_store_type,
-    output mem_load_type_t         mem_load_type,
-    output slt_type_t              slt_type,
-    output ext_src_t               ext_src,
-    output logic                   lui_out,
-    output logic                   linkpc,
-    output logic                   shift_right,
-    output logic                   shift_arith,
-    output logic            [ 1:0] shifter_plus32,
-    output EX_out_src_t            ex_out_src,
-    output alu_a_src_t             alu_a_src,
-    output alu_b_src_t             alu_b_src,
-    output logic                   shift_src,
-    output logic                   cut_shifter_out32,
-    output alu_cut_t               cut_alu_out32,
-    output logic                   MFC0,
-    output logic                   MTC0,
-    output logic                   ERET,
-    output logic                   syscall,
-    output logic                   beq,
-    output logic                   bne,
-    output logic                   bc,
-    output logic                   bal,
-    output logic                   signed_mem_out,
-    output logic                   ignore_overflow,
-    output BranchAddr_src_t        branchAddr_src,
-    output logic            [ 4:0] rs,
-    output logic            [ 4:0] rt,
-    output logic            [ 4:0] rd,
-    output logic            [ 4:0] shamt,
-    output logic                   B_is_reg,
+    output logic              [ 2:0] alu_op,
+    output logic                     writeenable,
+    output logic              [ 1:0] rd_src,
+    output logic                     except,
+    output control_type_t            control_type,
+    output mem_store_type_t          mem_store_type,
+    output mem_load_type_t           mem_load_type,
+    output slt_type_t                slt_type,
+    output ext_src_t                 ext_src,
+    output logic                     lui_out,
+    output logic                     linkpc,
+    output logic                     barrel_right,
+    output logic                     shift_arith,
+    output logic              [ 1:0] barrel_plus32,
+    output EX_out_src_t              ex_out_src,
+    output alu_a_src_t               alu_a_src,
+    output alu_b_src_t               alu_b_src,
+    output logic                     barrel_src,
+    output cut_barrel_out32_t        cut_barrel_out32,
+    output alu_cut_t                 cut_alu_out32,
+    output logic                     MFC0,
+    output logic                     MTC0,
+    output logic                     ERET,
+    output logic                     syscall,
+    output logic                     beq,
+    output logic                     bne,
+    output logic                     bc,
+    output logic                     bal,
+    output logic                     signed_mem_out,
+    output logic                     ignore_overflow,
+    output BranchAddr_src_t          branchAddr_src,
+    output logic              [ 4:0] rs,
+    output logic              [ 4:0] rt,
+    output logic              [ 4:0] rd,
+    output logic              [ 4:0] shamt,
+    output logic                     B_is_reg,
     /* verilator lint_off UNUSEDSIGNAL */
-    input  logic            [31:0] inst
+    input  logic              [31:0] inst
     /* verilator lint_on UNUSEDSIGNAL */
 );
     import mips_define::*;
@@ -81,6 +82,9 @@ module mips_decoder (
     logic dsrl_inst, dsrl32_inst, srl_inst, srl_family;
     // sra family
     logic dsra_inst, sra_inst, sra_family;
+    // rot family
+    // rotr
+    logic rotr_inst, drotr_inst, drotr32_inst, rotr_family;
     // jump family
     logic jalr_inst, jr_inst, jal_inst, j_inst, j_family;
     logic bal_inst;
@@ -165,13 +169,18 @@ module mips_decoder (
         // sll $0, $0, 0 is NOP
         // sll $0, $0, 1 is SSNOP
         // so we need to specifically avoid nop
-        sll_inst = op0 && (funct == OP0_SLL) && no_rs && (|shamt);
+        sll_inst = op0 && (funct == OP0_SLL) && no_rs && (!nop_inst);
         sll_family = dsll_inst || dsll32_inst || sll_inst;
 
         dsrl_inst = op0 && (funct == OP0_DSRL) && no_rs;
         dsrl32_inst = op0 && (funct == OP0_DSRL32) && no_rs;
         srl_inst = op0 && (funct == OP0_SRL) && no_rs;
         srl_family = dsrl_inst || dsrl32_inst || srl_inst;
+
+        rotr_inst = op0 && (funct == OP0_SRL) && (rs == 5'd1);
+        drotr_inst = op0 && (funct == OP0_DSRL) && (rs == 5'd1);
+        drotr32_inst = op0 && (funct == OP0_DSRL32) && (rs == 5'd1);
+        rotr_family = rotr_inst || drotr_inst || drotr32_inst;
 
         sra_inst = op0 && (funct == OP0_SRA) && no_rs;
         dsra_inst = op0 && (funct == OP0_DSRA) && no_rs;
@@ -234,7 +243,7 @@ module mips_decoder (
 
         // --- control signal decoding ---
         // --- stage ID ---
-        except = !(add_family || addi_family || sub_family || LU_family || branch_family || j_family || lui_inst || slt_family || lw_family || lh_family || lb_family || ld_inst || store_family || nop_inst || sll_family || sra_family || srl_family || CP0_family || bal_inst || lsa_family || pcrel_family || se_family);
+        except = !(add_family || addi_family || sub_family || LU_family || branch_family || j_family || lui_inst || slt_family || lw_family || lh_family || lb_family || ld_inst || store_family || nop_inst || sll_family || sra_family || srl_family || rotr_family || CP0_family || bal_inst || lsa_family || pcrel_family || se_family || syscall);
         // branch unit resolved in ID stage
         // jump to register
         control_type[1] = (jr_inst || jalr_inst) && !except;
@@ -265,12 +274,12 @@ module mips_decoder (
         // 0 = A data, 1 = shifter output, 2 = PC
         alu_a_src[0] = lsa_family && !except;
         // 0 = B data, 1 = A data
-        shift_src = lsa_family;
+        barrel_src = lsa_family;
 
         // 0 = origin, 1 = shift, 2 = signed ext immediate, 3 = zero ext immediate
         alu_b_src[0] = (andi_inst || ori_inst || xori_inst) && !except;
         alu_b_src[1] = (addiu_inst || daddiu_inst || sltiu_inst || slti_inst || addi_inst || daddi_inst || lw_family || lh_family || lb_family || ld_inst || store_family || bal_inst || (andi_inst || ori_inst || xori_inst)) && !except;
-        ignore_overflow = (addu_inst || addiu_inst || subu_inst || daddu_inst || daddiu_inst || sltu_inst || sltiu_inst) && !except;
+        ignore_overflow = (addu_inst || addiu_inst || subu_inst || daddu_inst || daddiu_inst || sltu_inst || sltiu_inst || LU_family || branch_family) && !except;
 
         lui_out = lui_inst && !except;
         // write back data = pc4
@@ -279,20 +288,21 @@ module mips_decoder (
             (sltu_inst || sltiu_inst) && !except,
             (slt_inst || slti_inst) && !except
         };
-        // 0 = EX_stage out is alu, 1 = EX_stage out is shifter, 2 = Branch addr
-        ex_out_src[0] = sll_family || srl_family || sra_family;
+        // 0 = EX_stage out is alu, 1 = EX_stage out is barrel, 2 = Branch addr
+        ex_out_src[0] = sll_family || srl_family || sra_family || rotr_family;
         ex_out_src[1] = addiupc_inst;
-        shift_right = srl_family || sra_family;
+        barrel_right = srl_family || sra_family || rotr_family;
         shift_arith = sra_family;
 
         // 0 = no cut, 1 = cut with sign extend, 2 = cut with zero extend
         cut_alu_out32[0] = (add_inst || addi_inst || sub_inst || lsa_inst) && !except;
         cut_alu_out32[1] = (addu_inst || addiu_inst || subu_inst) && !except;
 
-        cut_shifter_out32 = (srl_inst || sll_inst) && !except;
-        // shifter output regroup: 0 = no change, 1 = move low 32 to high, 2 = move high 32 to low (fill with 0, no sign extend)
-        shifter_plus32[0] = op0 && dsll32_inst && !except;
-        shifter_plus32[1] = op0 && dsrl32_inst && !except;
+        cut_barrel_out32[0] = (drotr_inst || drotr32_inst || rotr_inst) && !except;
+        cut_barrel_out32[1] = (srl_inst || sll_inst || rotr_inst) && !except;
+        // 0 = no change, 1 = move low 32 to high, 2 = move high 32 to low (fill with 0, no sign extend), 3 = exchange low and high
+        barrel_plus32[0] = op0 && (dsll32_inst || drotr32_inst) && !except;
+        barrel_plus32[1] = op0 && (dsrl32_inst || drotr32_inst) && !except;
 
         ext_src[0] = (seb_inst) && !except;
         ext_src[1] = (seh_inst) && !except;
@@ -315,7 +325,7 @@ module mips_decoder (
         B_is_reg = ((alu_b_src == B_DATA) || store_family) && !except;
 
         // --- stage WB ---
-        writeenable = (add_family || addi_family || sub_family || LU_family || lui_inst || slt_family || lw_family || lh_family || lb_family || ld_inst || jal_inst || (jalr_inst && (rd != 0)) || bal_inst || sll_family || srl_family || sra_family || MFC0_inst || lsa_family || pcrel_family || se_family) && !except;
+        writeenable = (add_family || addi_family || sub_family || LU_family || lui_inst || slt_family || lw_family || lh_family || lb_family || ld_inst || jal_inst || (jalr_inst && (rd != 0)) || bal_inst || sll_family || srl_family || rotr_family || sra_family || MFC0_inst || lsa_family || pcrel_family || se_family) && !except;
     end
 
 endmodule  // mips_decode

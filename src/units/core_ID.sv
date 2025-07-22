@@ -11,6 +11,7 @@ import structures::alu_a_src_t;
 import structures::alu_b_src_t;
 import structures::EX_out_src_t;
 import structures::BranchAddr_src_t;
+import structures::cut_barrel_out32_t;
 
 module core_ID (
     input logic clock,
@@ -35,7 +36,7 @@ module core_ID (
         PCRelAddr;
     logic [4:0] W_regnum, rs, rt, rd, shamt;
     logic [2:0] alu_op;
-    logic [1:0] shifter_plus32, rd_src;
+    logic [1:0] barrel_plus32, rd_src;
     control_type_t control_type;
     mem_load_type_t mem_load_type;
     mem_store_type_t mem_store_type;
@@ -46,15 +47,15 @@ module core_ID (
     alu_b_src_t alu_b_src;
     EX_out_src_t ex_out_src;
     BranchAddr_src_t branchAddr_src;
+    cut_barrel_out32_t cut_barrel_out32;
     logic
         reserved_inst_E,
         write_enable,
         lui,
         linkpc,
-        cut_shifter_out32,
-        shift_right,
+        barrel_right,
         shift_arith,
-        shift_src,
+        barrel_src,
         MFC0,
         MTC0,
         ERET,
@@ -80,14 +81,14 @@ module core_ID (
         .ext_src(ext_src),
         .lui_out(lui),
         .linkpc(linkpc),
-        .shift_right(shift_right),
+        .barrel_right(barrel_right),
         .shift_arith(shift_arith),
-        .shifter_plus32(shifter_plus32),
+        .barrel_plus32(barrel_plus32),
         .ex_out_src(ex_out_src),
         .alu_a_src(alu_a_src),
         .alu_b_src(alu_b_src),
-        .shift_src(shift_src),
-        .cut_shifter_out32(cut_shifter_out32),
+        .barrel_src(barrel_src),
+        .cut_barrel_out32(cut_barrel_out32),
         .cut_alu_out32(alu_cut),
         .MFC0(MFC0),
         .MTC0(MTC0),
@@ -169,10 +170,12 @@ module core_ID (
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
         if (MEM_regs.write_enable) begin
-            $display("writeback regnum = %d, data = %h", MEM_regs.W_regnum, MEM_regs.W_data);
+            $display("writeback regnum = %d, data = %h", MEM_regs.W_regnum,
+                     MEM_regs.W_data);
         end
         if (reserved_inst_E) begin
-            $display("reserved instruction detected op=0x%h, inst=0x%h", inst[31:26], inst);
+            $display("reserved instruction detected op=0x%h, inst=0x%h",
+                     inst[31:26], inst);
         end
 `endif
         // add bubble for load-use hazard instead of freeze-like stall
@@ -188,12 +191,12 @@ module core_ID (
             ID_regs.mem_load_type <= mem_load_type;
             ID_regs.slt_type <= slt_type;
             ID_regs.ext_src <= ext_src;
-            ID_regs.cut_shifter_out32 <= cut_shifter_out32;
+            ID_regs.cut_barrel_out32 <= cut_barrel_out32;
             ID_regs.cut_alu_out32 <= alu_cut;
-            ID_regs.shift_right <= shift_right;
+            ID_regs.barrel_right <= barrel_right;
             ID_regs.shift_arith <= shift_arith;
             ID_regs.ex_out_src <= ex_out_src;
-            ID_regs.shift_src <= shift_src;
+            ID_regs.barrel_src <= barrel_src;
             ID_regs.MFC0 <= MFC0;
             ID_regs.MTC0 <= MTC0;
             ID_regs.ERET <= ERET;
@@ -205,7 +208,7 @@ module core_ID (
             ID_regs.alu_a_src <= alu_a_src;
             ID_regs.alu_b_src <= alu_b_src;
             ID_regs.control_type <= control_type;
-            ID_regs.shifter_plus32 <= shifter_plus32;
+            ID_regs.barrel_plus32 <= barrel_plus32;
             ID_regs.A_data <= A_data_forwarded;
             ID_regs.B_data <= B_data_badinst;
             ID_regs.inst <= inst;

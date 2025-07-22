@@ -58,12 +58,11 @@ module cp0 #(
         ERET || reset
     );
 
-    mux3v #(64) data_pc_mux (
+    mux2v #(64) data_pc_mux (
         EPC_D,
         wr_data,
         curr_pc,
-        curr_pc + 4,
-        {takenException, takenInterrupt}
+        takenException || takenInterrupt
     );
     register #(64) EPC_reg (
         EPC,
@@ -115,9 +114,12 @@ module cp0 #(
 
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
-        if (regnum == BAD_INSTR_REGISTER) $display("CP0: readBadInstr = %h", rd_data);
-        if (regnum == CAUSE_REGISTER && sel == 0) $display("CP0: readCause = %h", rd_data);
-        if (regnum == STATUS_REGISTER && sel == 0) $display("CP0: readStatus = %h", rd_data);
+        if (regnum == BAD_INSTR_REGISTER)
+            $display("CP0: readBadInstr = %h", rd_data);
+        if (regnum == CAUSE_REGISTER && sel == 0)
+            $display("CP0: readCause = %h", rd_data);
+        if (regnum == STATUS_REGISTER && sel == 0)
+            $display("CP0: readStatus = %h", rd_data);
         if (syscall) $display("CP0: syscall, EPC = %h", EPC);
         if (takenHandler)
             $display(
@@ -128,7 +130,13 @@ module cp0 #(
                 curr_pc
             );
         if (ERET) $display("CP0: ERET, EPC = %h", EPC);
-        if (MTC0) $display("CP0: MTC0, regnum = %d(sel=%d), data = %h", regnum, sel, wr_data);
+        if (MTC0)
+            $display(
+                "CP0: MTC0, regnum = %d(sel=%d), data = %h",
+                regnum,
+                sel,
+                wr_data
+            );
 `endif
         if (reset) begin
             exc_code <= 5'h00;

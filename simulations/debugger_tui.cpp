@@ -21,7 +21,7 @@
 #include <SOC_sim_core_ID.h>
 #include <SOC_sim_core_MEM.h>
 #include <SOC_sim_cp0.h>
-#include <SOC_sim_data_mem__D1000.h>
+#include <SOC_sim_data_mem__D2000.h>
 #include <SOC_sim_regfile__W40.h>
 #include <SOC_sim_stdout.h>
 #include <capstone/capstone.h>
@@ -163,8 +163,9 @@ void update_state_from_sim() {
     flags["BA"] = (machine->SOC->core->forward_B == 1);
     flags["BM"] = (machine->SOC->core->forward_B == 2);
     flags["DR"] = machine->SOC->core->__PVT__d_ready;
-    flags["IE"] = (machine->SOC->core->MEM_stage->cp0_->exc_code == 0xc);
-    flags["OE"] = (machine->SOC->core->MEM_stage->cp0_->exc_code == 0xa);
+    flags["OE"] = (machine->SOC->core->MEM_stage->cp0_->exc_code == 0xc);
+    flags["IE"] = (machine->SOC->core->MEM_stage->cp0_->exc_code == 0xa);
+    flags["SC"] = (machine->SOC->core->MEM_stage->cp0_->exc_code == 0x8);
 }
 
 Element render_pipeline() {
@@ -183,10 +184,10 @@ Element render_pipeline() {
         {"PeriphAccess", flags["D"]},
     };
     std::vector<std::pair<std::string, bool>> transients = {
-        {"InstExc", flags["IE"]},     {"OpExc", flags["OE"]},
-        {"PeriphReady", flags["DR"]}, {"fA-EX", flags["AA"]},
-        {"fA-MEM", flags["AM"]},      {"fB-EX", flags["BA"]},
-        {"fB-MEM", flags["BM"]}};
+        {"InstExc", flags["IE"]}, {"Overflow", flags["OE"]},
+        {"Syscall", flags["SC"]}, {"PeriphReady", flags["DR"]},
+        {"fA-EX", flags["AA"]},   {"fA-MEM", flags["AM"]},
+        {"fB-EX", flags["BA"]},   {"fB-MEM", flags["BM"]}};
 
     std::vector<Element> flag_elems;
     auto push_flag = [&](const std::string &name, bool on) {

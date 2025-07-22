@@ -17,9 +17,9 @@ module core_EX (
 );
     logic negative, overflow, zero, borrow_out;
     logic [63:0]
-        B_in_shift,
-        A_in_shift,
-        shift_in,
+        B_in_barrel,
+        A_in_barrel,
+        barrel_in,
         slt_out,
         ext_out,
         alu_tmp_out,
@@ -27,8 +27,9 @@ module core_EX (
         out,
         lui_out,
         shifter_tmp_out,
-        shifter_out,
-        shifter_plus32_out,
+        rotator_tmp_out,
+        barrel_out,
+        barrel_plus32_out,
         forwarded_A,
         forwarded_B,
         SignExtImm,
@@ -52,28 +53,28 @@ module core_EX (
         forward_B
     );
 
-    mux4v #(64) B_in_shift_mux (
-        B_in_shift,
+    mux4v #(64) B_in_barrel_mux (
+        B_in_barrel,
         forwarded_B,
-        shifter_out,
+        barrel_out,
         SignExtImm,
         ZeroExtImm,
         ID_regs.alu_b_src
     );
 
-    mux3v #(64) A_in_shift_mux (
-        A_in_shift,
+    mux3v #(64) A_in_barrel_mux (
+        A_in_barrel,
         forwarded_A,
-        shifter_out,
+        barrel_out,
         ID_regs.pc,
         ID_regs.alu_a_src
     );
 
-    mux2v #(64) shift_in_mux (
-        shift_in,
+    mux2v #(64) barrel_in_mux (
+        barrel_in,
         forwarded_B,
         forwarded_A,
-        ID_regs.shift_src
+        ID_regs.barrel_src
     );
 
     // -- ALU --
@@ -83,8 +84,8 @@ module core_EX (
         .zero(zero),
         .negative(negative),
         .borrow_out(borrow_out),
-        .a(A_in_shift),
-        .b(B_in_shift),
+        .a(A_in_barrel),
+        .b(B_in_barrel),
         .alu_op(ID_regs.alu_op)
     );
     mux3v #(64) cut_alu_out (
@@ -95,32 +96,41 @@ module core_EX (
         ID_regs.cut_alu_out32
     );
 
-    // -- shifter --
+    // -- barrel --
     barrel_shifter32 #(64) shifter (
         shifter_tmp_out,
-        shift_in,
+        barrel_in,
         ID_regs.shamt,
-        ID_regs.shift_right,
+        ID_regs.barrel_right,
         ID_regs.shift_arith
     );
-    mux2v #(64) cut_shifter_out (
-        shifter_out,
-        shifter_tmp_out,
-        {{32{shifter_tmp_out[31]}}, shifter_tmp_out[31:0]},
-        ID_regs.cut_shifter_out32
+    barrel_rotator32 #(64) rotator (
+        rotator_tmp_out,
+        barrel_in,
+        ID_regs.shamt,
+        ID_regs.barrel_right
     );
-    mux3v #(64) shifter_plus32_mux (
-        shifter_plus32_out,
-        shifter_out,
-        {shifter_out[31:0], {32{1'b0}}},
-        {{32{1'b0}}, shifter_out[63:32]},
-        ID_regs.shifter_plus32
+    mux4v #(64) cut_barrel_out (
+        barrel_out,
+        shifter_tmp_out,
+        rotator_tmp_out,
+        {{32{shifter_tmp_out[31]}}, shifter_tmp_out[31:0]},
+        {{32{rotator_tmp_out[31]}}, rotator_tmp_out[31:0]},
+        ID_regs.cut_barrel_out32
+    );
+    mux4v #(64) barrel_plus32_mux (
+        barrel_plus32_out,
+        barrel_out,
+        {barrel_out[31:0], {32{1'b0}}},
+        {{32{1'b0}}, barrel_out[63:32]},
+        {barrel_out[31:0], barrel_out[63:32]},
+        ID_regs.barrel_plus32
     );
 
-    mux3v #(64) alu_shifter_mux (
+    mux3v #(64) alu_barrel_mux (
         out,
         alu_out,
-        shifter_plus32_out,
+        barrel_plus32_out,
         ID_regs.pc_branch,
         ID_regs.ex_out_src
     );
@@ -166,7 +176,7 @@ module core_EX (
             EX_regs.B_data <= forwarded_B;
             EX_regs.W_regnum <= ID_regs.W_regnum;
             EX_regs.pc4 <= ID_regs.pc4;
-            EX_regs.overflow <= overflow & ~ID_regs.ignore_overflow;
+            EX_regs.overflow <= overflow && (!ID_regs.ignore_overflow);
             EX_regs.zero <= zero;
             EX_regs.sel <= ID_regs.inst[2:0];
             EX_regs.mem_load_type <= ID_regs.mem_load_type;
@@ -186,9 +196,8 @@ module core_EX (
             EX_regs.cp0_rd <= ID_regs.cp0_rd;
 `ifdef DEBUGGER
             EX_regs.inst <= ID_regs.inst;
+            EX_regs.pc   <= ID_regs.pc;
 `endif
         end
-        // for setting EPC
-        EX_regs.pc <= ID_regs.pc;
     end
 endmodule

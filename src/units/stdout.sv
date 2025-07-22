@@ -22,33 +22,18 @@ module stdout (
             buffer <= 64'h0;
         end else if (enable & (addr >= STDOUT_BASE_ADDR && addr < STDOUT_BASE_ADDR + 8)) begin
             unique case (mem_store_type)
-                STORE_BYTE:
-                unique case (addr[2:0])
-                    'd7: buffer[7:0] <= w_data[7:0];
-                    'd6: buffer[15:8] <= w_data[7:0];
-                    'd5: buffer[23:16] <= w_data[7:0];
-                    'd4: buffer[31:24] <= w_data[7:0];
-                    'd3: buffer[39:32] <= w_data[7:0];
-                    'd2: buffer[47:40] <= w_data[7:0];
-                    'd1: buffer[55:48] <= w_data[7:0];
-                    'd0: buffer[63:56] <= w_data[7:0];
-                endcase
+                // auto append null terminator
+                STORE_BYTE: buffer[63:64-8-8] <= {w_data[7:0], 8'b0};
                 STORE_HALF:
-                unique case (addr[2:1])
-                    'd3: buffer[15:0] <= {w_data[7:0], w_data[15:8]};
-                    'd2: buffer[31:16] <= {w_data[7:0], w_data[15:8]};
-                    'd1: buffer[47:32] <= {w_data[7:0], w_data[15:8]};
-                    'd0: buffer[63:48] <= {w_data[7:0], w_data[15:8]};
-                endcase
+                buffer[63:64-16-8] <= {w_data[7:0], w_data[15:8], 8'b0};
                 STORE_WORD:
-                if (addr[2])
-                    buffer[31:0] <= {
-                        w_data[7:0], w_data[15:8], w_data[23:16], w_data[31:24]
-                    };
-                else
-                    buffer[63:32] <= {
-                        w_data[7:0], w_data[15:8], w_data[23:16], w_data[31:24]
-                    };
+                buffer[63:64-32-8] <= {
+                    w_data[7:0],
+                    w_data[15:8],
+                    w_data[23:16],
+                    w_data[31:24],
+                    8'b0
+                };
                 STORE_DWORD: begin
                     buffer <= {
                         w_data[7:0],

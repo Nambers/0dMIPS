@@ -4,7 +4,9 @@
 #include "common.hpp"
 #include <Core.h>
 #include <Core_core.h>
+#include <Core_core_MEM.h>
 #include <Core_core_branch.h>
+#include <Core_cp0.h>
 
 #include <array>
 
@@ -117,12 +119,25 @@ inline VlWide<5> buildMemRegs(int addr, uint64_t data) {
             reset();                                                           \
             init_test;                                                         \
             RESET_PC();                                                        \
-            for (auto i = 0; i < cycle; ++i)                                   \
+            for (auto i = 0; i < cycle; ++i) {                                 \
+                ASSERT_EQ(inst_->core->MEM_stage->cp0_->exc_code, 0);          \
                 tick();                                                        \
+            }                                                                  \
             check_result;                                                      \
         }                                                                      \
     }
 #define TestGenMemOnceCycle(name, init_test, check_result, cycle)              \
+    TEST_F(CoreTest, name) {                                                   \
+        reset();                                                               \
+        init_test;                                                             \
+        RESET_PC();                                                            \
+        for (auto i = 0; i < cycle; ++i) {                                     \
+            tick();                                                            \
+            ASSERT_EQ(inst_->core->MEM_stage->cp0_->exc_code, 0);              \
+        }                                                                      \
+        check_result;                                                          \
+    }
+#define TestGenMemOnceCycleNoCheck(name, init_test, check_result, cycle)       \
     TEST_F(CoreTest, name) {                                                   \
         reset();                                                               \
         init_test;                                                             \

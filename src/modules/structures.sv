@@ -70,11 +70,18 @@ package structures;
         PC_RELATIVE
     } BranchAddr_src_t;
 
-    typedef enum bit [1:0]{
-        NO_EXT = 0,
+    typedef enum bit [1:0] {
+        NO_EXT   = 0,
         EXT_BYTE,
         EXT_HALF
     } ext_src_t;
+
+    typedef enum bit [1:0] {
+        SHIFTER = 0,
+        ROTATOR,
+        SHIFTER32,
+        ROTATOR32
+    } cut_barrel_out32_t;
 
     typedef struct packed {logic [63:0] fetch_pc4, fetch_pc;} IF_regs_t;
 
@@ -82,7 +89,7 @@ package structures;
         logic [63:0] A_data, B_data, pc4, pc_branch, jumpAddr;
         logic [4:0] W_regnum, cp0_rd, shamt;
         logic [2:0] alu_op, sel;
-        logic [1:0] shifter_plus32;
+        logic [1:0] barrel_plus32;
         control_type_t control_type;
         mem_load_type_t mem_load_type;
         mem_store_type_t mem_store_type;
@@ -92,12 +99,12 @@ package structures;
         alu_a_src_t alu_a_src;
         alu_b_src_t alu_b_src;
         EX_out_src_t ex_out_src;
+        cut_barrel_out32_t cut_barrel_out32;
         logic reserved_inst_E,
             write_enable,
-            cut_shifter_out32,
-            shift_right,
+            barrel_right,
             shift_arith,
-            shift_src,
+            barrel_src,
             BEQ,
             BNE,
             BC,
@@ -141,15 +148,16 @@ package structures;
         ;
 `ifdef DEBUGGER
         logic [31:0] inst;
-`endif
-        // for store EPC and debugger
         logic [63:0] pc;
+`endif
     } EX_regs_t;
 
     typedef struct packed {
         logic [63:0] EPC, W_data;
         logic [4:0] W_regnum;
-        logic write_enable, takenHandler;  // ofs being used, if change, also change coreTest
+        logic write_enable,
+            takenHandler
+        ;  // ofs being used, if change, also change coreTest
 `ifdef DEBUGGER
         logic [31:0] inst;
         logic [63:0] pc;

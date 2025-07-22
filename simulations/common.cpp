@@ -48,7 +48,7 @@ std::string get_disasm(uint64_t pc, uint32_t inst,
             }
         }
         cs_free(insn, count);
-    } 
+    }
 
     disasm_cache[pc] = DisasmEntry{inst, result};
     return result;

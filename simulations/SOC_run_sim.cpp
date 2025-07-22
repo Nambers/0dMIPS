@@ -3,7 +3,7 @@
 #include <SOC_run_sim_core.h>
 #include <SOC_run_sim_core_MEM.h>
 #include <SOC_run_sim_cp0.h>
-#include <SOC_run_sim_data_mem__D1000.h>
+#include <SOC_run_sim_data_mem__D2000.h>
 #include <SOC_run_sim_stdout.h>
 #include <verilated.h>
 
@@ -55,8 +55,10 @@ int main(int argc, char **argv) {
     while (1) {
         if (machine->SOC->stdout->stdout_taken) {
             uint64_t data = be64toh(machine->SOC->stdout->buffer);
-            std::cout << reinterpret_cast<char *>(&data) << std::flush;
-            if (strcmp("HALT\n", reinterpret_cast<char *>(&data)) == 0) {
+            char buf[9];
+            memmove(buf, &data, 8);
+            std::cout << buf << std::flush;
+            if (strcmp("HALT\n", buf) == 0) {
                 break;
             }
         }
