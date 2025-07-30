@@ -9,6 +9,7 @@ module core_MEM (
     /* verilator lint_on UNUSEDSIGNAL */
     input logic [63:0] fetch_pc,
     input logic [63:0] ID_pc,
+    input logic ID_reserved_inst_E,
     input logic [7:0] interrupt_sources,
     input logic flush,
     input logic ID_ERET,
@@ -60,7 +61,7 @@ module core_MEM (
         .clock(clock),
         .reset(reset),
         .overflow(EX_regs.overflow),
-        .reserved_inst(EX_regs.reserved_inst_E),
+        .reserved_inst(ID_reserved_inst_E),
         .syscall(EX_regs.syscall),
         .break_(1'b0)  // TODO syscall, break
     );

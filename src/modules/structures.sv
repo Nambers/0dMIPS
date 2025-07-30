@@ -77,7 +77,7 @@ package structures;
     } ext_src_t;
 
     typedef enum bit [1:0] {
-        SHIFTER = 0,
+        SHIFTER   = 0,
         ROTATOR,
         SHIFTER32,
         ROTATOR32
@@ -131,8 +131,7 @@ package structures;
         logic [2:0] sel;
         mem_load_type_t mem_load_type;
         mem_store_type_t mem_store_type;
-        logic reserved_inst_E,
-            overflow,
+        logic overflow,
             zero,
             MFC0,
             MTC0,

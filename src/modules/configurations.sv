@@ -7,11 +7,11 @@ package configurations;
     // === peripheral base address ===
     // --- ROM ---
     localparam RAM_BASE_ADDR = KUSEG_BASE_ADDR;  // RAM: 16MB
-    localparam ROM_BASE_ADDR = RAM_BASE_ADDR + 64'h1000_0000;  // ROM: 1MB, 0x1000_0000
+    localparam ROM_BASE_ADDR = RAM_BASE_ADDR + 64'h1000_0000;  // ROM: 0x1000_0000
 
     /* verilator lint_off UNUSEDPARAM */
-    // peripheral base address started from 0x2000_0000, every component base should be aligin by double word(8bytes)
-    // and port aligned by word(4bytes)
+    // peripheral base address started from 0x2000_0000, every component base should be aligned by double word(8 bytes)
+    // and port aligned by word(4 bytes)
     localparam PERIPHERAL_BASE = ROM_BASE_ADDR + 64'h1000_0000; // start from 0x2000_0000
     // --- Timer ---
     localparam TIMER_BASE_ADDR = PERIPHERAL_BASE;

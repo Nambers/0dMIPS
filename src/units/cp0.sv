@@ -125,7 +125,7 @@ module cp0 #(
             $display(
                 "CP0: taken handler, ExcCode = %h, EPC wr = %h B_data = %h, pc = %h",
                 next_exc_code,
-                curr_pc,
+                EPC_D,
                 wr_data,
                 curr_pc
             );

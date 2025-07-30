@@ -60,7 +60,7 @@ uint64_t vlwide_get(const Wide &wide, int idx /* low_bit */, int width) {
 
 template <class C>
 void write_mem_seg(C &data_seg, size_t addr, uint64_t value) {
-    *(uint64_t *)(&data_seg[addr]) = value;
+    *reinterpret_cast<uint64_t *>(&data_seg[addr]) = value;
 }
 template <class C> uint64_t read_mem_seg(const C &data_seg, size_t addr) {
     return *reinterpret_cast<const uint64_t *>(&data_seg[addr]);

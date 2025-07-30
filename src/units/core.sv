@@ -29,7 +29,8 @@ module core #(
     input logic [7:0] interrupt_sources
 );
     // pipeline
-    logic stall  /* verilator public */, flush  /* verilator public */, B_is_reg;
+    logic
+        stall  /* verilator public */, flush  /* verilator public */, B_is_reg;
     IF_regs_t  IF_regs  /* verilator public */;
     ID_regs_t  ID_regs  /* verilator public */;
     EX_regs_t  EX_regs  /* verilator public */;
@@ -37,7 +38,8 @@ module core #(
 
     logic [63:0] next_fetch_pc, EX_A_data_forwarded;
     logic [31:0] inst  /* verilator public */;
-    forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
+    forward_type_t
+        forward_A  /* verilator public */, forward_B  /* verilator public */;
 
     core_forward forward_unit (
         .ID_rs(ID_regs.inst[25:21]),
@@ -109,7 +111,8 @@ module core #(
         .EX_regs(EX_regs),
         .MEM_data(MEM_regs.W_data),
         .forward_A(forward_A),
-        .forward_B(forward_B)
+        .forward_B(forward_B),
+        .takenHandler(MEM_regs.takenHandler)
     );
 
     core_MEM MEM_stage (
@@ -117,6 +120,7 @@ module core #(
         .reset(reset),
         .fetch_pc(IF_regs.fetch_pc),
         .ID_pc(ID_regs.pc),
+        .ID_reserved_inst_E(ID_regs.reserved_inst_E),
         .interrupt_sources(interrupt_sources),
         .flush(flush),  // for memory fetch
         .ID_ERET(ID_regs.ERET),

@@ -12,6 +12,9 @@ endif()
 # TODO support all compact branches
 set(C_FLAGS ${TOOLCHIAN_FLAGS}
     -O2
+    -mtune=mips64r6
+    -mno-mips16
+    -mno-micromips
     -mcompact-branches=never
     -fomit-frame-pointer
     -fno-asynchronous-unwind-tables

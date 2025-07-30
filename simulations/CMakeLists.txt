@@ -7,7 +7,8 @@ set(VGA_SRCS
 )
 
 set(SDL3_ENABLED SOC_VGA VGA)
-set(SOC_run_C_flag -O3 -lto)
+set(CAPSTONE_DISABLED SOC_run)
+set(SOC_run_C_flag -O3 -flto)
 
 find_package(SDL3)
 # find_package(capstone REQUIRED)
@@ -33,6 +34,9 @@ foreach(sim_src IN LISTS SIM_SOURCES)
     add_executable(${target_name} common.cpp ${sim_src})
     if(${target}_C_flag)
         target_compile_options(${target_name} PRIVATE ${${target}_C_flag})
+    endif()
+    if(${target}_linker_flags)
+        set_target_properties(${target_name} PROPERTIES LINK_FLAGS "${${target}_linker_flags}")
     endif()
     verilate(${target_name}
         SOURCES ${${srclist}}

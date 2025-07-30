@@ -298,3 +298,74 @@ TestGenMemOnceCycleNoCheck(
         EXPECT_EQ(FETCH_PC, 0 + 4); // ERET returns to 0
     },
     4);
+TestGenMemOnceCycleNoCheck(
+    OVERFLOW_AND_ERET,
+    {
+        inst_->core->branch_unit->interrupeHandlerAddr = 32;
+        WRITE_RF(1, 0x100);
+        WRITE_RF(2, fixedVal<uint32_t>());
+        WRITE_RF(3, INT64_MAX);
+        WRITE_RF(4, 1);
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb(build_I_inst(0x2b, 1, 2, 0), // SW $2, 0($1)
+                                build_I_inst(0x2b, 1, 2, 4)  // SW $2, 4($1)
+                                ));
+        write_mem_seg(MEM_SEG, 16,
+                      inst_comb(build_R_inst(0, 3, 4, 3, 0,
+                                             0x20), // ADD $3, $4, $3, overflow
+                                build_I_inst(0x2b, 1, 2, 8))); // SW $2, 8($1)
+        write_mem_seg(MEM_SEG, 32,
+                      inst_comb(0b0100001UL << 25 | 0b011000, 0)); // ERET
+    },
+    {
+        EXPECT_EQ(FETCH_PC, 4 * 6);
+        tick();
+        tick();
+        EXPECT_EQ(FETCH_PC, 32); // jump to handler
+        tick();
+        tick();
+        EXPECT_EQ(FETCH_PC, 4 * 6);
+    },
+    6);
+
+TestGenMemOnceCycleNoCheck(
+    INTERRUPT_AND_ERET,
+    {
+        inst_->core->branch_unit->interrupeHandlerAddr = 32;
+        WRITE_RF(1, 0x100);
+        WRITE_RF(2, fixedVal<uint32_t>());
+        // first fill the pipeline with 4 memory write
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb(build_I_inst(0x2b, 1, 2, 0), // SW $2, 0($1)
+                                build_I_inst(0x2b, 1, 2, 4)  // SW $2, 4($1)
+                                ));
+        write_mem_seg(MEM_SEG, 8,
+                      inst_comb(build_I_inst(0x2b, 1, 2, 8),    // SW $2, 8($1)
+                                build_I_inst(0x2b, 1, 2, 12))); // SW $2, 12($1)
+        write_mem_seg(MEM_SEG, 16,
+                      inst_comb(build_I_inst(0x2b, 1, 2, 16),   // SW $2, 16($1)
+                                build_I_inst(0x2b, 1, 2, 20))); // SW $2, 20($1)
+        write_mem_seg(MEM_SEG, 32,
+                      inst_comb(0b0100001UL << 25 | 0b011000, 0)); // ERET
+    },
+    {
+        // after runing 4 cycles to fill
+        // trigger interrupt
+        inst_->interrupt_sources = 0b10000000; // trigger timer interrupt
+        // 3th and 4th cycle are ID and EX stage
+        EXPECT_EQ(FETCH_PC, 4 * 4);
+        tick();
+        inst_->interrupt_sources = 0;
+        tick();
+        EXPECT_EQ(FETCH_PC, 32); // jump to handler
+        tick();
+        EXPECT_EQ(FETCH_PC, 36);
+        tick();
+        EXPECT_EQ(FETCH_PC, 4 * 3); // ERET returns to 12
+        // so only 1st, 2nd executed
+        EXPECT_EQ(read_mem_seg(MEM_SEG, 0x100),
+                  (static_cast<uint64_t>(fixedVal<uint32_t>()) << 32) |
+                      fixedVal<uint32_t>());
+        EXPECT_EQ(read_mem_seg(MEM_SEG, 0x100 + 8), 0);
+    },
+    4);

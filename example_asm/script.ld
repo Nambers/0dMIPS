@@ -48,7 +48,7 @@ SECTIONS
 
     .stack (NOLOAD) : ALIGN(16) {
         _stack_bottom = .;
-        . += 0x100;
+        . += 0x200;
         PROVIDE(_stack_top = .);
     }
 }

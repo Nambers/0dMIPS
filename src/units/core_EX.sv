@@ -13,6 +13,7 @@ module core_EX (
     // -- forward --
     input forward_type_t forward_A,
     input forward_type_t forward_B,
+    input logic takenHandler,
     output EX_regs_t EX_regs
 );
     logic negative, overflow, zero, borrow_out;
@@ -169,7 +170,7 @@ module core_EX (
     end
 
     always_ff @(posedge clock, posedge reset) begin
-        if (reset || (flush & !ID_regs.linkpc)) begin
+        if (reset || (flush && (!ID_regs.linkpc || takenHandler))) begin
             EX_regs <= '0;
         end else begin
             EX_regs.out <= ext_out;
@@ -190,7 +191,6 @@ module core_EX (
             EX_regs.BAL <= ID_regs.BAL;
             EX_regs.pc_branch <= ID_regs.pc_branch;
             EX_regs.write_enable <= ID_regs.write_enable;
-            EX_regs.reserved_inst_E <= ID_regs.reserved_inst_E;
             EX_regs.signed_mem_out <= ID_regs.signed_mem_out;
             EX_regs.linkpc <= ID_regs.linkpc;
             EX_regs.cp0_rd <= ID_regs.cp0_rd;
