@@ -318,15 +318,18 @@ TestGenMemOnceCycleNoCheck(
                       inst_comb(0b0100001UL << 25 | 0b011000, 0)); // ERET
     },
     {
-        EXPECT_EQ(FETCH_PC, 4 * 6);
-        tick();
-        tick();
+        EXPECT_EQ(FETCH_PC, 4 * 5);
+        tick();                  // IF
+        tick();                  // ID
+        tick();                  // EX, overflow happened
         EXPECT_EQ(FETCH_PC, 32); // jump to handler
+        tick();                  // IF
+        tick();                  // ID, ERET resolved
         tick();
-        tick();
-        EXPECT_EQ(FETCH_PC, 4 * 6);
+        EXPECT_EQ(FETCH_PC,
+                  4 * 6); // 4 * 5 cause overflow, then ERET will return to next
     },
-    6);
+    5);
 
 TestGenMemOnceCycleNoCheck(
     INTERRUPT_AND_ERET,
@@ -349,11 +352,11 @@ TestGenMemOnceCycleNoCheck(
                       inst_comb(0b0100001UL << 25 | 0b011000, 0)); // ERET
     },
     {
-        // after runing 4 cycles to fill
+        // after runing 2 cycles to fill
         // trigger interrupt
         inst_->interrupt_sources = 0b10000000; // trigger timer interrupt
         // 3th and 4th cycle are ID and EX stage
-        EXPECT_EQ(FETCH_PC, 4 * 4);
+        EXPECT_EQ(FETCH_PC, 2 * 4);
         tick();
         inst_->interrupt_sources = 0;
         tick();
@@ -361,11 +364,17 @@ TestGenMemOnceCycleNoCheck(
         tick();
         EXPECT_EQ(FETCH_PC, 36);
         tick();
-        EXPECT_EQ(FETCH_PC, 4 * 3); // ERET returns to 12
-        // so only 1st, 2nd executed
+        EXPECT_EQ(FETCH_PC, 4 * 2); // ERET returns to 8
         EXPECT_EQ(read_mem_seg(MEM_SEG, 0x100),
                   (static_cast<uint64_t>(fixedVal<uint32_t>()) << 32) |
-                      fixedVal<uint32_t>());
+                      fixedVal<uint32_t>()); // so only 1st, 2nd executed
         EXPECT_EQ(read_mem_seg(MEM_SEG, 0x100 + 8), 0);
+        tick();
+        tick();
+        tick();
+        tick();
+        EXPECT_EQ(read_mem_seg(MEM_SEG, 0x100 + 8),
+                  (static_cast<uint64_t>(fixedVal<uint32_t>()) << 32) |
+                      fixedVal<uint32_t>());
     },
-    4);
+    2);

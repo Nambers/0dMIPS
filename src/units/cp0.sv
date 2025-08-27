@@ -58,11 +58,12 @@ module cp0 #(
         ERET || reset
     );
 
-    mux2v #(64) data_pc_mux (
+    mux3v #(64) data_pc_mux (
         EPC_D,
         wr_data,
-        curr_pc,
-        takenException || takenInterrupt
+        curr_pc,  // exception just return to ID
+        curr_pc + 64'd4, // interrupt need to return to next instruction(bc it will not shut the pipeline)
+        {takenInterrupt, takenException}
     );
     register #(64) EPC_reg (
         EPC,
@@ -114,29 +115,20 @@ module cp0 #(
 
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
-        if (regnum == BAD_INSTR_REGISTER)
-            $display("CP0: readBadInstr = %h", rd_data);
-        if (regnum == CAUSE_REGISTER && sel == 0)
-            $display("CP0: readCause = %h", rd_data);
-        if (regnum == STATUS_REGISTER && sel == 0)
-            $display("CP0: readStatus = %h", rd_data);
+        if (regnum == BAD_INSTR_REGISTER) $display("CP0: readBadInstr = %h", rd_data);
+        if (regnum == CAUSE_REGISTER && sel == 0) $display("CP0: readCause = %h", rd_data);
+        if (regnum == STATUS_REGISTER && sel == 0) $display("CP0: readStatus = %h", rd_data);
         if (syscall) $display("CP0: syscall, EPC = %h", EPC);
         if (takenHandler)
             $display(
-                "CP0: taken handler, ExcCode = %h, EPC wr = %h B_data = %h, pc = %h",
+                "CP0: taken handler, ExcCode = %h, EPC wr = %h B_data = %h, return pc = %h",
                 next_exc_code,
                 EPC_D,
                 wr_data,
                 curr_pc
             );
         if (ERET) $display("CP0: ERET, EPC = %h", EPC);
-        if (MTC0)
-            $display(
-                "CP0: MTC0, regnum = %d(sel=%d), data = %h",
-                regnum,
-                sel,
-                wr_data
-            );
+        if (MTC0) $display("CP0: MTC0, regnum = %d(sel=%d), data = %h", regnum, sel, wr_data);
 `endif
         if (reset) begin
             exc_code <= 5'h00;
