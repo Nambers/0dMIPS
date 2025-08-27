@@ -10,6 +10,7 @@ module cp0 #(
     input  logic [63:0] wr_data,
     input  logic [ 4:0] regnum,
     input  logic [ 2:0] sel,
+    input  logic [63:0] IF_pc,
     input  logic [63:0] curr_pc,
     input  logic        MTC0,
     input  logic        ERET,
@@ -18,8 +19,8 @@ module cp0 #(
     input  logic        reset,
     input  logic        overflow,
     input  logic        reserved_inst,
-    input  logic        syscall,
-    input  logic        break_
+    input  logic        break_,
+    input  logic        syscall
 );
     logic [4:0] exc_code  /* verilator public */, next_exc_code;
     /* verilator lint_off UNUSEDSIGNAL */
@@ -62,7 +63,7 @@ module cp0 #(
         EPC_D,
         wr_data,
         curr_pc,  // exception just return to ID
-        curr_pc + 64'd4, // interrupt need to return to next instruction(bc it will not shut the pipeline)
+        IF_pc,  // interrupt need to return to next instruction(bc it will not shut the pipeline)
         {takenInterrupt, takenException}
     );
     register #(64) EPC_reg (
@@ -118,6 +119,7 @@ module cp0 #(
         if (regnum == BAD_INSTR_REGISTER) $display("CP0: readBadInstr = %h", rd_data);
         if (regnum == CAUSE_REGISTER && sel == 0) $display("CP0: readCause = %h", rd_data);
         if (regnum == STATUS_REGISTER && sel == 0) $display("CP0: readStatus = %h", rd_data);
+        if (break_) $display("CP0: break, EPC = %h", EPC);
         if (syscall) $display("CP0: syscall, EPC = %h", EPC);
         if (takenHandler)
             $display(

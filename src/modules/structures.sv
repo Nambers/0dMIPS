@@ -118,6 +118,7 @@ package structures;
             MFC0,
             MTC0,
             ERET,
+            break_,
             syscall
         ;
         logic [31:0] inst;
@@ -135,6 +136,7 @@ package structures;
             zero,
             MFC0,
             MTC0,
+            break_,
             syscall,
             write_enable,
             BEQ,
@@ -154,9 +156,7 @@ package structures;
     typedef struct packed {
         logic [63:0] EPC, W_data;
         logic [4:0] W_regnum;
-        logic write_enable,
-            takenHandler
-        ;  // ofs being used, if change, also change coreTest
+        logic write_enable, takenHandler;  // ofs being used, if change, also change coreTest
 `ifdef DEBUGGER
         logic [31:0] inst;
         logic [63:0] pc;

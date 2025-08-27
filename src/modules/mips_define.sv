@@ -50,6 +50,7 @@ package mips_define;
     // deprecated in mips64r6, equivalent to JALR (w/ rd=0)
     localparam OP0_JR = 6'h08;
     localparam OP0_JALR = 6'h09;
+    localparam OP0_BREAK = 6'h0d;
     localparam OP0_DLSA = 6'h15;
     localparam OP0_ADD = 6'h20;
     localparam OP0_ADDU = 6'h21;

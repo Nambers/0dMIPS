@@ -255,6 +255,29 @@ TestGenMemOnceCycle(
     4);
 
 TestGenMemOnceCycleNoCheck(
+    BREAK_MFC0, const auto breakInst = ((fixedVal<uint32_t>() << 6) &
+                                        ((~0b111111UL) << 26)) |
+                                       0x0d;
+    {
+        inst_->core->branch_unit->interrupeHandlerAddr = 32;
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb(breakInst, // SYSCALL
+                                0));
+        write_mem_seg(
+            MEM_SEG, 32,
+            inst_comb(build_CP0_inst(0, 2, 8, 1), 0)); // MFC0 $2, 8, 1
+    },
+    {
+        EXPECT_EQ(FETCH_PC, 32);
+        tick();
+        tick();
+        tick();
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 2);
+        EXPECT_EQ(RF->W_data, breakInst); // badInstr
+    },
+    4); // handler written in MEM stage + 1 for jump
+TestGenMemOnceCycleNoCheck(
     SYSCALL_MFC0, const auto syscallInst = ((fixedVal<uint32_t>() << 6) &
                                             ((~0b111111UL) << 26)) |
                                            0b001100;

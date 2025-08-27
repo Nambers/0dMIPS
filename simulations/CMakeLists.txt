@@ -9,9 +9,9 @@ set(VGA_SRCS
 set(SDL3_ENABLED SOC_VGA VGA)
 set(CAPSTONE_DISABLED SOC_run)
 set(SOC_run_C_flag -O3 -flto)
+set(sim_VCD_dump OFF CACHE BOOL "Enable or disable VCD dump in simulation targets")
 
 find_package(SDL3)
-# find_package(capstone REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CAPSTONE REQUIRED capstone)
 
@@ -38,13 +38,24 @@ foreach(sim_src IN LISTS SIM_SOURCES)
     if(${target}_linker_flags)
         set_target_properties(${target_name} PROPERTIES LINK_FLAGS "${${target}_linker_flags}")
     endif()
-    verilate(${target_name}
-        SOURCES ${${srclist}}
-        TOP_MODULE ${base_target}
-        PREFIX ${unitCap}_sim
-        DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${target}
-        # TRACE_VCD
-    )
+
+    if(sim_VCD_dump)
+        verilate(${target_name}
+            SOURCES ${${srclist}}
+            TOP_MODULE ${base_target}
+            PREFIX ${unitCap}_sim
+            DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${target}
+            TRACE_VCD
+        )
+        target_compile_definitions(${target_name} PRIVATE TRACE)
+    else()
+        verilate(${target_name}
+            SOURCES ${${srclist}}
+            TOP_MODULE ${base_target}
+            PREFIX ${unitCap}_sim
+            DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${target}
+        )
+    endif()
     target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${target})
     if(NOT target IN_LIST CAPSTONE_DISABLED)
         target_link_libraries(${target_name} PRIVATE ${CAPSTONE_LIBRARIES})

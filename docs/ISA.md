@@ -76,6 +76,7 @@
 
 - `ERET` - Exception Return To Previous PC
 - `MFC0` / `MTC0` - Coprocessor0 Register Read / Write
+- `BREAK` - break
 - `SYSCALL` - System Call
 - `EHB` - enhanced Hazard Barrier (used to clear hazards in pipeline)
 

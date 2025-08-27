@@ -35,9 +35,9 @@ In order 5-stages pipeline MIPS64r6 SoC implementation with peripheral component
   - [x] Timer
   - [x] mock stdout
 - [ ] Cache
-- [ ] Interrupts
+- [x] Interrupts
   - [x] Timer interrupt
-  - [ ] Break
+  - [x] Break
   - [x] Syscall
 - [ ] ~~out-of-order execution~~ double-issue in-order
 - [ ] AXI

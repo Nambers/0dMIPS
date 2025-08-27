@@ -54,6 +54,7 @@ module core_MEM (
         .wr_data(EX_regs.B_data),
         .regnum(EX_regs.cp0_rd),
         .sel(EX_regs.sel),
+        .IF_pc(fetch_pc),
         .curr_pc(ID_pc),
         .MTC0(EX_regs.MTC0),
         .ERET(ID_ERET),
@@ -62,8 +63,8 @@ module core_MEM (
         .reset(reset),
         .overflow(EX_regs.overflow),
         .reserved_inst(ID_reserved_inst_E),
-        .syscall(EX_regs.syscall),
-        .break_(1'b0)  // TODO syscall, break
+        .break_(EX_regs.break_),
+        .syscall(EX_regs.syscall)
     );
 
     mux2v #(64) mfc0_mux (

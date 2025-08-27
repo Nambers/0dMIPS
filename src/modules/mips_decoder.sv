@@ -36,6 +36,7 @@ module mips_decoder (
     output logic                     MTC0,
     output logic                     ERET,
     output logic                     syscall,
+    output logic                     break_,
     output logic                     beq,
     output logic                     bne,
     output logic                     bc,
@@ -65,15 +66,7 @@ module mips_decoder (
     // sub family
     logic sub_inst, subu_inst, dsub_inst, sub_family;
     // LU ops
-    logic
-        or_inst,
-        ori_inst,
-        xor_inst,
-        xori_inst,
-        and_inst,
-        andi_inst,
-        nor_inst,
-        LU_family;
+    logic or_inst, ori_inst, xor_inst, xori_inst, and_inst, andi_inst, nor_inst, LU_family;
     // slt family
     logic sltu_inst, slt_inst, slti_inst, sltiu_inst, slt_family;
     // sll family
@@ -236,6 +229,8 @@ module mips_decoder (
         syscall = op0 && (funct == OP0_SYSCALL);
         CP0_family = MFC0_inst || MTC0_inst || ERET_inst;
 
+        break_ = op0 && (funct == OP0_BREAK);
+
         // op3
         seh_inst = op3 && (shamt == OP3_SEH) && (funct == OP3_FUNC_BSHFL) && no_rs;
         seb_inst = op3 && (shamt == OP3_SEB) && (funct == OP3_FUNC_BSHFL) && no_rs;
@@ -243,7 +238,7 @@ module mips_decoder (
 
         // --- control signal decoding ---
         // --- stage ID ---
-        except = !(add_family || addi_family || sub_family || LU_family || branch_family || j_family || lui_inst || slt_family || lw_family || lh_family || lb_family || ld_inst || store_family || nop_inst || sll_family || sra_family || srl_family || rotr_family || CP0_family || bal_inst || lsa_family || pcrel_family || se_family || syscall);
+        except = !(add_family || addi_family || sub_family || LU_family || branch_family || j_family || lui_inst || slt_family || lw_family || lh_family || lb_family || ld_inst || store_family || nop_inst || sll_family || sra_family || srl_family || rotr_family || CP0_family || bal_inst || lsa_family || pcrel_family || se_family || syscall || break_);
         // branch unit resolved in ID stage
         // jump to register
         control_type[1] = (jr_inst || jalr_inst) && !except;
@@ -284,10 +279,7 @@ module mips_decoder (
         lui_out = lui_inst && !except;
         // write back data = pc4
         linkpc = (jal_inst || jalr_inst || bal_inst) && !except;
-        slt_type[1:0] = {
-            (sltu_inst || sltiu_inst) && !except,
-            (slt_inst || slti_inst) && !except
-        };
+        slt_type[1:0] = {(sltu_inst || sltiu_inst) && !except, (slt_inst || slti_inst) && !except};
         // 0 = EX_stage out is alu, 1 = EX_stage out is barrel, 2 = Branch addr
         ex_out_src[0] = sll_family || srl_family || sra_family || rotr_family;
         ex_out_src[1] = addiupc_inst;

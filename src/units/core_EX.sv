@@ -184,6 +184,7 @@ module core_EX (
             EX_regs.mem_store_type <= ID_regs.mem_store_type;
             EX_regs.MFC0 <= ID_regs.MFC0;
             EX_regs.MTC0 <= ID_regs.MTC0;
+            EX_regs.break_ <= ID_regs.break_;
             EX_regs.syscall <= ID_regs.syscall;
             EX_regs.BEQ <= ID_regs.BEQ;
             EX_regs.BNE <= ID_regs.BNE;

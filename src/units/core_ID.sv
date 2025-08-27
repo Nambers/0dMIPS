@@ -59,6 +59,7 @@ module core_ID (
         MFC0,
         MTC0,
         ERET,
+        break_,
         syscall,
         BEQ,
         BNE,
@@ -93,6 +94,7 @@ module core_ID (
         .MFC0(MFC0),
         .MTC0(MTC0),
         .ERET(ERET),
+        .break_(break_),
         .syscall(syscall),
         .beq(BEQ),
         .bne(BNE),
@@ -140,7 +142,7 @@ module core_ID (
         B_data_badinst,
         B_data_forwarded,
         {32'b0, inst},
-        syscall || reserved_inst_E
+        break_ || syscall || reserved_inst_E
     );
 
     mux4v #(5) rd_mux (
@@ -170,12 +172,10 @@ module core_ID (
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
         if (MEM_regs.write_enable) begin
-            $display("writeback regnum = %d, data = %h", MEM_regs.W_regnum,
-                     MEM_regs.W_data);
+            $display("writeback regnum = %d, data = %h", MEM_regs.W_regnum, MEM_regs.W_data);
         end
         if (reserved_inst_E) begin
-            $display("reserved instruction detected op=0x%h, inst=0x%h",
-                     inst[31:26], inst);
+            $display("reserved instruction detected op=0x%h, inst=0x%h", inst[31:26], inst);
         end
 `endif
         // add bubble for load-use hazard instead of freeze-like stall
@@ -200,6 +200,7 @@ module core_ID (
             ID_regs.MFC0 <= MFC0;
             ID_regs.MTC0 <= MTC0;
             ID_regs.ERET <= ERET;
+            ID_regs.break_ <= break_;
             ID_regs.syscall <= syscall;
             ID_regs.BEQ <= BEQ;
             ID_regs.BNE <= BNE;
