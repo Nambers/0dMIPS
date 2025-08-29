@@ -77,10 +77,10 @@ package structures;
     } ext_src_t;
 
     typedef enum bit [1:0] {
-        SHIFTER   = 0,
+        SHIFTER = 0,
         ROTATOR,
-        SHIFTER32,
-        ROTATOR32
+        SIGN_SHIFTER32,
+        SIGN_ROTATOR32
     } cut_barrel_out32_t;
 
     typedef struct packed {logic [63:0] fetch_pc4, fetch_pc;} IF_regs_t;
@@ -104,6 +104,7 @@ package structures;
             write_enable,
             barrel_right,
             shift_arith,
+            rotator_src,
             barrel_src,
             barrel_sa_src,
             BEQ,
@@ -157,7 +158,9 @@ package structures;
     typedef struct packed {
         logic [63:0] EPC, W_data;
         logic [4:0] W_regnum;
-        logic write_enable, takenHandler;  // ofs being used, if change, also change coreTest
+        logic write_enable,
+            takenHandler
+        ;  // ofs being used, if change, also change coreTest
 `ifdef DEBUGGER
         logic [31:0] inst;
         logic [63:0] pc;

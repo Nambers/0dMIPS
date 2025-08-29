@@ -29,6 +29,7 @@ module mips_decoder (
     output EX_out_src_t              ex_out_src,
     output alu_a_src_t               alu_a_src,
     output alu_b_src_t               alu_b_src,
+    output logic                     rotator_src,
     output logic                     barrel_src,
     output logic                     barrel_sa_src,
     output cut_barrel_out32_t        cut_barrel_out32,
@@ -67,7 +68,15 @@ module mips_decoder (
     // sub family
     logic sub_inst, subu_inst, dsub_inst, sub_family;
     // LU ops
-    logic or_inst, ori_inst, xor_inst, xori_inst, and_inst, andi_inst, nor_inst, LU_family;
+    logic
+        or_inst,
+        ori_inst,
+        xor_inst,
+        xori_inst,
+        and_inst,
+        andi_inst,
+        nor_inst,
+        LU_family;
     // slt family
     logic sltu_inst, slt_inst, slti_inst, sltiu_inst, slt_family;
     // sll family
@@ -283,7 +292,10 @@ module mips_decoder (
         lui_out = lui_inst && !except;
         // write back data = pc4
         linkpc = (jal_inst || jalr_inst || bal_inst) && !except;
-        slt_type[1:0] = {(sltu_inst || sltiu_inst) && !except, (slt_inst || slti_inst) && !except};
+        slt_type[1:0] = {
+            (sltu_inst || sltiu_inst) && !except,
+            (slt_inst || slti_inst) && !except
+        };
         // 0 = EX_stage out is alu, 1 = EX_stage out is barrel, 2 = Branch addr
         ex_out_src[0] = sll_family || srl_family || sra_family || rotr_family;
         ex_out_src[1] = addiupc_inst;
@@ -293,9 +305,11 @@ module mips_decoder (
         // 0 = no cut, 1 = cut with sign extend, 2 = cut with zero extend
         cut_alu_out32[0] = (add_inst || addi_inst || sub_inst || lsa_inst) && !except;
         cut_alu_out32[1] = (addu_inst || addiu_inst || subu_inst) && !except;
-
+        // 0 = rotator in 64, 1 = rotator in 32
+        rotator_src = rotr_inst && !except;
+        // 0 = shifter, 1 = rotator, 2 = sign extend shifter, 3 = sign extend rotator
         cut_barrel_out32[0] = (drotr_inst || drotr32_inst || rotr_inst) && !except;
-        cut_barrel_out32[1] = (srl_inst || srlv_inst || sll_inst || rotr_inst) && !except;
+        cut_barrel_out32[1] = (srl_inst || srlv_inst || sll_inst || sra_inst || rotr_inst) && !except;
         // 0 = no change, 1 = move low 32 to high, 2 = move high 32 to low (fill with 0, no sign extend), 3 = exchange low and high
         barrel_plus32[0] = op0 && (dsll32_inst || drotr32_inst) && !except;
         barrel_plus32[1] = op0 && (dsrl32_inst || drotr32_inst) && !except;

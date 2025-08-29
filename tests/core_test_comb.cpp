@@ -6,6 +6,29 @@
 #include <Core_regfile__W40.h>
 
 TestGenMemCycle(
+    SLL_ADD,
+    {
+        WRITE_RF(1, val);
+        WRITE_RF(2, val);
+
+        // sll $1, $1, 4
+        // add $3, $1, $2
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb(build_R_inst(0, 0, 1, 1, 4, 0),
+                                build_R_inst(0, 1, 2, 3, 0, 0x24)));
+    },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data, (val << 4) & 0xFFFFFFFF);
+        tick();
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 3);
+        EXPECT_EQ(RF->W_data, (((val << 4) & 0xFFFFFFFF) + val));
+    },
+    3);
+
+TestGenMemCycle(
     BEQ_Multi,
     {
         WRITE_RF(1, val);

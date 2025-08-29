@@ -55,6 +55,7 @@ module core_ID (
         linkpc,
         barrel_right,
         shift_arith,
+        rotator_src,
         barrel_src,
         barrel_sa_src,
         MFC0,
@@ -89,6 +90,7 @@ module core_ID (
         .ex_out_src(ex_out_src),
         .alu_a_src(alu_a_src),
         .alu_b_src(alu_b_src),
+        .rotator_src(rotator_src),
         .barrel_src(barrel_src),
         .barrel_sa_src(barrel_sa_src),
         .cut_barrel_out32(cut_barrel_out32),
@@ -198,6 +200,7 @@ module core_ID (
             ID_regs.barrel_right <= barrel_right;
             ID_regs.shift_arith <= shift_arith;
             ID_regs.ex_out_src <= ex_out_src;
+            ID_regs.rotator_src <= rotator_src;
             ID_regs.barrel_src <= barrel_src;
             ID_regs.barrel_sa_src <= barrel_sa_src;
             ID_regs.MFC0 <= MFC0;
