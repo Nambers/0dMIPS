@@ -17,6 +17,7 @@ module core_EX (
     output EX_regs_t EX_regs
 );
     logic negative, overflow, zero, borrow_out;
+    logic [4:0] barrel_sa;
     logic [63:0]
         B_in_barrel,
         A_in_barrel,
@@ -78,6 +79,13 @@ module core_EX (
         ID_regs.barrel_src
     );
 
+    mux2v #(5) barrel_sa_mux (
+        barrel_sa,
+        ID_regs.shamt,
+        forwarded_A[4:0],
+        ID_regs.barrel_sa_src
+    );
+
     // -- ALU --
     alu #(64) alu_ (
         .out(alu_tmp_out),
@@ -101,14 +109,14 @@ module core_EX (
     barrel_shifter32 #(64) shifter (
         shifter_tmp_out,
         barrel_in,
-        ID_regs.shamt,
+        barrel_sa,
         ID_regs.barrel_right,
         ID_regs.shift_arith
     );
     barrel_rotator32 #(64) rotator (
         rotator_tmp_out,
         barrel_in,
-        ID_regs.shamt,
+        barrel_sa,
         ID_regs.barrel_right
     );
     mux4v #(64) cut_barrel_out (

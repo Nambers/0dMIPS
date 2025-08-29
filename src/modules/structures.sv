@@ -105,6 +105,7 @@ package structures;
             barrel_right,
             shift_arith,
             barrel_src,
+            barrel_sa_src,
             BEQ,
             BNE,
             BC,

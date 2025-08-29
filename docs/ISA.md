@@ -28,6 +28,7 @@
   - `NOR` - Bitwise NOR
 - Shift Operations
   - `SLL` / `SRL` / `SRA` - Regular Shift
+  - `SRLV` - Variable Shift
   - `DSLL`₆₄ / `DSRL`₆₄ / `DSRA`₆₄ - Double Word Shift
   - `DSLL32`₆₄ / `DSRL32`₆₄ - Double Word Shift Logical Plus 32 (shift 32-63 bits)
 - Rotate Operations

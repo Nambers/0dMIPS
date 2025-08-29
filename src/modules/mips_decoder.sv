@@ -30,6 +30,7 @@ module mips_decoder (
     output alu_a_src_t               alu_a_src,
     output alu_b_src_t               alu_b_src,
     output logic                     barrel_src,
+    output logic                     barrel_sa_src,
     output cut_barrel_out32_t        cut_barrel_out32,
     output alu_cut_t                 cut_alu_out32,
     output logic                     MFC0,
@@ -72,7 +73,7 @@ module mips_decoder (
     // sll family
     logic dsll32_inst, dsll_inst, sll_inst, sll_family;
     // srl family
-    logic dsrl_inst, dsrl32_inst, srl_inst, srl_family;
+    logic dsrl_inst, dsrl32_inst, srl_inst, srlv_inst, srl_family;
     // sra family
     logic dsra_inst, sra_inst, sra_family;
     // rot family
@@ -168,7 +169,8 @@ module mips_decoder (
         dsrl_inst = op0 && (funct == OP0_DSRL) && no_rs;
         dsrl32_inst = op0 && (funct == OP0_DSRL32) && no_rs;
         srl_inst = op0 && (funct == OP0_SRL) && no_rs;
-        srl_family = dsrl_inst || dsrl32_inst || srl_inst;
+        srlv_inst = op0 && (funct == OP0_SRLV) && shamt == 5'd0;
+        srl_family = dsrl_inst || dsrl32_inst || srl_inst || srlv_inst;
 
         rotr_inst = op0 && (funct == OP0_SRL) && (rs == 5'd1);
         drotr_inst = op0 && (funct == OP0_DSRL) && (rs == 5'd1);
@@ -270,6 +272,8 @@ module mips_decoder (
         alu_a_src[0] = lsa_family && !except;
         // 0 = B data, 1 = A data
         barrel_src = lsa_family;
+        // 0 = shamt, 1 = rs
+        barrel_sa_src = srlv_inst;
 
         // 0 = origin, 1 = shift, 2 = signed ext immediate, 3 = zero ext immediate
         alu_b_src[0] = (andi_inst || ori_inst || xori_inst) && !except;
@@ -291,7 +295,7 @@ module mips_decoder (
         cut_alu_out32[1] = (addu_inst || addiu_inst || subu_inst) && !except;
 
         cut_barrel_out32[0] = (drotr_inst || drotr32_inst || rotr_inst) && !except;
-        cut_barrel_out32[1] = (srl_inst || sll_inst || rotr_inst) && !except;
+        cut_barrel_out32[1] = (srl_inst || srlv_inst || sll_inst || rotr_inst) && !except;
         // 0 = no change, 1 = move low 32 to high, 2 = move high 32 to low (fill with 0, no sign extend), 3 = exchange low and high
         barrel_plus32[0] = op0 && (dsll32_inst || drotr32_inst) && !except;
         barrel_plus32[1] = op0 && (dsrl32_inst || drotr32_inst) && !except;

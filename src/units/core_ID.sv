@@ -56,6 +56,7 @@ module core_ID (
         barrel_right,
         shift_arith,
         barrel_src,
+        barrel_sa_src,
         MFC0,
         MTC0,
         ERET,
@@ -89,6 +90,7 @@ module core_ID (
         .alu_a_src(alu_a_src),
         .alu_b_src(alu_b_src),
         .barrel_src(barrel_src),
+        .barrel_sa_src(barrel_sa_src),
         .cut_barrel_out32(cut_barrel_out32),
         .cut_alu_out32(alu_cut),
         .MFC0(MFC0),
@@ -197,6 +199,7 @@ module core_ID (
             ID_regs.shift_arith <= shift_arith;
             ID_regs.ex_out_src <= ex_out_src;
             ID_regs.barrel_src <= barrel_src;
+            ID_regs.barrel_sa_src <= barrel_sa_src;
             ID_regs.MFC0 <= MFC0;
             ID_regs.MTC0 <= MTC0;
             ID_regs.ERET <= ERET;

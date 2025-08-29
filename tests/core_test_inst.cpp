@@ -112,6 +112,9 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
 #define Arith32ShamtRS1(name, opcode, overflow_expr, expr, num)                \
     TestGenArithR(name, 1, num, opcode, sign_extend((expr) & MASK32, 32),      \
                   TEST32OVERFLOW(overflow_expr), 0);
+#define Arith32V(name, opcode, overflow_expr, expr, num)                       \
+    TestGenArithR(name, 1, 0, opcode, sign_extend((expr) & MASK32, 32),        \
+                  TEST32OVERFLOW(overflow_expr), num);
 
 #define TestAdd(AName, expr, num)                                              \
     Arith32(ADD##AName, 0x20, static_cast<int64_t>(num) + val, expr, num)
@@ -138,6 +141,8 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
     Arith32ShamtRS1(ROTR##AName, 0x02,                                         \
                     ((val & MASK16) >> num) | ((val & MASK16) << (16 - num)),  \
                     expr, num);
+#define TestSRLV(AName, expr, num)                                             \
+    Arith32(SRLV##AName, 0x06, (val & MASK16) >> (num & 0x1f), expr, num);
 
 #define Arith64(name, opcode, overflow_expr, expr, num)                        \
     TestGenArithR(name, 1, 0, opcode, expr, TEST64OVERFLOW(overflow_expr), num);
@@ -155,22 +160,27 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
 TestGenArith2(TestAnd, val &);
 TestGenArith2(TestOr, val |);
 TestGenArith2(TestXor, val ^);
-TestSLL(Pos, ((val & MASK16) << 1), 1);
+TestSLL(1, ((val & MASK16) << 1), 1);
+TestSLL(3, ((val & MASK16) << 3), 3);
 // TestSLL(Neg, ((val & MASK16) << (-1)), -1);
-TestSRL(Pos, ((val & MASK16) >> 1), 1);
+TestSRL(1, ((val & MASK16) >> 1), 1);
+TestSRL(5, ((val & MASK16) >> 5), 5);
 // TestSRL(Neg, ((val & MASK16) >> (-1)), -1);
-TestSRA(Pos, ((val & MASK16) >> 1) | ((val & MASK16) & 0x8000 ? 0xffff0000 : 0),
+TestSRA(1, ((val & MASK16) >> 1) | ((val & MASK16) & 0x8000 ? 0xffff0000 : 0),
         1);
-TestNor(Pos, ~(val | 1), 1);
-TestNor(Neg, ~(val | (-1)), -1);
-TestROTR(Pos, ((val & MASK16) >> 1) | ((val & MASK16) << 15), 1);
+TestNor(1, ~(val | 1), 1);
+TestNor(f, ~(val | 0xf), 0xf);
+TestNor(Neg1, ~(val | (-1)), -1);
+TestROTR(1, ((val & MASK16) >> 1) | ((val & MASK16) << 15), 1);
+TestSRLV(1, (val & MASK16) >> (1 & 0x1f), 1);
+TestSRLV(5, (val & MASK16) >> (5 & 0x1f), 5);
 
 TestGenArith2(TestAdd, val +);
 TestGenArith2(TestAddU, val +);
 TestGenArith2(TestDAdd, val +);
 TestGenArith2(TestDAddU, val +);
-TestDsll32(Pos, ((val & MASK32) << 1), 1);
-TestDrotr(Pos, ((val & MASK16) >> 1) | ((val & MASK16) << 15), 1);
+TestDsll32(1, ((val & MASK32) << 1), 1);
+TestDrotr(1, ((val & MASK16) >> 1) | ((val & MASK16) << 15), 1);
 
 #define TestSub(AName, expr, num)                                              \
     Arith32(SUB##AName, 0x22, static_cast<int64_t>(num) - val, expr, num);
