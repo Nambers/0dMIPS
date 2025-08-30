@@ -110,7 +110,7 @@ module core_ID (
         .rs(rs),
         .rt(rt),
         .rd(rd),
-        .shamt(shamt),
+        .shamt_out(shamt),
         .B_is_reg(B_is_reg),
         .inst(inst)
     );

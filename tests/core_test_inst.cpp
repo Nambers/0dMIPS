@@ -453,15 +453,14 @@ TestGenMem(
         WRITE_RF(1, val);
         WRITE_RF(2, fixedVal<uint64_t>());
         write_mem_seg(MEM_SEG, 0,
-                      inst_comb((2ULL << 21) | (1ULL << 16) | (3ULL << 11) |
-                                    (4 << 6) | 0b101,
+                      inst_comb(build_R_inst(0, 2, 1, 3, 4, 0b101),
                                 0)); // lsa $3, $2, $1, 4
     },
     {
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 3);
         EXPECT_EQ(RF->W_data,
-                  sign_extend((fixedVal<uint64_t>() << 4) + val, 32));
+                  sign_extend((fixedVal<uint64_t>() << (4 + 1)) + val, 32));
     });
 TestGenMem(
     DLSA,
@@ -469,14 +468,13 @@ TestGenMem(
         WRITE_RF(1, val);
         WRITE_RF(2, fixedVal<uint64_t>());
         write_mem_seg(MEM_SEG, 0,
-                      inst_comb((2ULL << 21) | (1ULL << 16) | (3ULL << 11) |
-                                    (4 << 6) | 0b10101,
+                      inst_comb(build_R_inst(0, 2, 1, 3, 4, 0b10101),
                                 0)); // lsa $3, $2, $1, 4
     },
     {
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 3);
-        EXPECT_EQ(RF->W_data, (fixedVal<uint64_t>() << 4) + val);
+        EXPECT_EQ(RF->W_data, (fixedVal<uint64_t>() << (4 + 1)) + val);
     });
 
 TestGenMemOnce(

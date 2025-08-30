@@ -49,7 +49,7 @@ module mips_decoder (
     output logic              [ 4:0] rs,
     output logic              [ 4:0] rt,
     output logic              [ 4:0] rd,
-    output logic              [ 4:0] shamt,
+    output logic              [ 4:0] shamt_out,
     output logic                     B_is_reg,
     /* verilator lint_off UNUSEDSIGNAL */
     input  logic              [31:0] inst
@@ -59,6 +59,7 @@ module mips_decoder (
 
     // extract
     logic [5:0] opcode, funct;
+    logic [4:0] shamt;
     logic op0, opr, op_pcrel, op3, co, no_shamt, no_rs;
     logic ehb_inst;
     // add family
@@ -121,7 +122,6 @@ module mips_decoder (
         op_pcrel = (opcode == OP_PCREL);
         op3 = (opcode == OP_SPECIAL3);
         co = inst[25];
-        // lsa was need to + 1 but seems compiler already did it
         shamt = inst[10:6];
         no_shamt = (inst[10:6] == '0);
         rs = inst[25:21];
@@ -224,8 +224,6 @@ module mips_decoder (
         bc_inst = (opcode == OP_BC);
         branch_family = beq_inst || bne_inst || bc_inst;
 
-        // idk why but seems like compiler don't care about SA are 2 bits and it already + 1 in ISA
-        // e.g.  007d1895        dlsa    v1,v1,sp,0x3
         lsa_inst = op0 && (funct == OP0_LSA) && (inst[10:9] == '0);
         dlsa_inst = op0 && (funct == OP0_DLSA) && (inst[10:9] == '0);
         lsa_family = lsa_inst || dlsa_inst;
@@ -280,9 +278,9 @@ module mips_decoder (
         // 0 = A data, 1 = shifter output, 2 = PC
         alu_a_src[0] = lsa_family && !except;
         // 0 = B data, 1 = A data
-        barrel_src = lsa_family;
+        barrel_src = lsa_family && !except;
         // 0 = shamt, 1 = rs
-        barrel_sa_src = srlv_inst;
+        barrel_sa_src = srlv_inst && !except;
 
         // 0 = origin, 1 = shift, 2 = signed ext immediate, 3 = zero ext immediate
         alu_b_src[0] = (andi_inst || ori_inst || xori_inst) && !except;
@@ -316,6 +314,8 @@ module mips_decoder (
 
         ext_src[0] = (seb_inst) && !except;
         ext_src[1] = (seh_inst) && !except;
+
+        shamt_out = shamt + {4'b0, lsa_family};
 
         // --- stage MEM ---
         // 0b001 byte, 0b010 half, 0b011 word, 0b100 double word

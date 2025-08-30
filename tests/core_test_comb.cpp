@@ -29,6 +29,33 @@ TestGenMemCycle(
     3);
 
 TestGenMemCycle(
+    LW_LSA,
+    {
+        WRITE_RF(2, fixedVal<uint64_t>());
+
+        // lw $1, 16($0)
+        // lsa $3, $2, $1, 4
+        write_mem_seg(MEM_SEG, 0,
+                      inst_comb(build_I_inst(0x23, 0, 1, 16),
+                                build_R_inst(0, 2, 1, 3, 4, 0b101)));
+        write_mem_seg(MEM_SEG, 16, val);
+    },
+    {
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 1);
+        EXPECT_EQ(RF->W_data, sign_extend(val, 32));
+        tick();
+        // load-use
+        tick();
+        EXPECT_TRUE(RF->wr_enable);
+        EXPECT_EQ(RF->W_addr, 3);
+        EXPECT_EQ(RF->W_data, sign_extend((fixedVal<uint64_t>() << (4 + 1)) +
+                                              sign_extend(val, 32),
+                                          32));
+    },
+    3);
+
+TestGenMemCycle(
     BEQ_Multi,
     {
         WRITE_RF(1, val);
