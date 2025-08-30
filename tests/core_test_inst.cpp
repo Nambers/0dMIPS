@@ -114,8 +114,7 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
 #define Arith32Shamt(name, opcode, expr, num)                                  \
     TestGenArithR(name, 0, num, opcode, sign_extend(expr, 32), 0, 0);
 #define Arith32ShamtRS1(name, opcode, expr, num)                               \
-    TestGenArithR(name, 1, num, opcode, sign_extend(expr, 32),                 \
-                  TEST32OVERFLOW(expr), 0);
+    TestGenArithR(name, 1, num, opcode, sign_extend(expr, 32), 0, 0);
 #define TestAdd(AName, expr, num)                                              \
     Arith32_overflow(ADD##AName, 0x20, static_cast<int64_t>(num) + val, expr,  \
                      num)
@@ -127,8 +126,7 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
 #define TestSRA(AName, num) Arith32Shamt(SRA##AName, 0x03, val >> num, num);
 #define TestROTR(AName, num)                                                   \
     Arith32ShamtRS1(ROTR##AName, 0x02, (val >> num) | (val << (32 - num)), num);
-#define TestSRLV(AName, num)                                                   \
-    Arith32(SRLV##AName, 0x06, val >> num , num);
+#define TestSRLV(AName, num) Arith32(SRLV##AName, 0x06, val >> num, num);
 #define TestSub(AName, expr, num)                                              \
     Arith32_overflow(SUB##AName, 0x22, static_cast<int64_t>(num) - val, expr,  \
                      num);
@@ -141,6 +139,10 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
     TestGenArithR(name, 1, 0, opcode, expr, TEST64OVERFLOW(overflow_expr), num);
 #define Arith64(name, opcode, expr, num)                                       \
     TestGenArithR(name, 1, 0, opcode, expr, 0, num);
+#define Arith64Shamt(name, opcode, expr, num)                                  \
+    TestGenArithR(name, 0, num, opcode, expr, 0, 0);
+#define Arith64ShamtRS1(name, opcode, expr, num)                               \
+    TestGenArithR(name, 1, num, opcode, expr, 0, 0);
 #define TestDAdd(AName, expr, num)                                             \
     Arith64_overflow(DADD##AName, 0x2c, static_cast<int64_t>(num) + val, expr, \
                      num)
@@ -148,9 +150,10 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
     Arith64_overflow(DADDU##AName, 0x2d, static_cast<int64_t>(num) + val,      \
                      expr, num);
 #define TestDsll32(AName, num)                                                 \
-    Arith64(DSLL32##AName, 0x3c, val << (num + 32), num);
+    Arith64Shamt(DSLL32##AName, 0x3c, val << (num + 32), num);
 #define TestDrotr(AName, num)                                                  \
-    Arith64(Drotr##AName, 0x3a, (val >> num) | (val << (64 - num)), num);
+    Arith64ShamtRS1(Drotr##AName, 0x3a, (val >> num) | (val << (64 - num)),    \
+                    num);
 #define TestAnd(AName, num) Arith64(AND##AName, 0x24, val &num, num);
 #define TestOr(AName, num) Arith64(OR##AName, 0x25, val | num, num);
 #define TestXor(AName, num) Arith64(XOR##AName, 0x26, val ^ num, num);
@@ -239,7 +242,7 @@ TestGenMem(
 #define TestOrI(AName, num)                                                    \
     ArithI64(ORI##AName, 0xd, (val & MASK16) | num, num);
 #define TestXorI(AName, num)                                                   \
-    ArithI64(XORI##AName, 0xe, (val & MASK16) ^ num , num);
+    ArithI64(XORI##AName, 0xe, (val & MASK16) ^ num, num);
 
 TestGenArith2_overflow(TestAddI, val +);
 TestGenArith2_overflow(TestAddIU, val +);

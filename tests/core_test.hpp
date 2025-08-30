@@ -115,7 +115,7 @@ inline VlWide<5> buildMemRegs(int addr, uint64_t data) {
 
 #define TestGenMemCycle(name, init_test, check_result, cycle)                  \
     TEST_F(CoreTest, name) {                                                   \
-        for (const auto val : common_boundary_cases) {                         \
+        for (const uint64_t val : common_boundary_cases) {                         \
             reset();                                                           \
             init_test;                                                         \
             RESET_PC();                                                        \

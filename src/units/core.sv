@@ -46,7 +46,7 @@ module core #(
         .ID_rt(ID_regs.inst[20:16]),
         .ID_B_is_reg(ID_regs.B_is_reg),
         .EX_rd(EX_regs.W_regnum),
-        .EX_alu_writeback(EX_regs.write_enable & ~(|EX_regs.mem_load_type)),
+        .EX_alu_writeback(EX_regs.write_enable && !(|EX_regs.mem_load_type)),
         .MEM_rd(MEM_regs.W_regnum),
         .MEM_mem_writeback(MEM_regs.write_enable),
         .forward_A(forward_A),
