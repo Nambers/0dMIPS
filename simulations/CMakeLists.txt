@@ -44,6 +44,7 @@ foreach(sim_src IN LISTS SIM_SOURCES)
             SOURCES ${${srclist}}
             TOP_MODULE ${base_target}
             PREFIX ${unitCap}_sim
+            VERILATOR_ARGS 
             DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${target}
             TRACE_VCD
         )
@@ -53,6 +54,7 @@ foreach(sim_src IN LISTS SIM_SOURCES)
             SOURCES ${${srclist}}
             TOP_MODULE ${base_target}
             PREFIX ${unitCap}_sim
+            VERILATOR_ARGS 
             DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${target}
         )
     endif()
@@ -90,6 +92,7 @@ foreach(debug_src IN LISTS DEBUG_SOURCES)
         SOURCES ${${srclist}}
         TOP_MODULE ${base_target}
         PREFIX ${unitCap}_debug
+        VERILATOR_ARGS 
         DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${target}
         TRACE_VCD
         VERILATOR_ARGS +define+DEBUG
@@ -117,6 +120,7 @@ else()
         SOURCES ${SOC_SRCS}
         TOP_MODULE SOC
         PREFIX SOC_sim
+        VERILATOR_ARGS 
         DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/debugger_tui
         VERILATOR_ARGS +define+DEBUGGER
     )

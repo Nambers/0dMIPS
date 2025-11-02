@@ -16,8 +16,8 @@ module cache_L1 #(
     parameter CACHE_LINE_SIZE = 64 * 8,        // 64 Bytes per line
     parameter MEM_BUS_WIDTH   = 16 * 8         // 16 Bytes
 ) (
-    input logic clk,
-    input logic rst,
+    input logic clock,
+    input logic reset,
     input logic [63:0] addr,
     input logic [63:0] wdata,
     input mem_load_type_t mem_load_type,
@@ -25,11 +25,10 @@ module cache_L1 #(
     output logic [63:0] rdata,
 
     // L2 interface
-    output mem_load_type_t next_mem_load_type,
-    output mem_store_type_t next_mem_store_type,
+    output logic mem_req_load,
+    output logic mem_req_store,
     output logic [63:0] mem_addr,
-    output logic [CACHE_LINE_SIZE-1:0] mem_wdata,
-    input logic [CACHE_LINE_SIZE-1:0] mem_rdata,
+    inout wire [CACHE_LINE_SIZE-1:0] mem_data,
     input logic mem_ready
 );
     localparam WIDTH = 64;
@@ -61,11 +60,11 @@ module cache_L1 #(
     logic hit_way = way_hit[1];
     logic replace_way = LRU_way_array[index];
 
-    logic hit = |way_hit;
+    logic hit  /* verilator public */ = |way_hit;
     logic dirty_wb = valid_array[replace_way][index] && dirty_array[replace_way][index];
 
-    always_ff @(posedge clk, posedge rst) begin
-        if (rst) begin
+    always_ff @(posedge clock, posedge reset) begin
+        if (reset) begin
             // Reset logic
             integer w, e;
             for (w = 0; w < CACHE_WAYS; w = w + 1) begin
@@ -79,55 +78,64 @@ module cache_L1 #(
                 // store dirty cache, then load new cache line
                 // is will take at least 2 cycles
                 if (dirty_wb) begin
-                    next_mem_store_type <= STORE_DWORD;
-                    mem_addr <= {tag_array[replace_way][index], index, {OFFSET_BITS{1'b0}}};
-                    next_mem_load_type <= NO_LOAD;
+                    mem_req_store <= 1'b1;
+                    mem_addr <= {
+                        tag_array[replace_way][index],
+                        index,
+                        {OFFSET_BITS{1'b0}}
+                    };
+                    mem_req_load <= 1'b0;
                 end else begin
-                    next_mem_store_type <= NO_STORE;
+                    mem_req_store <= 1'b0;
                     mem_addr <= {tag, index, {OFFSET_BITS{1'b0}}};
-                    next_mem_load_type <= LOAD_DWORD;
+                    mem_req_load <= 1'b1;
                 end
-                mem_wdata <= data_array[replace_way][index];
+                mem_data = data_array[replace_way][index];
                 if (mem_ready) begin
                     if (dirty_wb) begin
                         // write back finished
 `ifdef DEBUG
                         $display(
-                            "Cache L1: write back dirty cache, addr = %h, tag = %h, index = %h", {
-                            tag_array[replace_way][index], index});
+                            "Cache L1: write back dirty cache, addr = %h, tag = %h, index = %h",
+                            {tag_array[replace_way][index], index});
 `endif
                         dirty_array[replace_way][index] <= 1'b0;
-                        next_mem_store_type <= NO_STORE;
+                        mem_req_store <= 1'b0;
                     end else begin
                         // load new cache finished
 `ifdef DEBUG
-                        $display("Cache L1: load new cache line, addr = %h, index = %h", addr);
+                        $display(
+                            "Cache L1: load new cache line, addr = %h, index = %h",
+                            addr);
 `endif
-                        tag_array[replace_way][index] <= tag;
+                        tag_array[replace_way][index]   <= tag;
                         valid_array[replace_way][index] <= 1'b1;
                         dirty_array[replace_way][index] <= 1'b0;
-                        data_array[replace_way][index] <= mem_rdata;
+                        data_array[replace_way][index] = mem_data;
                         LRU_way_array[index] <= ~replace_way;
-                        next_mem_load_type <= NO_LOAD;
+                        mem_req_load <= 1'b0;
                         // TODO: eliminate duplication code
                         case (mem_load_type)
                             LOAD_BYTE: begin
                                 rdata <= {
-                                    {(WIDTH - 8) {mem_rdata[offset*8+7]}}, mem_rdata[offset*8+:8]
+                                    {(WIDTH - 8) {mem_data[offset*8+7]}},
+                                    mem_data[offset*8+:8]
                                 };
                             end
                             LOAD_HALF: begin
                                 rdata <= {
-                                    {(WIDTH - 16) {mem_rdata[offset*8+15]}}, mem_rdata[offset*8+:16]
+                                    {(WIDTH - 16) {mem_data[offset*8+15]}},
+                                    mem_data[offset*8+:16]
                                 };
                             end
                             LOAD_WORD: begin
                                 rdata <= {
-                                    {(WIDTH - 32) {mem_rdata[offset*8+31]}}, mem_rdata[offset*8+:32]
+                                    {(WIDTH - 32) {mem_data[offset*8+31]}},
+                                    mem_data[offset*8+:32]
                                 };
                             end
                             LOAD_DWORD: begin
-                                rdata <= mem_rdata[offset*8+:64];
+                                rdata <= mem_data[offset*8+:64];
                             end
                             NO_LOAD: rdata <= 'x;
                             default: rdata <= 'x;
@@ -176,7 +184,7 @@ module cache_L1 #(
                     default: ;  // do nothing for NO_STORE
                 endcase
                 LRU_way_array[index] <= ~hit_way;
-                dirty_array[hit_way][index] <= (mem_store_type != NO_STORE) ? 1'b1 : dirty_array[hit_way][index];
+                dirty_array[hit_way][index] <= (|mem_store_type) || dirty_array[hit_way][index];
             end
         end
     end
