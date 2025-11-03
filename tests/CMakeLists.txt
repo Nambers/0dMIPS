@@ -30,7 +30,7 @@ foreach(target IN LISTS UNITS)
         SOURCES ${${target}_SRCS}
         TOP_MODULE ${target}
         PREFIX ${unitCap}
-        VERILATOR_ARGS 
+        VERILATOR_ARGS --pins-inout-enables
         DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${target}
         COVERAGE
     )

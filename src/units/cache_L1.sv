@@ -33,6 +33,7 @@ module cache_L1 #(
 );
     localparam WIDTH = 64;
     localparam CACHE_WAYS = 2;
+    localparam CACHE_WAYS_BITS = $clog2(CACHE_WAYS);
     localparam CACHE_ENTRIES = CACHE_SIZE / CACHE_WAYS / CACHE_LINE_SIZE;
 
     logic [TAG_BITS-1:0] tag_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0];
@@ -41,97 +42,90 @@ module cache_L1 #(
     logic LRU_way_array[CACHE_ENTRIES-1:0];
     logic [CACHE_LINE_SIZE-1:0] data_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0];
 
-    localparam OFFSET_BITS = $clog2(CACHE_LINE_SIZE);
+    localparam OFFSET_BITS = $clog2(CACHE_LINE_SIZE / 8);
     localparam INDEX_BITS = $clog2(CACHE_ENTRIES);
     localparam TAG_BITS = WIDTH - INDEX_BITS - OFFSET_BITS;
 
     logic [TAG_BITS-1:0] tag;
     logic [INDEX_BITS-1:0] index;
     logic [OFFSET_BITS-1:0] offset;
-    assign {tag, index, offset} = addr;
 
-    logic [CACHE_WAYS - 1 : 0] way_hit;
-    genvar i;
-    generate
-        for (i = 0; i < CACHE_WAYS; i++) begin : WAY_CHECK
-            assign way_hit[i] = valid_array[i][index] && (tag_array[i][index] == tag);
-        end
-    endgenerate
-    logic hit_way = way_hit[1];
-    logic replace_way = LRU_way_array[index];
+    logic [CACHE_WAYS - 1 : 0] way_hit  /* verilator public */;
+    logic hit_way_idx;
+    logic replace_way;
+    logic dirty_wb;
 
-    logic hit  /* verilator public */ = |way_hit;
-    logic dirty_wb = valid_array[replace_way][index] && dirty_array[replace_way][index];
+    always_comb begin
+        {tag, index, offset} = addr;
+        way_hit = {
+            valid_array[1][index] && (tag_array[1][index] == tag),
+            valid_array[0][index] && (tag_array[0][index] == tag)
+        };
+        hit_way_idx = way_hit[1];
+        replace_way = LRU_way_array[index];
+        dirty_wb = valid_array[replace_way][index] && dirty_array[replace_way][index];
+    end
 
     always_ff @(posedge clock, posedge reset) begin
         if (reset) begin
             // Reset logic
-            integer w, e;
-            for (w = 0; w < CACHE_WAYS; w = w + 1) begin
-                for (e = 0; e < CACHE_ENTRIES; e = e + 1) begin
-                    valid_array[w][e] <= 1'b0;
-                    dirty_array[w][e] <= 1'b0;
-                end
-            end
+            valid_array   <= '{default: '{default: '0}};
+            dirty_array   <= '{default: '{default: '0}};
+            LRU_way_array <= '{default: '0};
         end else begin
-            if (!hit) begin
+            if (!(|way_hit)) begin
                 // store dirty cache, then load new cache line
                 // is will take at least 2 cycles
-                if (dirty_wb) begin
-                    mem_req_store <= 1'b1;
-                    mem_addr <= {
-                        tag_array[replace_way][index],
-                        index,
-                        {OFFSET_BITS{1'b0}}
-                    };
-                    mem_req_load <= 1'b0;
+                if (!mem_ready) begin
+                    // request phase
+                    if (dirty_wb) begin
+                        mem_req_store <= 1'b1;
+                        mem_req_load <= 1'b0;
+                        mem_addr <= {tag_array[replace_way][index], index, {OFFSET_BITS{1'b0}}};
+                        mem_data = data_array[replace_way][index];
+                    end else begin
+                        mem_req_store <= 1'b0;
+                        mem_req_load <= 1'b1;
+                        mem_addr <= {tag, index, {OFFSET_BITS{1'b0}}};
+                    end
                 end else begin
-                    mem_req_store <= 1'b0;
-                    mem_addr <= {tag, index, {OFFSET_BITS{1'b0}}};
-                    mem_req_load <= 1'b1;
-                end
-                mem_data = data_array[replace_way][index];
-                if (mem_ready) begin
+                    // response phase
                     if (dirty_wb) begin
                         // write back finished
 `ifdef DEBUG
                         $display(
-                            "Cache L1: write back dirty cache, addr = %h, tag = %h, index = %h",
-                            {tag_array[replace_way][index], index});
+                            "Cache L1: writed back dirty cache, addr = %h, tag = %h, index = %h",
+                            mem_addr, tag_array[replace_way][index], index);
 `endif
                         dirty_array[replace_way][index] <= 1'b0;
                         mem_req_store <= 1'b0;
                     end else begin
                         // load new cache finished
 `ifdef DEBUG
-                        $display(
-                            "Cache L1: load new cache line, addr = %h, index = %h",
-                            addr);
+                        $display("Cache L1: loaded new cache line, addr = %h, index = %h", addr,
+                                 index);
+                        $display("Cache L1: loaded data = %h", mem_data);
 `endif
-                        tag_array[replace_way][index]   <= tag;
+                        tag_array[replace_way][index] <= tag;
                         valid_array[replace_way][index] <= 1'b1;
                         dirty_array[replace_way][index] <= 1'b0;
-                        data_array[replace_way][index] = mem_data;
-                        LRU_way_array[index] <= ~replace_way;
+                        data_array[replace_way][index] <= mem_data;
                         mem_req_load <= 1'b0;
                         // TODO: eliminate duplication code
                         case (mem_load_type)
                             LOAD_BYTE: begin
                                 rdata <= {
-                                    {(WIDTH - 8) {mem_data[offset*8+7]}},
-                                    mem_data[offset*8+:8]
+                                    {(WIDTH - 8) {mem_data[offset*8+7]}}, mem_data[offset*8+:8]
                                 };
                             end
                             LOAD_HALF: begin
                                 rdata <= {
-                                    {(WIDTH - 16) {mem_data[offset*8+15]}},
-                                    mem_data[offset*8+:16]
+                                    {(WIDTH - 16) {mem_data[offset*8+15]}}, mem_data[offset*8+:16]
                                 };
                             end
                             LOAD_WORD: begin
                                 rdata <= {
-                                    {(WIDTH - 32) {mem_data[offset*8+31]}},
-                                    mem_data[offset*8+:32]
+                                    {(WIDTH - 32) {mem_data[offset*8+31]}}, mem_data[offset*8+:32]
                                 };
                             end
                             LOAD_DWORD: begin
@@ -140,51 +134,52 @@ module cache_L1 #(
                             NO_LOAD: rdata <= 'x;
                             default: rdata <= 'x;
                         endcase
+                        LRU_way_array[index] <= ~replace_way;
                     end
                 end
             end else begin
                 case (mem_load_type)
                     LOAD_BYTE: begin
                         rdata <= {
-                            {(WIDTH - 8) {data_array[hit_way][index][offset*8+7]}},
-                            data_array[hit_way][index][offset*8+:8]
+                            {(WIDTH - 8) {data_array[hit_way_idx][index][offset*8+7]}},
+                            data_array[hit_way_idx][index][offset*8+:8]
                         };
                     end
                     LOAD_HALF: begin
                         rdata <= {
-                            {(WIDTH - 16) {data_array[hit_way][index][offset*8+15]}},
-                            data_array[hit_way][index][offset*8+:16]
+                            {(WIDTH - 16) {data_array[hit_way_idx][index][offset*8+15]}},
+                            data_array[hit_way_idx][index][offset*8+:16]
                         };
                     end
                     LOAD_WORD: begin
                         rdata <= {
-                            {(WIDTH - 32) {data_array[hit_way][index][offset*8+31]}},
-                            data_array[hit_way][index][offset*8+:32]
+                            {(WIDTH - 32) {data_array[hit_way_idx][index][offset*8+31]}},
+                            data_array[hit_way_idx][index][offset*8+:32]
                         };
                     end
                     LOAD_DWORD: begin
-                        rdata <= data_array[hit_way][index][offset*8+:64];
+                        rdata <= data_array[hit_way_idx][index][offset*8+:64];
                     end
                     NO_LOAD: rdata <= 'x;
                     default: rdata <= 'x;
                 endcase
                 case (mem_store_type)
                     STORE_BYTE: begin
-                        data_array[hit_way][index][offset*8+:8] <= wdata[7:0];
+                        data_array[hit_way_idx][index][offset*8+:8] <= wdata[7:0];
                     end
                     STORE_HALF: begin
-                        data_array[hit_way][index][offset*8+:16] <= wdata[15:0];
+                        data_array[hit_way_idx][index][offset*8+:16] <= wdata[15:0];
                     end
                     STORE_WORD: begin
-                        data_array[hit_way][index][offset*8+:32] <= wdata[31:0];
+                        data_array[hit_way_idx][index][offset*8+:32] <= wdata[31:0];
                     end
                     STORE_DWORD: begin
-                        data_array[hit_way][index][offset*8+:64] <= wdata[63:0];
+                        data_array[hit_way_idx][index][offset*8+:64] <= wdata[63:0];
                     end
                     default: ;  // do nothing for NO_STORE
                 endcase
-                LRU_way_array[index] <= ~hit_way;
-                dirty_array[hit_way][index] <= (|mem_store_type) || dirty_array[hit_way][index];
+                LRU_way_array[index] <= ~hit_way_idx;
+                dirty_array[hit_way_idx][index] <= (|mem_store_type) || dirty_array[hit_way_idx][index];
             end
         end
     end
