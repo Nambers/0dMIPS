@@ -156,12 +156,7 @@ TEST_F(Cache_L1Test, writeTest) {
     EXPECT_FALSE(inst_->mem_req_load);
     EXPECT_TRUE(inst_->mem_req_store);
     EXPECT_EQ(inst_->mem_addr, testAddr & ~OFS_MASK); // writeback addr
-    bool driven = 0;
-    for (int i = 0; i < 16; ++i) {
-        driven |= (inst_->mem_data__en.at(i) != 0);
-    }
-    EXPECT_TRUE(driven);
-    memcpy(inst_->mem_data.m_storage, buff, 64);
+    memcpy(inst_->mem_data_out.m_storage, buff, 64);
     EXPECT_EQ(buff[getOffset(testAddr) + 0], static_cast<char>(0xef));
     EXPECT_EQ(buff[getOffset(testAddr) + 1], static_cast<char>(0xbe));
     EXPECT_EQ(buff[getOffset(testAddr) + 2], static_cast<char>(0xad));

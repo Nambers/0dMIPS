@@ -28,7 +28,9 @@ module cache_L1 #(
     output logic mem_req_load,
     output logic mem_req_store,
     output logic [63:0] mem_addr,
-    inout wire [CACHE_LINE_SIZE-1:0] mem_data,
+    input wire [CACHE_LINE_SIZE-1:0] mem_data,
+    output wire [CACHE_LINE_SIZE-1:0] mem_data_out,
+
     input logic mem_ready
 );
     localparam WIDTH = 64;
@@ -82,7 +84,7 @@ module cache_L1 #(
                         mem_req_store <= 1'b1;
                         mem_req_load <= 1'b0;
                         mem_addr <= {tag_array[replace_way][index], index, {OFFSET_BITS{1'b0}}};
-                        mem_data = data_array[replace_way][index];
+                        mem_data_out <= data_array[replace_way][index];
                     end else begin
                         mem_req_store <= 1'b0;
                         mem_req_load <= 1'b1;
