@@ -166,4 +166,15 @@ package structures;
         logic [63:0] pc;
 `endif
     } MEM_regs_t;
+
+    typedef struct packed {
+        logic [64-6-1:0] mem_addr;
+        logic [64*8-1:0] mem_data_out;
+        logic mem_req_load, mem_req_store;
+    } mem_bus_req_t;
+
+    typedef struct packed {
+        logic [64*8-1:0] mem_data;
+        logic mem_ready;
+    } mem_bus_resp_t;
 endpackage

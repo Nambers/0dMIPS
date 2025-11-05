@@ -60,10 +60,10 @@ uint64_t vlwide_get(const Wide &wide, int idx /* low_bit */, int width) {
 
 template <class C>
 void write_mem_seg(C &data_seg, size_t addr, uint64_t value) {
-    *reinterpret_cast<uint64_t *>(&data_seg[addr]) = value;
+    *reinterpret_cast<uint64_t *>(&(data_seg[addr])) = value;
 }
 template <class C> uint64_t read_mem_seg(const C &data_seg, size_t addr) {
-    return *reinterpret_cast<const uint64_t *>(&data_seg[addr]);
+    return *reinterpret_cast<const uint64_t *>(&(data_seg[addr]));
 }
 
 constexpr static auto common_boundary_cases = make_array<uint64_t>(
@@ -115,7 +115,7 @@ inline VlWide<5> buildMemRegs(int addr, uint64_t data) {
 
 #define TestGenMemCycle(name, init_test, check_result, cycle)                  \
     TEST_F(CoreTest, name) {                                                   \
-        for (const uint64_t val : common_boundary_cases) {                         \
+        for (const uint64_t val : common_boundary_cases) {                     \
             reset();                                                           \
             init_test;                                                         \
             RESET_PC();                                                        \

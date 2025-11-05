@@ -10,6 +10,8 @@ import structures::LOAD_BYTE;
 import structures::LOAD_HALF;
 import structures::LOAD_WORD;
 import structures::LOAD_DWORD;
+import structures::mem_bus_req_t;
+import structures::mem_bus_resp_t;
 
 module cache_L1 #(
     parameter CACHE_SIZE      = 1024 * 8 * 8,  // 8KB
@@ -25,14 +27,16 @@ module cache_L1 #(
     output logic [63:0] rdata,
 
     // L2 interface
-    output logic mem_req_load,
-    output logic mem_req_store,
-    output logic [63:0] mem_addr,
-    input wire [CACHE_LINE_SIZE-1:0] mem_data,
-    output wire [CACHE_LINE_SIZE-1:0] mem_data_out,
-
-    input logic mem_ready
+    // output logic mem_req_load,
+    // output logic mem_req_store,
+    // output logic [63:0] mem_addr,
+    // input wire [CACHE_LINE_SIZE-1:0] mem_data,
+    // output wire [CACHE_LINE_SIZE-1:0] mem_data_out,
+    // input logic mem_ready
+    output mem_bus_req_t  req,
+    input  mem_bus_resp_t resp
 );
+
     localparam WIDTH = 64;
     localparam CACHE_WAYS = 2;
     localparam CACHE_WAYS_BITS = $clog2(CACHE_WAYS);
@@ -78,17 +82,17 @@ module cache_L1 #(
             if (!(|way_hit)) begin
                 // store dirty cache, then load new cache line
                 // is will take at least 2 cycles
-                if (!mem_ready) begin
+                if (!resp.mem_ready) begin
                     // request phase
                     if (dirty_wb) begin
-                        mem_req_store <= 1'b1;
-                        mem_req_load <= 1'b0;
-                        mem_addr <= {tag_array[replace_way][index], index, {OFFSET_BITS{1'b0}}};
-                        mem_data_out <= data_array[replace_way][index];
+                        req.mem_req_store <= 1'b1;
+                        req.mem_req_load <= 1'b0;
+                        req.mem_addr <= {tag_array[replace_way][index], index};
+                        req.mem_data_out <= data_array[replace_way][index];
                     end else begin
-                        mem_req_store <= 1'b0;
-                        mem_req_load <= 1'b1;
-                        mem_addr <= {tag, index, {OFFSET_BITS{1'b0}}};
+                        req.mem_req_store <= 1'b0;
+                        req.mem_req_load <= 1'b1;
+                        req.mem_addr <= {tag, index};
                     end
                 end else begin
                     // response phase
@@ -97,41 +101,45 @@ module cache_L1 #(
 `ifdef DEBUG
                         $display(
                             "Cache L1: writed back dirty cache, addr = %h, tag = %h, index = %h",
-                            mem_addr, tag_array[replace_way][index], index);
+                            req.mem_addr, tag_array[replace_way][index], index);
 `endif
                         dirty_array[replace_way][index] <= 1'b0;
-                        mem_req_store <= 1'b0;
+                        req.mem_req_store <= 1'b0;
                     end else begin
                         // load new cache finished
 `ifdef DEBUG
-                        $display("Cache L1: loaded new cache line, addr = %h, index = %h", addr,
-                                 index);
-                        $display("Cache L1: loaded data = %h", mem_data);
+                        $display(
+                            "Cache L1: loaded new cache line, addr = %h, index = %h",
+                            addr, index);
+                        $display("Cache L1: loaded data = %h", resp.mem_data);
 `endif
                         tag_array[replace_way][index] <= tag;
                         valid_array[replace_way][index] <= 1'b1;
                         dirty_array[replace_way][index] <= 1'b0;
-                        data_array[replace_way][index] <= mem_data;
-                        mem_req_load <= 1'b0;
+                        data_array[replace_way][index] <= resp.mem_data;
+                        req.mem_req_load <= 1'b0;
                         // TODO: eliminate duplication code
                         case (mem_load_type)
                             LOAD_BYTE: begin
                                 rdata <= {
-                                    {(WIDTH - 8) {mem_data[offset*8+7]}}, mem_data[offset*8+:8]
+                                    {(WIDTH - 8) {resp.mem_data[offset*8+7]}},
+                                    resp.mem_data[offset*8+:8]
                                 };
                             end
                             LOAD_HALF: begin
                                 rdata <= {
-                                    {(WIDTH - 16) {mem_data[offset*8+15]}}, mem_data[offset*8+:16]
+                                    {(WIDTH - 16) {resp.mem_data[offset*8+15]}},
+                                    resp.mem_data[offset*8+:16]
                                 };
                             end
                             LOAD_WORD: begin
                                 rdata <= {
-                                    {(WIDTH - 32) {mem_data[offset*8+31]}}, mem_data[offset*8+:32]
+                                    {(WIDTH - 32) {resp.mem_data[offset*8+31]}},
+                                    resp.mem_data[offset*8+:32]
                                 };
                             end
                             LOAD_DWORD: begin
-                                rdata <= mem_data[offset*8+:64];
+                                rdata <= resp.mem_data[offset*8+:64];
                             end
                             NO_LOAD: rdata <= 'x;
                             default: rdata <= 'x;

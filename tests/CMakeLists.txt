@@ -16,6 +16,7 @@ set(cache_L1_SRCS
     ${SRC_DIR}/units/cache_L1.sv
 )
 set(cache_arbiter_SRCS
+    ${SRC_DIR}/modules/structures.sv
     ${SRC_DIR}/modules/register.sv
     ${SRC_DIR}/modules/mux.sv
     ${SRC_DIR}/units/cache_arbiter.sv
