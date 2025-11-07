@@ -5,17 +5,18 @@ import structures::ID_regs_t;
 import structures::EX_regs_t;
 import structures::MEM_regs_t;
 import structures::forward_type_t;
+import structures::mem_bus_req_t;
+import structures::mem_bus_resp_t;
 
 module core #(
     parameter PERIPHERAL_BASE = 64'h2000_0000
 ) (
     input logic clock,
     input logic reset,
-    // // --- inst ---
-    // output logic [63:0] i_addr,   // PC
-    // // input  logic [31:0] i_data,   // inst
-    // output logic        i_valid,  // sent req
-    // input  logic        i_ready,  // 
+
+    // --- L2/memory interface ---
+    output mem_bus_req_t  mem_bus_req,
+    input  mem_bus_resp_t mem_bus_resp,
 
     // --- data ---
     output logic [63:0] d_addr,  // peripheral data addr
@@ -29,8 +30,7 @@ module core #(
     input logic [7:0] interrupt_sources
 );
     // pipeline
-    logic
-        stall  /* verilator public */, flush  /* verilator public */, B_is_reg;
+    logic stall  /* verilator public */, flush  /* verilator public */, B_is_reg;
     IF_regs_t  IF_regs  /* verilator public */;
     ID_regs_t  ID_regs  /* verilator public */;
     EX_regs_t  EX_regs  /* verilator public */;
@@ -38,8 +38,7 @@ module core #(
 
     logic [63:0] next_fetch_pc, EX_A_data_forwarded;
     logic [31:0] inst  /* verilator public */;
-    forward_type_t
-        forward_A  /* verilator public */, forward_B  /* verilator public */;
+    forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
 
     core_forward forward_unit (
         .ID_rs(ID_regs.inst[25:21]),
@@ -65,8 +64,8 @@ module core #(
         .addr(EX_regs.out),
         .EX_mem_read(|EX_regs.mem_load_type),
         .EX_mem_write(|EX_regs.mem_store_type),
-        .d_ready(d_ready),
-        .d_valid(d_valid)
+        .d_ready(d_ready || mem_bus_resp.mem_ready),
+        .d_valid(d_valid || mem_bus_req.mem_req_load || mem_bus_req.mem_req_store)
     );
 
     core_branch branch_unit (
@@ -129,7 +128,9 @@ module core #(
         .d_rdata(d_rdata),
         .inst(inst),
         .EX_regs(EX_regs),
-        .MEM_regs(MEM_regs)
+        .MEM_regs(MEM_regs),
+        .mem_bus_req(mem_bus_req),
+        .mem_bus_resp(mem_bus_resp)
     );
 
     // -- peripheral --

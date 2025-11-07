@@ -1,4 +1,6 @@
 import structures::mem_store_type_t;
+import structures::mem_bus_req_t;
+import structures::mem_bus_resp_t;
 import configurations::PERIPHERAL_BASE;
 
 module SOC (
@@ -20,6 +22,8 @@ module SOC (
         timer_out;
     logic [7:0] interrupt_sources  /* verilator public */;
     mem_store_type_t d_store_type;
+    mem_bus_req_t mem_bus_req  /* verilator public */;
+    mem_bus_resp_t mem_bus_resp  /* verilator public */;
     logic
         d_valid  /* verilator public */,
         d_ready,
@@ -33,6 +37,8 @@ module SOC (
     core #(PERIPHERAL_BASE) core (
         .clock(clk),
         .reset(reset),
+        .mem_bus_req(mem_bus_req),
+        .mem_bus_resp(mem_bus_resp),
         .d_addr(d_addr),
         .d_wdata(d_wdata),
         .d_rdata(d_rdata),
@@ -78,6 +84,13 @@ module SOC (
         .mem_store_type(d_store_type),
         .w_data(d_wdata),
         .stdout_taken(stdout_taken)
+    );
+
+    data_mem data_mem (
+        .clock(clk),
+        .reset(reset),
+        .req  (mem_bus_req),
+        .resp (mem_bus_resp)
     );
 
     always_comb begin

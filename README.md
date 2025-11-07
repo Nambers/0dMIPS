@@ -35,6 +35,7 @@ In order 5-stages pipeline MIPS64r6 SoC implementation with peripheral component
   - [x] Timer
   - [x] mock stdout
 - [ ] Cache
+  - [x] L1 inst & data cache and arbiter
 - [x] Interrupts
   - [x] Timer interrupt
   - [x] Break
