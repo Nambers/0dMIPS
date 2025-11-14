@@ -5,7 +5,7 @@ module cache_arbiter #(
     parameter CACHE_LINE_SIZE = 64 * 8  // 64 Bytes
 ) (
     input logic clock,
-    input logic reset,
+    input logic reset  /* verilator public */,
 
     input  mem_bus_req_t  req1,
     output mem_bus_resp_t resp1,
@@ -26,7 +26,7 @@ module cache_arbiter #(
         reset
     );
 
-    mux4v #(64-6) addr_mux (
+    mux4v #(64 - 6) addr_mux (
         req.mem_addr,
         req1.mem_addr,
         'x,
@@ -80,13 +80,13 @@ module cache_arbiter #(
         // if no ready and it was enabled in last cycle, stay
         // if not, check if 2nd cache is using bus. If so, wait,
         // otherwise check if requested
-        cache1_st_D = (cache1_st_Q && !resp.mem_ready) || ((req1.mem_req_load || req1.mem_req_store) && !cache2_st_Q);
-        resp1.mem_ready = cache1_st_Q && resp.mem_ready;
+        cache1_st_D = ((cache1_st_Q && !resp.mem_ready) || ((req1.mem_req_load || req1.mem_req_store) && !cache2_st_Q)) && !reset;
+        resp1.mem_ready = (cache1_st_Q && resp.mem_ready) && !reset;
         // additionally, 2nd cache has to wait for 1st cache request
-        cache2_st_D = (cache2_st_Q && !resp.mem_ready) || ((req2.mem_req_load || req2.mem_req_store) && !cache1_st_Q && !req1.mem_req_load && !req1.mem_req_store);
-        resp2.mem_ready = cache2_st_Q && resp.mem_ready;
+        cache2_st_D = ((cache2_st_Q && !resp.mem_ready) || ((req2.mem_req_load || req2.mem_req_store) && !cache1_st_Q && !req1.mem_req_load && !req1.mem_req_store)) && !reset;
+        resp2.mem_ready = (cache2_st_Q && resp.mem_ready) && !reset;
 
         assert (!(cache1_st_D && cache2_st_D))
-        else $fatal("cache arbiter: both caches requesting bus!");
+        else $fatal("cache arbiter: both caches hold bus!");
     end
 endmodule

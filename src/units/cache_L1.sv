@@ -27,12 +27,6 @@ module cache_L1 #(
     output logic [63:0] rdata,
 
     // L2 interface
-    // output logic mem_req_load,
-    // output logic mem_req_store,
-    // output logic [63:0] mem_addr,
-    // input wire [CACHE_LINE_SIZE-1:0] mem_data,
-    // output wire [CACHE_LINE_SIZE-1:0] mem_data_out,
-    // input logic mem_ready
     output mem_bus_req_t  req,
     input  mem_bus_resp_t resp
 );
@@ -42,9 +36,9 @@ module cache_L1 #(
     localparam CACHE_WAYS_BITS = $clog2(CACHE_WAYS);
     localparam CACHE_ENTRIES = CACHE_SIZE / CACHE_WAYS / CACHE_LINE_SIZE;
 
-    logic [TAG_BITS-1:0] tag_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0] /* verilator public */;
-    logic valid_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0] /* verilator public */;
-    logic dirty_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0] /* verilator public */;
+    logic [TAG_BITS-1:0] tag_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0]  /* verilator public */;
+    logic valid_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0]  /* verilator public */;
+    logic dirty_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0]  /* verilator public */;
     logic LRU_way_array[CACHE_ENTRIES-1:0];
     logic [CACHE_LINE_SIZE-1:0] data_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0] /* verilator public */;
 
@@ -78,7 +72,10 @@ module cache_L1 #(
             valid_array   <= '{default: '{default: '0}};
             dirty_array   <= '{default: '{default: '0}};
             LRU_way_array <= '{default: '0};
-        end else begin
+        end else if ((|mem_load_type) || (|mem_store_type)) begin
+            // $display("try to access addr=%h, tag=%h, index=%d", addr, tag, index);
+            // $display("way0, tag=%h, valid=%d", tag_array[0][index], valid_array[0][index]);
+            // $display("way1, tag=%h, valid=%d", tag_array[1][index], valid_array[1][index]);
             if (!(|way_hit)) begin
                 // store dirty cache, then load new cache line
                 // is will take at least 2 cycles
@@ -90,6 +87,7 @@ module cache_L1 #(
                         req.mem_addr <= {tag_array[replace_way][index], index};
                         req.mem_data_out <= data_array[replace_way][index];
                     end else begin
+                        // $display("Cache L1: request new data, addr = %h", {tag, index});
                         req.mem_req_store <= 1'b0;
                         req.mem_req_load <= 1'b1;
                         req.mem_addr <= {tag, index};
@@ -108,9 +106,8 @@ module cache_L1 #(
                     end else begin
                         // load new cache finished
 `ifdef DEBUG
-                        $display(
-                            "Cache L1: loaded new cache line, addr = %h, index = %h",
-                            addr, index);
+                        $display("Cache L1: loaded new cache line, addr = %h, index = %h", addr,
+                                 index);
                         $display("Cache L1: loaded data = %h", resp.mem_data);
 `endif
                         tag_array[replace_way][index] <= tag;
@@ -191,6 +188,9 @@ module cache_L1 #(
                 LRU_way_array[index] <= ~hit_way_idx;
                 dirty_array[hit_way_idx][index] <= (|mem_store_type) || dirty_array[hit_way_idx][index];
             end
+        end else begin
+            req.mem_req_load  <= 1'b0;
+            req.mem_req_store <= 1'b0;
         end
     end
 

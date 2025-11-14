@@ -2,6 +2,7 @@
 #define CORE_TEST_HPP
 
 #include "common.hpp"
+#include <Core_cache_arbiter.h>
 #include <Core.h>
 #include <Core_cache_L1.h>
 #include <Core_core.h>
@@ -61,6 +62,7 @@ inline void setAddrDWord(Core_cache_L1 *cache, uint64_t addr, uint64_t dword) {
     data_line[offset / sizeof(uint32_t) + 1] = (dword >> 32) & MASK32;
     cache->valid_array[fixedWay][index] = 1;
     cache->tag_array[fixedWay][index] = getTag(addr);
+    // printf("set to index=%x, tag=%x\n", index, getTag(addr));
 }
 
 template <typename Wide>
@@ -151,6 +153,8 @@ inline VlWide<5> buildMemRegs(int addr, uint64_t data) {
         for (const uint64_t val : common_boundary_cases) {                     \
             reset();                                                           \
             init_test;                                                         \
+            inst_->core->MEM_stage->cache_arbiter_->reset = 1;                 \
+            tick();                                                            \
             RESET_PC();                                                        \
             for (auto i = 0; i < cycle; ++i) {                                 \
                 ASSERT_EQ(inst_->core->MEM_stage->cp0_->exc_code, 0);          \
@@ -163,6 +167,8 @@ inline VlWide<5> buildMemRegs(int addr, uint64_t data) {
     TEST_F(CoreTest, name) {                                                   \
         reset();                                                               \
         init_test;                                                             \
+        inst_->core->MEM_stage->cache_arbiter_->reset = 1;                     \
+        tick();                                                                \
         RESET_PC();                                                            \
         for (auto i = 0; i < cycle; ++i) {                                     \
             tick();                                                            \
@@ -174,6 +180,8 @@ inline VlWide<5> buildMemRegs(int addr, uint64_t data) {
     TEST_F(CoreTest, name) {                                                   \
         reset();                                                               \
         init_test;                                                             \
+        inst_->core->MEM_stage->cache_arbiter_->reset = 1;                     \
+        tick();                                                                \
         RESET_PC();                                                            \
         for (auto i = 0; i < cycle; ++i)                                       \
             tick();                                                            \

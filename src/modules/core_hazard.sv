@@ -16,7 +16,11 @@ module core_hazard #(
     // data peripheral ready
     input logic d_ready,
     // data peripheral access
-    output logic d_valid
+    output logic d_valid,
+
+    // --- mem bus ---
+    input logic mem_bus_req,
+    input logic mem_bus_ready
 );
     logic load_use, d_valid_tmp;
     always_comb begin
@@ -26,8 +30,11 @@ module core_hazard #(
         load_use = ID_mem_read &&
                   (ID_W_regnum != 0) &&
                   ((IF_rs == ID_W_regnum) || (IF_B_is_reg && (IF_rt == ID_W_regnum)));
-    
+
         d_valid_tmp = (EX_mem_write || EX_mem_read) && (addr >= PERIPHERAL_BASE);
-        stall = load_use || (d_valid_tmp && !d_ready);
+        stall = load_use || (d_valid_tmp && !d_ready) || (mem_bus_req && !mem_bus_ready);
+
+        // $display("stall = %d, %d %d %d", stall, load_use, (d_valid_tmp && !d_ready),
+        //          (mem_bus_req && !mem_bus_ready));
     end
 endmodule
