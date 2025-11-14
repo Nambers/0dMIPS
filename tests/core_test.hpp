@@ -3,6 +3,7 @@
 
 #include "common.hpp"
 #include <Core.h>
+#include <Core_cache_L1.h>
 #include <Core_core.h>
 #include <Core_core_MEM.h>
 #include <Core_core_branch.h>
@@ -30,6 +31,36 @@ template <typename T> inline constexpr T fixedVal() {
 }
 template <typename T> inline constexpr T fixedVal2() {
     return static_cast<T>((0xc100 << 16) | 0xc100);
+}
+
+// using DataType = VlUnpacked<VlUnpacked<VlWide<16> /*511:0*/, 64>, 2>;
+// using ValidType = VlUnpacked<VlUnpacked<CData /*0:0*/, 64>, 2>;
+// using DirtyType = VlUnpacked<VlUnpacked<CData /*0:0*/, 64>, 2>;
+// using TagType = VlUnpacked<VlUnpacked<QData /*51:0*/, 64>, 2>;
+
+inline uint64_t getAddrDWord(Core_cache_L1 *cache, uint64_t addr) {
+    const auto offset = getOffset(addr);
+    assert((offset % sizeof(uint32_t)) == 0);
+    const auto index = getIndex(addr);
+    const auto way = 0; // for test simplicity
+    // data_line is 64bytes
+    auto &data_line = cache->data_array[way][index];
+    uint64_t low = data_line[offset / sizeof(uint32_t)];
+    uint64_t high = data_line[offset / sizeof(uint32_t) + 1];
+    return (high << 32) | low;
+}
+
+inline void setAddrDWord(Core_cache_L1 *cache, uint64_t addr, uint64_t dword) {
+    const auto offset = getOffset(addr);
+    assert((offset % sizeof(uint32_t)) == 0);
+    const auto index = getIndex(addr);
+    const auto fixedWay = 0; // for test simplicity
+    // data_line is 64bytes
+    auto &data_line = cache->data_array[fixedWay][index];
+    data_line[offset / sizeof(uint32_t)] = dword & MASK32;
+    data_line[offset / sizeof(uint32_t) + 1] = (dword >> 32) & MASK32;
+    cache->valid_array[fixedWay][index] = 1;
+    cache->tag_array[fixedWay][index] = getTag(addr);
 }
 
 template <typename Wide>
@@ -69,7 +100,9 @@ template <class C> uint64_t read_mem_seg(const C &data_seg, size_t addr) {
 constexpr static auto common_boundary_cases = make_array<uint64_t>(
     0, 1, 0x7fffffffffffffff, 0x8000000000000000, 0xffffffffffffffff);
 
-#define MEM_SEG inst_->core->MEM_stage->mem->data_seg
+// #define MEM_SEG inst_->core->MEM_stage->mem->data_seg
+#define DCACHE inst_->core->MEM_stage->data_cache
+#define ICACHE inst_->core->MEM_stage->inst_cache
 #define RF inst_->core->ID_stage->rf
 #define FETCH_PC vlwide_get(inst_->core->IF_regs, 0, 64)
 

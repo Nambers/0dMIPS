@@ -39,6 +39,7 @@ module core #(
     logic [63:0] next_fetch_pc, EX_A_data_forwarded;
     logic [31:0] inst  /* verilator public */;
     forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
+    logic hazard_d_valid;
 
     core_forward forward_unit (
         .ID_rs(ID_regs.inst[25:21]),
@@ -65,7 +66,7 @@ module core #(
         .EX_mem_read(|EX_regs.mem_load_type),
         .EX_mem_write(|EX_regs.mem_store_type),
         .d_ready(d_ready || mem_bus_resp.mem_ready),
-        .d_valid(d_valid || mem_bus_req.mem_req_load || mem_bus_req.mem_req_store)
+        .d_valid(hazard_d_valid)
     );
 
     core_branch branch_unit (
@@ -138,5 +139,6 @@ module core #(
         d_store_type = EX_regs.mem_store_type;
         d_addr = EX_regs.out;
         d_wdata = EX_regs.B_data;
+        d_valid = hazard_d_valid || mem_bus_req.mem_req_load || mem_bus_req.mem_req_store;
     end
 endmodule  // core

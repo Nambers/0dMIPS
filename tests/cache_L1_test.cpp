@@ -4,22 +4,6 @@
 #include "cache_test.hpp"
 #include "common.hpp"
 
-#define IDX_BITS 6 // log2(64)
-#define IDX_MASK ((1 << IDX_BITS) - 1)
-#define OFS_BITS 6 // log2(64)
-#define OFS_MASK ((1 << OFS_BITS) - 1)
-#define TAG_BITS (64 - IDX_BITS - OFS_BITS)
-
-inline unsigned int getTag(uint64_t addr) {
-    return (addr >> (IDX_BITS + OFS_BITS));
-}
-
-inline unsigned int getIndex(uint64_t addr) {
-    return (addr >> OFS_BITS) & IDX_MASK;
-}
-
-inline unsigned int getOffset(uint64_t addr) { return addr & OFS_MASK; }
-
 class Cache_L1Test : public CacheTest<Cache_L1> {
   public:
     std::uniform_int_distribution<uint64_t> addrDist{0, UINT64_MAX};
@@ -131,7 +115,7 @@ TEST_F(Cache_L1Test, writeTest) {
     EXPECT_FALSE(getStore());
     tick();
     EXPECT_TRUE(
-        inst_->cache_L1->__PVT__dirty_array[static_cast<uint8_t>(
+        inst_->cache_L1->dirty_array[static_cast<uint8_t>(
                                                 inst_->cache_L1->way_hit) >>
                                             1][getIndex(testAddr)]);
     // push 2nd write into same index

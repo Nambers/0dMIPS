@@ -2,7 +2,6 @@
 #include <Core_core_ID.h>
 #include <Core_core_MEM.h>
 #include <Core_core_branch.h>
-#include <Core_data_mem__D2000.h>
 #include <Core_regfile__W40.h>
 
 TestGenMemCycle(
@@ -13,9 +12,9 @@ TestGenMemCycle(
 
         // sll $1, $1, 4
         // add $3, $1, $2
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_R_inst(0, 0, 1, 1, 4, 0),
-                                build_R_inst(0, 1, 2, 3, 0, 0x20)));
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_R_inst(0, 0, 1, 1, 4, 0),
+                               build_R_inst(0, 1, 2, 3, 0, 0x20)));
     },
     {
         EXPECT_TRUE(RF->wr_enable);
@@ -35,10 +34,10 @@ TestGenMemCycle(
 
         // lw $1, 16($0)
         // lsa $3, $2, $1, 4
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_I_inst(0x23, 0, 1, 16),
-                                build_R_inst(0, 2, 1, 3, 4, 0b101)));
-        write_mem_seg(MEM_SEG, 16, val);
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_I_inst(0x23, 0, 1, 16),
+                               build_R_inst(0, 2, 1, 3, 4, 0b101)));
+        setAddrDWord(DCACHE, 16, val);
     },
     {
         EXPECT_TRUE(RF->wr_enable);
@@ -62,12 +61,11 @@ TestGenMemCycle(
         WRITE_RF(2, val);
 
         // beq $1, $2, +32
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_I_inst(0x4, 1, 2, 32 >> 2), 0));
+        setAddrDWord(ICACHE, 0, inst_comb(build_I_inst(0x4, 1, 2, 32 >> 2), 0));
         // beq $1, $2, -12
         // 36 / 8 = 4.5, so 2nd inst in the slot
-        write_mem_seg(MEM_SEG, ((32 + 4) / 8) * 8,
-                      inst_comb(0, build_I_inst(0x4, 1, 2, -(24 >> 2))));
+        setAddrDWord(ICACHE, ((32 + 4) / 8) * 8,
+                     inst_comb(0, build_I_inst(0x4, 1, 2, -(24 >> 2))));
     },
     { EXPECT_EQ(FETCH_PC, (32 + 4) - 24 + 4); },
     // 3rd cycle EX stage jump
@@ -84,15 +82,15 @@ TestGenMemCycle(
         // 1: ori $1, $0, 0xabcd --> skiped
         // 2: sw $1, 0($0)
         // 3: lw $3, 0($0)
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_I_inst(0x4, 1, 2, 4 >> 2),
-                                build_I_inst(0xd, 0, 1, 0xabcd)));
-        write_mem_seg(MEM_SEG, 8,
-                      inst_comb(build_I_inst(0x2b, 0, 1, 4),
-                                build_I_inst(0x23, 0, 3, 4)));
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_I_inst(0x4, 1, 2, 4 >> 2),
+                               build_I_inst(0xd, 0, 1, 0xabcd)));
+        setAddrDWord(ICACHE, 8,
+                     inst_comb(build_I_inst(0x2b, 0, 1, 4),
+                               build_I_inst(0x23, 0, 3, 4)));
     },
     {
-        EXPECT_EQ(read_mem_seg(MEM_SEG, 4) & MASK32, val & MASK32);
+        EXPECT_EQ(getAddrDWord(DCACHE, 4) & MASK32, val & MASK32);
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 3);
         EXPECT_EQ(RF->W_data, sign_extend(val & MASK32, 32));
@@ -105,10 +103,10 @@ TestGenMemCycle(
 TestGenMemOnceCycle(
     JAL_JR_Return,
     {
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_J_inst(0x3, 32 >> 2), 0)); // jal 32
-        write_mem_seg(MEM_SEG, 32,
-                      inst_comb(build_R_inst(0, 31, 0, 0, 0, 8), 0)); // jr $ra
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_J_inst(0x3, 32 >> 2), 0)); // jal 32
+        setAddrDWord(ICACHE, 32,
+                     inst_comb(build_R_inst(0, 31, 0, 0, 0, 8), 0)); // jr $ra
     },
     {
         EXPECT_EQ(FETCH_PC, 32);
@@ -122,11 +120,11 @@ TestGenMemOnceCycle(
 TestGenMemOnceCycle(
     BAL_JR_Return,
     {
-        write_mem_seg(
-            MEM_SEG, 0,
+        setAddrDWord(
+            ICACHE, 0,
             inst_comb(build_REGIMM_inst(0x1, 0x11, 0, 32 >> 2), 0)); // bal 32
-        write_mem_seg(MEM_SEG, ((32 + 4) / 8) * 8,
-                      inst_comb(0, build_R_inst(0, 31, 0, 0, 0, 8))); // jr $ra
+        setAddrDWord(ICACHE, ((32 + 4) / 8) * 8,
+                     inst_comb(0, build_R_inst(0, 31, 0, 0, 0, 8))); // jr $ra
     },
     {
         EXPECT_EQ(FETCH_PC, 32 + 4);
@@ -142,8 +140,8 @@ TestGenMemOnceCycle(
 TestGenMemOnceCycle(
     LA,
     {
-        write_mem_seg(
-            MEM_SEG, 0,
+        setAddrDWord(
+            ICACHE, 0,
             inst_comb(
                 build_I_inst(0x0f, 0, 1,
                              (fixedVal<uint32_t>() >> 16) & MASK16), // LUI
@@ -174,11 +172,11 @@ TestGenMemOnceCycle(
 TestGenMemOnceCycle(
     LW_ADDI,
     {
-        write_mem_seg(MEM_SEG, 32,
-                      sign_extend(fixedVal<int32_t>(),
-                                  32)); // store value into $0
-        write_mem_seg(
-            MEM_SEG, 0,
+        setAddrDWord(DCACHE, 32,
+                     sign_extend(fixedVal<int32_t>(),
+                                 32)); // store value into $0
+        setAddrDWord(
+            ICACHE, 0,
             inst_comb(build_I_inst(0x23, 0, 1, 32),                   // LW
                       build_I_inst(0x9, 1, 1, fixedVal<int16_t>()))); // ADDI
     },
@@ -204,8 +202,8 @@ TestGenMemOnceCycle(
 TestGenMemOnceCycle(
     ORI_ADDI,
     {
-        write_mem_seg(
-            MEM_SEG, 0,
+        setAddrDWord(
+            ICACHE, 0,
             inst_comb(build_I_inst(0xd, 0, 1, fixedVal<int16_t>()),   // ORI
                       build_I_inst(0x9, 1, 1, fixedVal<int16_t>()))); // ADDI
     },
@@ -227,14 +225,14 @@ TestGenMemOnceCycle(
 TestGenMemOnceCycle(
     LA_LA,
     {
-        write_mem_seg(
-            MEM_SEG, 0,
+        setAddrDWord(
+            ICACHE, 0,
             inst_comb(
                 build_I_inst(0x0f, 0, 1, (fixedVal<uint32_t>() >> 16) & MASK16),
                 build_I_inst(0x0d, 1, 1, fixedVal<int16_t>())));
 
-        write_mem_seg(
-            MEM_SEG, (1) * 8,
+        setAddrDWord(
+            ICACHE, (1) * 8,
             inst_comb(build_I_inst(0x0f, 0, 1,
                                    (fixedVal2<uint32_t>() >> 16) & MASK16),
                       build_I_inst(0x0d, 1, 1, fixedVal2<int16_t>())));
@@ -272,16 +270,17 @@ TestGenMemOnceCycle(
 TestGenMemCycle(
     LUI_Load,
     {
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_I_inst(0xf, 0, 1, 1),             // LUI
-                                build_I_inst(0x23, 1, 2, -(1 << 15)))); // LW
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_I_inst(0xf, 0, 1, 1),             // LUI
+                               build_I_inst(0x23, 1, 2, -(1 << 15)))); // LW
     },
     {
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
         EXPECT_EQ(RF->W_data, 1 << 16);
-        EXPECT_EQ(inst_->core->MEM_stage->mem->addr,
-                  (1 << 16) - (1 << 15)); // 0x8000
+        // EXPECT_EQ(inst_->core->MEM_stage->mem->addr,
+        //           (1 << 16) - (1 << 15)); // 0x8000
+        EXPECT_EQ(DCACHE->__PVT__addr, (1 << 16) - (1 << 15)); // 0x8000
     },
     3);
 
@@ -293,9 +292,9 @@ TestGenMemOnceCycle(
         // save and retrive from reg12,0 (status reg)
         // MTC0 $1, 12, 0
         // MFC0 $2, 12, 0
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_CP0_inst(4, 1, 12, 0),
-                                build_CP0_inst(0, 2, 12, 0)));
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_CP0_inst(4, 1, 12, 0),
+                               build_CP0_inst(0, 2, 12, 0)));
     },
     {
         EXPECT_TRUE(RF->wr_enable);
@@ -310,12 +309,11 @@ TestGenMemOnceCycleNoCheck(
                                        0x0d;
     {
         inst_->core->branch_unit->interrupeHandlerAddr = 32;
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(breakInst, // SYSCALL
-                                0));
-        write_mem_seg(
-            MEM_SEG, 32,
-            inst_comb(build_CP0_inst(0, 2, 8, 1), 0)); // MFC0 $2, 8, 1
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(breakInst, // SYSCALL
+                               0));
+        setAddrDWord(ICACHE, 32,
+                     inst_comb(build_CP0_inst(0, 2, 8, 1), 0)); // MFC0 $2, 8, 1
     },
     {
         EXPECT_EQ(FETCH_PC, 32);
@@ -333,12 +331,11 @@ TestGenMemOnceCycleNoCheck(
                                            0b001100;
     {
         inst_->core->branch_unit->interrupeHandlerAddr = 32;
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(syscallInst, // SYSCALL
-                                0));
-        write_mem_seg(
-            MEM_SEG, 32,
-            inst_comb(build_CP0_inst(0, 2, 8, 1), 0)); // MFC0 $2, 8, 1
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(syscallInst, // SYSCALL
+                               0));
+        setAddrDWord(ICACHE, 32,
+                     inst_comb(build_CP0_inst(0, 2, 8, 1), 0)); // MFC0 $2, 8, 1
     },
     {
         EXPECT_EQ(FETCH_PC,
@@ -355,13 +352,13 @@ TestGenMemOnceCycleNoCheck(
     SYSCALL_ERET,
     {
         inst_->core->branch_unit->interrupeHandlerAddr = 32;
-        write_mem_seg(
-            MEM_SEG, 0,
+        setAddrDWord(
+            ICACHE, 0,
             inst_comb(((fixedVal<uint32_t>() << 6) & ((~0b111111UL) << 26)) |
                           0b001100, // SYSCALL
                       0));
-        write_mem_seg(MEM_SEG, 32,
-                      inst_comb(0b0100001UL << 25 | 0b011000, 0)); // ERET
+        setAddrDWord(ICACHE, 32,
+                     inst_comb(0b0100001UL << 25 | 0b011000, 0)); // ERET
     },
     {
         EXPECT_EQ(FETCH_PC,
@@ -379,16 +376,16 @@ TestGenMemOnceCycleNoCheck(
         WRITE_RF(2, fixedVal<uint32_t>());
         WRITE_RF(3, INT64_MAX);
         WRITE_RF(4, 1);
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_I_inst(0x2b, 1, 2, 0), // SW $2, 0($1)
-                                build_I_inst(0x2b, 1, 2, 4)  // SW $2, 4($1)
-                                ));
-        write_mem_seg(MEM_SEG, 16,
-                      inst_comb(build_R_inst(0, 3, 4, 3, 0,
-                                             0x20), // ADD $3, $4, $3, overflow
-                                build_I_inst(0x2b, 1, 2, 8))); // SW $2, 8($1)
-        write_mem_seg(MEM_SEG, 32,
-                      inst_comb(0b0100001UL << 25 | 0b011000, 0)); // ERET
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_I_inst(0x2b, 1, 2, 0), // SW $2, 0($1)
+                               build_I_inst(0x2b, 1, 2, 4)  // SW $2, 4($1)
+                               ));
+        setAddrDWord(ICACHE, 16,
+                     inst_comb(build_R_inst(0, 3, 4, 3, 0,
+                                            0x20), // ADD $3, $4, $3, overflow
+                               build_I_inst(0x2b, 1, 2, 8))); // SW $2, 8($1)
+        setAddrDWord(ICACHE, 32,
+                     inst_comb(0b0100001UL << 25 | 0b011000, 0)); // ERET
     },
     {
         EXPECT_EQ(FETCH_PC, 4 * 5);
@@ -411,18 +408,18 @@ TestGenMemOnceCycleNoCheck(
         WRITE_RF(1, 0x100);
         WRITE_RF(2, fixedVal<uint32_t>());
         // first fill the pipeline with 4 memory write
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_I_inst(0x2b, 1, 2, 0), // SW $2, 0($1)
-                                build_I_inst(0x2b, 1, 2, 4)  // SW $2, 4($1)
-                                ));
-        write_mem_seg(MEM_SEG, 8,
-                      inst_comb(build_I_inst(0x2b, 1, 2, 8),    // SW $2, 8($1)
-                                build_I_inst(0x2b, 1, 2, 12))); // SW $2, 12($1)
-        write_mem_seg(MEM_SEG, 16,
-                      inst_comb(build_I_inst(0x2b, 1, 2, 16),   // SW $2, 16($1)
-                                build_I_inst(0x2b, 1, 2, 20))); // SW $2, 20($1)
-        write_mem_seg(MEM_SEG, 32,
-                      inst_comb(0b0100001UL << 25 | 0b011000, 0)); // ERET
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_I_inst(0x2b, 1, 2, 0), // SW $2, 0($1)
+                               build_I_inst(0x2b, 1, 2, 4)  // SW $2, 4($1)
+                               ));
+        setAddrDWord(ICACHE, 8,
+                     inst_comb(build_I_inst(0x2b, 1, 2, 8),    // SW $2, 8($1)
+                               build_I_inst(0x2b, 1, 2, 12))); // SW $2, 12($1)
+        setAddrDWord(ICACHE, 16,
+                     inst_comb(build_I_inst(0x2b, 1, 2, 16),   // SW $2, 16($1)
+                               build_I_inst(0x2b, 1, 2, 20))); // SW $2, 20($1)
+        setAddrDWord(ICACHE, 32,
+                     inst_comb(0b0100001UL << 25 | 0b011000, 0)); // ERET
     },
     {
         // after runing 2 cycles to fill
@@ -438,15 +435,15 @@ TestGenMemOnceCycleNoCheck(
         EXPECT_EQ(FETCH_PC, 36);
         tick();
         EXPECT_EQ(FETCH_PC, 4 * 2); // ERET returns to 8
-        EXPECT_EQ(read_mem_seg(MEM_SEG, 0x100),
+        EXPECT_EQ(getAddrDWord(DCACHE, 0x100),
                   (static_cast<uint64_t>(fixedVal<uint32_t>()) << 32) |
                       fixedVal<uint32_t>()); // so only 1st, 2nd executed
-        EXPECT_EQ(read_mem_seg(MEM_SEG, 0x100 + 8), 0);
+        EXPECT_EQ(getAddrDWord(DCACHE, 0x100 + 8), 0);
         tick();
         tick();
         tick();
         tick();
-        EXPECT_EQ(read_mem_seg(MEM_SEG, 0x100 + 8),
+        EXPECT_EQ(getAddrDWord(DCACHE, 0x100 + 8),
                   (static_cast<uint64_t>(fixedVal<uint32_t>()) << 32) |
                       fixedVal<uint32_t>());
     },

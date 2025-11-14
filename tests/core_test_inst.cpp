@@ -1,7 +1,6 @@
 #include "core_test.hpp"
 #include <Core_core_ID.h>
 #include <Core_core_MEM.h>
-#include <Core_data_mem__D2000.h>
 #include <Core_regfile__W40.h>
 
 #include <fstream>
@@ -12,9 +11,9 @@
     TestGenMem(                                                                \
         name,                                                                  \
         {                                                                      \
-            write_mem_seg(MEM_SEG, 0,                                          \
-                          inst_comb(build_I_inst(opcode, 0, 1, 16), 0));       \
-            write_mem_seg(MEM_SEG, (2) * 8, val);                              \
+            setAddrDWord(ICACHE, 0,                                            \
+                         inst_comb(build_I_inst(opcode, 0, 1, 16), 0));        \
+            setAddrDWord(DCACHE, (2) * 8, val);                                \
         },                                                                     \
         {                                                                      \
             EXPECT_TRUE(RF->wr_enable);                                        \
@@ -37,10 +36,10 @@ TestGenRead(LD, 0x37, val);
         name,                                                                  \
         {                                                                      \
             WRITE_RF(1, (val)); /* store val into reg $1*/                     \
-            write_mem_seg(MEM_SEG, 0,                                          \
-                          inst_comb(build_I_inst(opcode, 0, 1, 8), 0));        \
+            setAddrDWord(ICACHE, 0,                                            \
+                         inst_comb(build_I_inst(opcode, 0, 1, 8), 0));         \
         },                                                                     \
-        { EXPECT_EQ(*reinterpret_cast<uint64_t *>(&MEM_SEG[8]), check_mem); })
+        { EXPECT_EQ(getAddrDWord(DCACHE, 8), check_mem); })
 
 TestGenWrite(SW, 0x2b, val &MASK32);
 TestGenWrite(SH, 0x29, val &MASK16);
@@ -53,8 +52,8 @@ TestGenWrite(SD, 0x3f, val);
     TestGenMem(                                                                \
         name,                                                                  \
         {                                                                      \
-            write_mem_seg(                                                     \
-                MEM_SEG, 0,                                                    \
+            setAddrDWord(                                                      \
+                ICACHE, 0,                                                     \
                 inst_comb(build_R_inst(0b011111, 0, 1, 2, opcode, func), 0));  \
             WRITE_RF(1, val); /* store val into reg $1*/                       \
         },                                                                     \
@@ -87,8 +86,8 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
             WRITE_RF(1, fixed_val); /* store 1 into reg $1*/                   \
             WRITE_RF(2, val);       /* store val into reg $2*/                 \
                                     /* $3 = $1 <OP> $2 */                      \
-            write_mem_seg(                                                     \
-                MEM_SEG, 0,                                                    \
+            setAddrDWord(                                                      \
+                ICACHE, 0,                                                     \
                 inst_comb(build_R_inst(0, rs, 2, 3, shamt, funct), 0));        \
         },                                                                     \
         {                                                                      \
@@ -194,8 +193,8 @@ TestGenArith2_overflow(TestDSub, val -);
 TestGenMem(
     LUI,
     {
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_I_inst(0xf, 0, 1, val & MASK16), 0));
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_I_inst(0xf, 0, 1, val & MASK16), 0));
     },
     {
         EXPECT_TRUE(RF->wr_enable);
@@ -208,8 +207,8 @@ TestGenMem(
         {                                                                      \
             WRITE_RF(1, fixed_val); /* store 1 into reg $1*/                   \
                                     /* $2 = $1 <OP> val */                     \
-            write_mem_seg(MEM_SEG, 0,                                          \
-                          inst_comb(build_I_inst(funct, 1, 2, val), 0));       \
+            setAddrDWord(ICACHE, 0,                                            \
+                         inst_comb(build_I_inst(funct, 1, 2, val), 0));        \
         },                                                                     \
         {                                                                      \
             EXPECT_TRUE(RF->wr_enable);                                        \
@@ -259,8 +258,8 @@ TestGenMem(
         WRITE_RF(1, val);
         WRITE_RF(2, val);
         // beq $1, $2, +512
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_I_inst(0x4, 1, 2, 512 >> 2), 0));
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_I_inst(0x4, 1, 2, 512 >> 2), 0));
     },
     { EXPECT_EQ(FETCH_PC, 512 + 4); });
 TestGenMem(
@@ -269,8 +268,8 @@ TestGenMem(
         WRITE_RF(1, val);
         WRITE_RF(2, val + 1);
         // beq $1, $2, +512
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_I_inst(0x4, 1, 2, 512 >> 2), 0));
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_I_inst(0x4, 1, 2, 512 >> 2), 0));
     },
     {
         // 4 stages
@@ -282,8 +281,8 @@ TestGenMem(
         WRITE_RF(1, val);
         WRITE_RF(2, val + 1);
         // bne $1, $2, +512
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_I_inst(0x5, 1, 2, 512 >> 2), 0));
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_I_inst(0x5, 1, 2, 512 >> 2), 0));
     },
     { EXPECT_EQ(FETCH_PC, 512 + 4); });
 TestGenMem(
@@ -292,22 +291,22 @@ TestGenMem(
         WRITE_RF(1, val);
         WRITE_RF(2, val);
         // bne $1, $2, +512
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_I_inst(0x5, 1, 2, 512 >> 2), 0));
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_I_inst(0x5, 1, 2, 512 >> 2), 0));
     },
     { EXPECT_EQ(FETCH_PC, 4 * 3); });
 TestGenMemOnce(
     BC,
     {
         // bc $1, +512
-        write_mem_seg(MEM_SEG, 0, inst_comb(build_J_inst(0x32, 512 >> 2), 0));
+        setAddrDWord(ICACHE, 0, inst_comb(build_J_inst(0x32, 512 >> 2), 0));
     },
     { EXPECT_EQ(FETCH_PC, 512 + 4); });
 TestGenMemOnceCycle(
     J,
     {
         // j +512
-        write_mem_seg(MEM_SEG, 0, inst_comb(build_J_inst(0x2, 512 >> 2), 0));
+        setAddrDWord(ICACHE, 0, inst_comb(build_J_inst(0x2, 512 >> 2), 0));
     },
     { EXPECT_EQ(FETCH_PC, 512); }, 2);
 
@@ -315,7 +314,7 @@ TestGenMemOnceCycle(
     JAL,
     {
         // jal +512 (target = (512 >> 2))
-        write_mem_seg(MEM_SEG, 0, inst_comb(build_J_inst(0x3, 512 >> 2), 0));
+        setAddrDWord(ICACHE, 0, inst_comb(build_J_inst(0x3, 512 >> 2), 0));
     },
     {
         // jal should jump to pc + 512, and store return address to $ra ($31)
@@ -333,8 +332,8 @@ TestGenMemOnceCycle(
         // Set $4 = 0x0d00
         WRITE_RF(4, 0x0d00);
         // jr $4
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_R_inst(0x0, 4, 0, 0, 0, 0x08), 0));
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_R_inst(0x0, 4, 0, 0, 0, 0x08), 0));
     },
     { EXPECT_EQ(FETCH_PC, 0x0d00); }, 2);
 TestGenMemOnceCycle(
@@ -343,8 +342,8 @@ TestGenMemOnceCycle(
         // Set $4 = 0x0d00
         WRITE_RF(4, 0x0d00);
         // jalr $4
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_R_inst(0x0, 4, 0, 1, 0, 0x09), 0));
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_R_inst(0x0, 4, 0, 1, 0, 0x09), 0));
     },
     {
         EXPECT_EQ(FETCH_PC, 0x0d00);
@@ -358,9 +357,9 @@ TestGenMemOnceCycle(
     BAL,
     {
         // bal +512 (offset = 512 / 4 = 128)
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_REGIMM_inst(0x1, 0x11, 0, 512 >> 2),
-                                0)); // opcode=1, rt=17(BAL), rs=0
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_REGIMM_inst(0x1, 0x11, 0, 512 >> 2),
+                               0)); // opcode=1, rt=17(BAL), rs=0
     },
     {
         // bal should jump to pc + 512, and store return address to $ra ($31)
@@ -375,8 +374,8 @@ TestGenMemOnceCycle(
     ADDIUPC,
     {
         // addiupc $1, 0xff
-        write_mem_seg(
-            MEM_SEG, 0,
+        setAddrDWord(
+            ICACHE, 0,
             inst_comb(build_I_inst(0x3b, 1, 0, fixedVal<uint16_t>() >> 2), 0));
     },
     {
@@ -394,8 +393,8 @@ TestGenMem(
     {
         WRITE_RF(1, val); // store val into reg $1
         WRITE_RF(2, 0);
-        write_mem_seg(
-            MEM_SEG, 0,
+        setAddrDWord(
+            ICACHE, 0,
             inst_comb(build_R_inst(0, 1, 2, 3, 0, 0x2a), 0)); // slt $2, $1, $3
     },
     {
@@ -408,8 +407,8 @@ TestGenMem(
     SLTI,
     {
         WRITE_RF(1, val); // store val into reg $1
-        write_mem_seg(
-            MEM_SEG, 0,
+        setAddrDWord(
+            ICACHE, 0,
             inst_comb(build_I_inst(0xa, 1, 2, 16), 0)); // slti $2, $1, 16
     },
     {
@@ -422,8 +421,8 @@ TestGenMem(
     SLTU,
     {
         WRITE_RF(1, val); // store val into reg $1
-        write_mem_seg(
-            MEM_SEG, 0,
+        setAddrDWord(
+            ICACHE, 0,
             inst_comb(build_R_inst(0, 1, 2, 3, 0, 0x2b), 0)); // sltu $2, $1, $3
     },
     {
@@ -436,8 +435,8 @@ TestGenMem(
     SLTIU,
     {
         WRITE_RF(1, val); // store val into reg $1
-        write_mem_seg(
-            MEM_SEG, 0,
+        setAddrDWord(
+            ICACHE, 0,
             inst_comb(build_I_inst(0xb, 1, 2, 16), 0)); // sltiu $2, $1, 16
     },
     {
@@ -452,9 +451,9 @@ TestGenMem(
     {
         WRITE_RF(1, val);
         WRITE_RF(2, fixedVal<uint64_t>());
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_R_inst(0, 2, 1, 3, 4, 0b101),
-                                0)); // lsa $3, $2, $1, 4
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_R_inst(0, 2, 1, 3, 4, 0b101),
+                               0)); // lsa $3, $2, $1, 4
     },
     {
         EXPECT_TRUE(RF->wr_enable);
@@ -467,9 +466,9 @@ TestGenMem(
     {
         WRITE_RF(1, val);
         WRITE_RF(2, fixedVal<uint64_t>());
-        write_mem_seg(MEM_SEG, 0,
-                      inst_comb(build_R_inst(0, 2, 1, 3, 4, 0b10101),
-                                0)); // lsa $3, $2, $1, 4
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_R_inst(0, 2, 1, 3, 4, 0b10101),
+                               0)); // lsa $3, $2, $1, 4
     },
     {
         EXPECT_TRUE(RF->wr_enable);
@@ -480,7 +479,7 @@ TestGenMem(
 TestGenMemOnce(
     NOP,
     {
-        write_mem_seg(MEM_SEG, 0, inst_comb(0, 0)); // nop
+        setAddrDWord(ICACHE, 0, inst_comb(0, 0)); // nop
     },
     {
         EXPECT_EQ(FETCH_PC, 4 * 3);

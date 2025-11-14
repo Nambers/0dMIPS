@@ -1,5 +1,9 @@
 #ifndef TESTS_COMMON_HPP
 #define TESTS_COMMON_HPP
+#define IDX_BITS 6 // log2(64)
+#define IDX_MASK ((1 << IDX_BITS) - 1)
+#define OFS_BITS 6 // log2(64)
+#define OFS_MASK ((1 << OFS_BITS) - 1)
 
 #include <endian.h>
 #include <gtest/gtest.h>
@@ -9,6 +13,17 @@
 #include <verilated_cov.h>
 
 extern bool dumpCov;
+
+// for cache L1
+inline unsigned int getTag(uint64_t addr) {
+    return (addr >> (IDX_BITS + OFS_BITS));
+}
+
+inline unsigned int getIndex(uint64_t addr) {
+    return (addr >> OFS_BITS) & IDX_MASK;
+}
+
+inline unsigned int getOffset(uint64_t addr) { return addr & OFS_MASK; }
 
 constexpr inline uint64_t inst_comb(uint32_t a, uint32_t b) {
     return (static_cast<uint64_t>(b) << 32) | a;
