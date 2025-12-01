@@ -64,3 +64,8 @@ In order 5-stages pipeline MIPS64r6 SoC implementation with peripheral component
 - `SOC_run_sim` run simulation without info log.
 - `SOC_VGA_sim` run simulation with VGA output(provided by `SDL3`).
 - `VGA_sim` run demo VGA simulation.
+
+## Schematic diagram
+**WIP**
+
+![Schematic diagram](docs/diagram/diagram.svg)
