@@ -10,7 +10,7 @@ class Cache_L1Test : public CacheTest<Cache_L1> {
 };
 
 TEST_F(Cache_L1Test, readTest) {
-    const uint64_t testAddr = addrDist(rng) & ~0x3F; // align to 64B
+    const uint64_t testAddr = addrDist(rng) & ~0x3; // align to word
     inst_->addr = testAddr;
     inst_->mem_load_type = 3; // LW
     tick();
@@ -86,7 +86,7 @@ TEST_F(Cache_L1Test, readTest) {
 }
 
 TEST_F(Cache_L1Test, writeTest) {
-    const uint64_t testAddr = addrDist(rng);
+    const uint64_t testAddr = addrDist(rng) & ~3; // align to word
     inst_->addr = testAddr;
     inst_->wdata = 0xdeadbeef;
     inst_->mem_store_type = 3; // SW
@@ -115,9 +115,9 @@ TEST_F(Cache_L1Test, writeTest) {
     EXPECT_FALSE(getStore());
     tick();
     EXPECT_TRUE(
-        inst_->cache_L1->dirty_array[static_cast<uint8_t>(
-                                                inst_->cache_L1->way_hit) >>
-                                            1][getIndex(testAddr)]);
+        inst_->cache_L1
+            ->dirty_array[static_cast<uint8_t>(inst_->cache_L1->way_hit) >> 1]
+                         [getIndex(testAddr)]);
     // push 2nd write into same index
     uint64_t testAddr2 = addrDist(rng);
     while (getTag(testAddr2) == getTag(testAddr) ||
@@ -162,4 +162,20 @@ TEST_F(Cache_L1Test, writeTest) {
     EXPECT_TRUE(getLoad());
     EXPECT_FALSE(getStore());
     EXPECT_EQ(getMemAddr(), testAddr3 >> OFS_BITS);
+}
+
+TEST_F(Cache_L1Test, directWriteTest) {
+    // use setAddrDWord
+    const uint64_t testAddr = addrDist(rng) & ~0x3; // align to word
+    uint64_t testData = 0x12345678;
+    setAddrDWord(this->inst_->cache_L1, testAddr, testData);
+    EXPECT_EQ(getAddrDWord(this->inst_->cache_L1, testAddr), testData);
+    // read back
+    inst_->addr = testAddr;
+    inst_->mem_load_type = 3; // LW
+    tick();
+    EXPECT_FALSE(getLoad());
+    EXPECT_FALSE(getStore());
+    EXPECT_EQ(static_cast<uint8_t>(inst_->cache_L1->way_hit), 0b01);
+    EXPECT_EQ(inst_->rdata, sign_extend(testData & MASK32, 32));
 }

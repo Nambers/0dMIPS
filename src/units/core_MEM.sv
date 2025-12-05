@@ -115,10 +115,11 @@ module core_MEM (
 
     always_comb begin
         // when flush, inst is NOP
-        inst = inst_L1[31:0] & {32{~flush}};
+        inst = inst_L1[31:0] & {32{~flush}} & {32{~reset}};
     end
 
     always_ff @(posedge clock, posedge reset) begin
+        // $display("inst=%h pc=%h", inst, fetch_pc);
 `ifdef DEBUG
         if (|EX_regs.mem_load_type) begin
             $display("read addr: %h, data: %h, final: %h, reg=$%d, type = %d", EX_regs.out,

@@ -13,10 +13,10 @@ import structures::LOAD_DWORD;
 import structures::mem_bus_req_t;
 import structures::mem_bus_resp_t;
 
+// total cache size = CACHE_LINE_SIZE * CACHE_ENTRIES * CACHE_WAYS = 64B * 32 * 2 = 4KB
 module cache_L1 #(
-    parameter CACHE_SIZE      = 1024 * 8 * 8,  // 8KB
-    parameter CACHE_LINE_SIZE = 64 * 8,        // 64 Bytes per line
-    parameter MEM_BUS_WIDTH   = 16 * 8         // 16 Bytes
+    parameter CACHE_LINE_SIZE = 64 * 8,  // 64 Bytes per line
+    parameter CACHE_ENTRIES   = 32
 ) (
     input logic clock,
     input logic reset,
@@ -34,7 +34,6 @@ module cache_L1 #(
     localparam WIDTH = 64;
     localparam CACHE_WAYS = 2;
     localparam CACHE_WAYS_BITS = $clog2(CACHE_WAYS);
-    localparam CACHE_ENTRIES = CACHE_SIZE / CACHE_WAYS / CACHE_LINE_SIZE;
 
     logic [TAG_BITS-1:0] tag_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0]  /* verilator public */;
     logic valid_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0]  /* verilator public */;
@@ -73,7 +72,7 @@ module cache_L1 #(
             dirty_array   <= '{default: '{default: '0}};
             LRU_way_array <= '{default: '0};
         end else if ((|mem_load_type) || (|mem_store_type)) begin
-            // $display("try to access addr=%h, tag=%h, index=%d", addr, tag, index);
+            // $display("%m try to access addr=%h, tag=%h, index=%d", addr, tag, index);
             // $display("way0, tag=%h, valid=%d", tag_array[0][index], valid_array[0][index]);
             // $display("way1, tag=%h, valid=%d", tag_array[1][index], valid_array[1][index]);
             if (!(|way_hit)) begin
@@ -106,9 +105,8 @@ module cache_L1 #(
                     end else begin
                         // load new cache finished
 `ifdef DEBUG
-                        $display("Cache L1: loaded new cache line, addr = %h, index = %h", addr,
-                                 index);
-                        $display("Cache L1: loaded data = %h", resp.mem_data);
+                        $display("%m: loaded new cache line, addr = %h, index = %h", addr, index);
+                        $display("%m: loaded data = %h", resp.mem_data);
 `endif
                         tag_array[replace_way][index] <= tag;
                         valid_array[replace_way][index] <= 1'b1;
@@ -188,6 +186,8 @@ module cache_L1 #(
                 LRU_way_array[index] <= ~hit_way_idx;
                 dirty_array[hit_way_idx][index] <= (|mem_store_type) || dirty_array[hit_way_idx][index];
             end
+            // $display("%m try to access addr=%h, tag=%h, index=%d, result = %h", addr, tag, index,
+            //          data_array[hit_way_idx][index][offset*8+:64]);
         end else begin
             req.mem_req_load  <= 1'b0;
             req.mem_req_store <= 1'b0;
