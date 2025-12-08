@@ -3,7 +3,6 @@
 #include <SOC_sim_core.h>
 #include <SOC_sim_core_MEM.h>
 #include <SOC_sim_cp0.h>
-#include <SOC_sim_data_mem__D2000.h>
 #include <SOC_sim_stdout.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>

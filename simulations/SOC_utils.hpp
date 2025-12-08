@@ -24,7 +24,7 @@ void mainLoop(T *machine, C *ctx, unsigned int cycle_max, csh &cs_handle,
         }
         std::cout << "time = " << ctx->time() << "\tpc = " << std::hex
                   << std::right << std::setfill('0') << std::setw(8)
-                  << vlwide_get(machine->SOC->core->IF_regs, 0, 64) << std::dec
+                  << vlwide_get(machine->SOC->core->IF_regs, 32, 64) << std::dec
                   << std::left << "\t flags = ";
         std::string flags;
         if (machine->SOC->interrupt_sources)
@@ -65,9 +65,9 @@ void mainLoop(T *machine, C *ctx, unsigned int cycle_max, csh &cs_handle,
 
         std::cout << std::left << std::setfill(' ') << std::setw(16) << flags;
         std::cout << "ID_inst = "
-                  << get_disasm(vlwide_get(machine->SOC->core->IF_regs, 0, 64),
-                                machine->SOC->core->inst, disasm_cache,
-                                cs_handle);
+                  << get_disasm(vlwide_get(machine->SOC->core->IF_regs, 32, 64),
+                                vlwide_get(machine->SOC->core->IF_regs, 0, 32),
+                                disasm_cache, cs_handle);
         if (machine->SOC->d_valid) {
             std::cout << "\td_addr = " << std::hex << std::right
                       << std::setfill('0') << std::setw(8)
@@ -88,14 +88,16 @@ void mainLoop(T *machine, C *ctx, unsigned int cycle_max, csh &cs_handle,
 }
 
 template <class T> void dumpMem(T *machine) {
-    std::ofstream mem_out("memory_after.txt");
-    auto &mem = machine->SOC->core->MEM_stage->mem->data_seg;
-    for (size_t i = 0; i < mem.size() - 3; i += 4) {
-        mem_out << std::hex << std::setfill('0') << std::setw(2) << (int)mem[i]
-                << std::setw(2) << (int)mem[i + 1] << std::setw(2)
-                << (int)mem[i + 2] << std::setw(2) << (int)mem[i + 3] << "\n";
-    }
-    mem_out.close();
+    // std::ofstream mem_out("memory_after.txt");
+    // auto &mem = machine->SOC->core->MEM_stage->mem->data_seg;
+    // for (size_t i = 0; i < mem.size() - 3; i += 4) {
+    //     mem_out << std::hex << std::setfill('0') << std::setw(2) <<
+    //     (int)mem[i]
+    //             << std::setw(2) << (int)mem[i + 1] << std::setw(2)
+    //             << (int)mem[i + 2] << std::setw(2) << (int)mem[i + 3] <<
+    //             "\n";
+    // }
+    // mem_out.close();
 }
 
 #endif // SOC_UTILS_HPP
