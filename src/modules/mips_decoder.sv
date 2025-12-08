@@ -285,7 +285,7 @@ module mips_decoder (
         // 0 = origin, 1 = shift, 2 = signed ext immediate, 3 = zero ext immediate
         alu_b_src[0] = (andi_inst || ori_inst || xori_inst) && !except;
         alu_b_src[1] = (addiu_inst || daddiu_inst || sltiu_inst || slti_inst || addi_inst || daddi_inst || lw_family || lh_family || lb_family || ld_inst || store_family || bal_inst || (andi_inst || ori_inst || xori_inst)) && !except;
-        ignore_overflow = (addu_inst || addiu_inst || subu_inst || daddu_inst || daddiu_inst || sltu_inst || sltiu_inst || LU_family || branch_family) && !except;
+        ignore_overflow = (addu_inst || addiu_inst || subu_inst || daddu_inst || daddiu_inst || slt_family || LU_family || branch_family || srl_family || sra_family || lsa_family) && !except;
 
         lui_out = lui_inst && !except;
         // write back data = pc4
