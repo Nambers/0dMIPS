@@ -65,7 +65,8 @@ template <class C> class CacheTest : public TestBase<C> {
             return;
 
         int start_bit = index * 8 + 1;
-        uint8_t *base = reinterpret_cast<uint8_t *>(&this->inst_->resp.m_storage[0]);
+        uint8_t *base =
+            reinterpret_cast<uint8_t *>(&this->inst_->resp.m_storage[0]);
         int byte_offset = start_bit / 8;
         int bit_offset = start_bit % 8;
 
@@ -80,6 +81,13 @@ template <class C> class CacheTest : public TestBase<C> {
 
         // Write back
         std::memcpy(base + byte_offset, &temp, sizeof(temp));
+    }
+
+    void SetUp() override {
+        TestBase<C>::SetUp();
+        this->inst_->enable = 1;
+        this->inst_->clear = 0;
+        this->inst_->signed_type = 1;
     }
 };
 
