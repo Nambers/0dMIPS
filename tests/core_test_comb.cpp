@@ -263,24 +263,23 @@ TestGenMemOnceCycle(
         tick(); // done
         EXPECT_FALSE(RF->wr_enable);
     },
-    6
-);
+    6);
 
 TestGenMemCycle(
     LUI_Load,
+    constexpr uint64_t load_addr = (1 << 16) - (1 << 15); // 0x8000
     {
+        preloadCacheLine(DCACHE, load_addr, load_addr + 4);
         setAddrDWord(ICACHE, 0,
                      inst_comb(build_I_inst(0xf, 0, 1, 1),             // LUI
                                build_I_inst(0x23, 1, 2, -(1 << 15)))); // LW
     },
     {
-        EXPECT_EQ(DCACHE->addr, (1 << 16) - (1 << 15)); // 0x8000
+        EXPECT_EQ(DCACHE->addr, load_addr); // 0x8000
         tick();
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
         EXPECT_EQ(RF->W_data, 1 << 16);
-        // EXPECT_EQ(inst_->core->MEM_stage->mem->addr,
-        //           (1 << 16) - (1 << 15)); // 0x8000
     },
     5);
 

@@ -19,7 +19,7 @@
             EXPECT_TRUE(RF->wr_enable);                                        \
             EXPECT_EQ(RF->W_addr, 1);                                          \
             EXPECT_EQ(RF->W_data, check_W_data);                               \
-            tick();\
+            tick();                                                            \
         })
 
 TestGenRead(LB, 0x20, sign_extend(val & 0xff, 8));
@@ -365,6 +365,7 @@ TestGenMemOnceCycle(
 TestGenMemOnceCycle(
     JALR,
     {
+        preloadCacheLine(ICACHE, 0x0d00, 0x0d04);
         // Set $4 = 0x0d00
         WRITE_RF(4, 0x0d00);
         // jalr $4
