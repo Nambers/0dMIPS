@@ -71,8 +71,8 @@ void setAddrDWord(T *cache, uint64_t addr, uint64_t dword) {
     // printf("set to index=%d, tag=%lx\n", index, getTag(addr));
 }
 
-constexpr inline uint64_t inst_comb(uint32_t a, uint32_t b) {
-    return (static_cast<uint64_t>(b) << 32) | a;
+constexpr inline uint64_t inst_comb(uint32_t lo, uint32_t hi) {
+    return (static_cast<uint64_t>(hi) << 32) | lo;
 }
 
 constexpr inline int64_t sign_extend(uint64_t val, int bits) {

@@ -17,7 +17,6 @@ module core_ID (
     input logic clock,
     input logic reset,
     input IF_regs_t IF_regs,
-    input logic [31:0] inst,
     input logic stall,
     input logic flush,
     /* verilator lint_off UNUSEDSIGNAL */
@@ -112,7 +111,7 @@ module core_ID (
         .rd(rd),
         .shamt_out(shamt),
         .B_is_reg(B_is_reg),
-        .inst(inst)
+        .inst(IF_regs.inst)
     );
 
     // -- reg --
@@ -145,7 +144,7 @@ module core_ID (
     mux2v #(64) badinstr_B (
         B_data_badinst,
         B_data_forwarded,
-        {32'b0, inst},
+        {32'b0, IF_regs.inst},
         break_ || syscall || reserved_inst_E
     );
 
@@ -167,19 +166,23 @@ module core_ID (
     );
 
     always_comb begin
-        BranchAddr = {{46{inst[15]}}, inst[15:0], 2'b0};
-        PCRelAddr = {{43{inst[18]}}, inst[18:0], 2'b0};
-        CompactBranchAddr = {{36{inst[25]}}, inst[25:0], 2'b0};
-        JumpAddr = {IF_regs.fetch_pc[63:28], inst[25:0], 2'b0};
+        BranchAddr = {{46{IF_regs.inst[15]}}, IF_regs.inst[15:0], 2'b0};
+        PCRelAddr = {{43{IF_regs.inst[18]}}, IF_regs.inst[18:0], 2'b0};
+        CompactBranchAddr = {{36{IF_regs.inst[25]}}, IF_regs.inst[25:0], 2'b0};
+        JumpAddr = {IF_regs.fetch_pc[63:28], IF_regs.inst[25:0], 2'b0};
     end
 
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
+        $display("t=%0t, addr=%h, inst=%h, stall=%b flush=%b", $time,
+                 IF_regs.fetch_pc, IF_regs.inst, stall, flush);
         if (MEM_regs.write_enable) begin
-            $display("writeback regnum = %d, data = %h", MEM_regs.W_regnum, MEM_regs.W_data);
+            $display("ID Stage: t=%0t, writeback regnum = %d, data = %h",
+                     $time, MEM_regs.W_regnum, MEM_regs.W_data);
         end
         if (reserved_inst_E) begin
-            $display("reserved instruction detected op=0x%h, inst=0x%h", inst[31:26], inst);
+            $display("reserved instruction detected op=0x%h, inst=0x%h",
+                     IF_regs.inst[31:26], IF_regs.inst);
         end
 `endif
         // add bubble for load-use hazard instead of freeze-like stall
@@ -218,7 +221,7 @@ module core_ID (
             ID_regs.barrel_plus32 <= barrel_plus32;
             ID_regs.A_data <= A_data_forwarded;
             ID_regs.B_data <= B_data_badinst;
-            ID_regs.inst <= inst;
+            ID_regs.inst <= IF_regs.inst;
             ID_regs.pc4 <= IF_regs.fetch_pc4;
             ID_regs.pc_branch <= BranchAddrFinal;
             ID_regs.jumpAddr <= JumpAddr;
@@ -227,7 +230,7 @@ module core_ID (
             ID_regs.signed_mem_out <= signed_mem_out;
             ID_regs.ignore_overflow <= ignore_overflow;
             ID_regs.B_is_reg <= B_is_reg;
-            ID_regs.cp0_rd <= inst[15:11];
+            ID_regs.cp0_rd <= IF_regs.inst[15:11];
         end
         // for setting EPC
         ID_regs.pc <= IF_regs.fetch_pc;

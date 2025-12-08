@@ -20,7 +20,10 @@ module cache_L1 #(
 ) (
     input logic clock,
     input logic reset,
-    input logic [63:0] addr,
+    input logic enable,
+    input logic clear,
+    input logic signed_type,
+    input logic [63:0] addr  /* verilator public */,
     input logic [63:0] wdata,
     input mem_load_type_t mem_load_type,
     input mem_store_type_t mem_store_type,
@@ -68,13 +71,13 @@ module cache_L1 #(
     always_ff @(posedge clock, posedge reset) begin
         if (reset) begin
             // Reset logic
-            valid_array   <= '{default: '{default: '0}};
-            dirty_array   <= '{default: '{default: '0}};
+            valid_array <= '{default: '{default: '0}};
+            dirty_array <= '{default: '{default: '0}};
             LRU_way_array <= '{default: '0};
-        end else if ((|mem_load_type) || (|mem_store_type)) begin
-            // $display("%m try to access addr=%h, tag=%h, index=%d", addr, tag, index);
-            // $display("way0, tag=%h, valid=%d", tag_array[0][index], valid_array[0][index]);
-            // $display("way1, tag=%h, valid=%d", tag_array[1][index], valid_array[1][index]);
+            rdata <= '0;
+        end else if (clear) begin
+            rdata <= '0;
+        end else if (((|mem_load_type) || (|mem_store_type)) && enable) begin
             if (!(|way_hit)) begin
                 // store dirty cache, then load new cache line
                 // is will take at least 2 cycles
@@ -86,7 +89,8 @@ module cache_L1 #(
                         req.mem_addr <= {tag_array[replace_way][index], index};
                         req.mem_data_out <= data_array[replace_way][index];
                     end else begin
-                        // $display("Cache L1: request new data, addr = %h", {tag, index});
+                        $display("Cache L1: request new data, addr = %h", {
+                                 tag, index});
                         req.mem_req_store <= 1'b0;
                         req.mem_req_load <= 1'b1;
                         req.mem_addr <= {tag, index};
@@ -105,7 +109,9 @@ module cache_L1 #(
                     end else begin
                         // load new cache finished
 `ifdef DEBUG
-                        $display("%m: loaded new cache line, addr = %h, index = %h", addr, index);
+                        $display(
+                            "%m: loaded new cache line, addr = %h, index = %h",
+                            addr, index);
                         $display("%m: loaded data = %h", resp.mem_data);
 `endif
                         tag_array[replace_way][index] <= tag;
@@ -117,19 +123,19 @@ module cache_L1 #(
                         case (mem_load_type)
                             LOAD_BYTE: begin
                                 rdata <= {
-                                    {(WIDTH - 8) {resp.mem_data[offset*8+7]}},
+                                    {(WIDTH - 8) {resp.mem_data[offset*8+7] & signed_type}},
                                     resp.mem_data[offset*8+:8]
                                 };
                             end
                             LOAD_HALF: begin
                                 rdata <= {
-                                    {(WIDTH - 16) {resp.mem_data[offset*8+15]}},
+                                    {(WIDTH - 16) {resp.mem_data[offset*8+15] & signed_type}},
                                     resp.mem_data[offset*8+:16]
                                 };
                             end
                             LOAD_WORD: begin
                                 rdata <= {
-                                    {(WIDTH - 32) {resp.mem_data[offset*8+31]}},
+                                    {(WIDTH - 32) {resp.mem_data[offset*8+31] & signed_type}},
                                     resp.mem_data[offset*8+:32]
                                 };
                             end
@@ -146,19 +152,19 @@ module cache_L1 #(
                 case (mem_load_type)
                     LOAD_BYTE: begin
                         rdata <= {
-                            {(WIDTH - 8) {data_array[hit_way_idx][index][offset*8+7]}},
+                            {(WIDTH - 8) {data_array[hit_way_idx][index][offset*8+7] & signed_type}},
                             data_array[hit_way_idx][index][offset*8+:8]
                         };
                     end
                     LOAD_HALF: begin
                         rdata <= {
-                            {(WIDTH - 16) {data_array[hit_way_idx][index][offset*8+15]}},
+                            {(WIDTH - 16) {data_array[hit_way_idx][index][offset*8+15] & signed_type}},
                             data_array[hit_way_idx][index][offset*8+:16]
                         };
                     end
                     LOAD_WORD: begin
                         rdata <= {
-                            {(WIDTH - 32) {data_array[hit_way_idx][index][offset*8+31]}},
+                            {(WIDTH - 32) {data_array[hit_way_idx][index][offset*8+31] & signed_type}},
                             data_array[hit_way_idx][index][offset*8+:32]
                         };
                     end
@@ -186,8 +192,12 @@ module cache_L1 #(
                 LRU_way_array[index] <= ~hit_way_idx;
                 dirty_array[hit_way_idx][index] <= (|mem_store_type) || dirty_array[hit_way_idx][index];
             end
-            // $display("%m try to access addr=%h, tag=%h, index=%d, result = %h", addr, tag, index,
-            //          data_array[hit_way_idx][index][offset*8+:64]);
+`ifdef DEBUG
+            $display(
+                "%0t %m try to access addr=%h, tag=%h, index=%d, offset=%h, result = %h",
+                $time, addr, tag, index, offset,
+                data_array[hit_way_idx][index][offset*8+:64]);
+`endif
         end else begin
             req.mem_req_load  <= 1'b0;
             req.mem_req_store <= 1'b0;

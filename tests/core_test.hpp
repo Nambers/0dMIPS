@@ -2,25 +2,20 @@
 #define CORE_TEST_HPP
 
 #include "common.hpp"
-#include <Core_cache_arbiter.h>
 #include <Core.h>
 #include <Core_cache_L1.h>
 #include <Core_core.h>
+#include <Core_core_IF.h>
 #include <Core_core_MEM.h>
 #include <Core_core_branch.h>
 #include <Core_cp0.h>
 
 #include <array>
 
-#define MASK5 0b11111
-#define MASK6 0b111111
-#define MASK16 0xffff
-#define MASK32 0xffffffff
-#define WORD_SIGN_MASK 0x80000000
-#define WORD_HIGH_FULL 0xffffffff00000000
-#define BYTE_HIGH_FULL 0xffffffffffffff00
-
-#define MASKED(val, mask) ((val##mask) & (MASK##mask))
+constexpr uint8_t OVERFLOW_EXC = 0x0c;
+constexpr uint8_t RESERVED_INSTR_EXC = 0x0a;
+constexpr uint8_t SYSCALL_EXC = 0x08;
+constexpr uint8_t BREAK_EXC = 0x09;
 
 template <class T, class... U>
 constexpr std::array<T, sizeof...(U)> make_array(U &&...u) {
@@ -62,7 +57,18 @@ inline void setAddrDWord(Core_cache_L1 *cache, uint64_t addr, uint64_t dword) {
     data_line[offset / sizeof(uint32_t) + 1] = (dword >> 32) & MASK32;
     cache->valid_array[fixedWay][index] = 1;
     cache->tag_array[fixedWay][index] = getTag(addr);
-    // printf("set to index=%x, tag=%x\n", index, getTag(addr));
+    // printf("set to index=%x, tag=%x, ofs=%x\n", index, getTag(addr), offset);
+}
+
+inline void preloadCacheLine(Core_cache_L1 *cache, uint64_t start_addr,
+                             uint64_t end_addr) {
+    const auto fixedWay = 0; // for test simplicity
+    for (auto i = getIndex(start_addr); i <= getIndex(end_addr) + 1; i++) {
+        memset(&cache->data_array[fixedWay][i], 0, sizeof(VlWide<16>));
+        cache->valid_array[fixedWay][i] = 1;
+        cache->tag_array[fixedWay][i] = getTag(start_addr);
+        // printf("preload index=%x, tag=%x\n", i, getTag(start_addr));
+    }
 }
 
 template <typename Wide>
@@ -91,42 +97,25 @@ uint64_t vlwide_get(const Wide &wide, int idx /* low_bit */, int width) {
     return (high_part | low_part) & mask;
 }
 
-template <class C>
-void write_mem_seg(C &data_seg, size_t addr, uint64_t value) {
-    *reinterpret_cast<uint64_t *>(&(data_seg[addr])) = value;
-}
-template <class C> uint64_t read_mem_seg(const C &data_seg, size_t addr) {
-    return *reinterpret_cast<const uint64_t *>(&(data_seg[addr]));
-}
-
 constexpr static auto common_boundary_cases = make_array<uint64_t>(
     0, 1, 0x7fffffffffffffff, 0x8000000000000000, 0xffffffffffffffff);
 
-// #define MEM_SEG inst_->core->MEM_stage->mem->data_seg
 #define DCACHE inst_->core->MEM_stage->data_cache
-#define ICACHE inst_->core->MEM_stage->inst_cache
+#define ICACHE inst_->core->IF_stage->inst_cache
 #define RF inst_->core->ID_stage->rf
-#define FETCH_PC vlwide_get(inst_->core->IF_regs, 0, 64)
+// #define FETCH_PC vlwide_get(inst_->core->IF_regs, 0, 64)
+#define FETCH_PC inst_->core->IF_stage->first_half_pc
 
-inline void reset_pc(Core *inst_, uint64_t pc) {
-    inst_->core->branch_unit->next_fetch_pc = pc;
+inline void set_pc(Core *inst_, uint64_t pc) {
     pc = (pc == 0) ? 0 : pc - 4;
 
-    // inst = NOP
-    inst_->core->inst = 0;
-
-    // fetch_pc4
-    inst_->core->IF_regs.at(2) = (uint32_t)((pc + 4) & 0xffffffff); // low
-    inst_->core->IF_regs.at(3) =
-        (uint32_t)(((pc + 4) >> 32) & 0xffffffff); // high
-
-    // fetch_pc
-    inst_->core->IF_regs.at(0) = (uint32_t)((pc) & 0xffffffff);         // low
-    inst_->core->IF_regs.at(1) = (uint32_t)(((pc) >> 32) & 0xffffffff); // high
+    inst_->core->branch_unit->next_fetch_pc = pc;
+    inst_->core->IF_stage->first_half_pc4 = pc;
+    inst_->core->IF_stage->first_half_pc = pc;
 }
 
-#define SET_PC(pc) reset_pc(inst_, pc)
-#define RESET_PC() reset_pc(inst_, 0)
+#define SET_PC(pc) set_pc(inst_, pc)
+#define RESET_PC() set_pc(inst_, 0)
 
 inline VlWide<5> buildMemRegs(int addr, uint64_t data) {
     VlWide<5> regs{};
@@ -148,56 +137,62 @@ inline VlWide<5> buildMemRegs(int addr, uint64_t data) {
     inst_->core->MEM_regs = buildMemRegs(addr, data);                          \
     tick()
 
-#define TestGenMemCycle(name, init_test, check_result, cycle)                  \
+#define CASES_HEAD for (const uint64_t val : common_boundary_cases) {
+#define CASES_TAIL }
+
+#define TestGenMemInternal(name, init_test, check_result, cycle, ele1, ele2,   \
+                           ele3)                                               \
     TEST_F(CoreTest, name) {                                                   \
-        for (const uint64_t val : common_boundary_cases) {                     \
-            reset();                                                           \
-            init_test;                                                         \
-            inst_->core->MEM_stage->cache_arbiter_->reset = 1;                 \
-            tick();                                                            \
-            RESET_PC();                                                        \
-            for (auto i = 0; i < cycle; ++i) {                                 \
-                ASSERT_EQ(inst_->core->MEM_stage->cp0_->exc_code, 0);          \
-                tick();                                                        \
-            }                                                                  \
-            check_result;                                                      \
-        }                                                                      \
-    }
-#define TestGenMemOnceCycle(name, init_test, check_result, cycle)              \
-    TEST_F(CoreTest, name) {                                                   \
-        reset();                                                               \
+        ele1 reset();                                                          \
+        preloadCacheLine(ICACHE, 0, 0xff);                                     \
+        preloadCacheLine(DCACHE, 0, 0xff);                                     \
         init_test;                                                             \
-        inst_->core->MEM_stage->cache_arbiter_->reset = 1;                     \
         tick();                                                                \
         RESET_PC();                                                            \
         for (auto i = 0; i < cycle; ++i) {                                     \
             tick();                                                            \
-            ASSERT_EQ(inst_->core->MEM_stage->cp0_->exc_code, 0);              \
+            ele3;                                                              \
         }                                                                      \
         check_result;                                                          \
+        ele2                                                                   \
     }
-#define TestGenMemOnceCycleNoCheck(name, init_test, check_result, cycle)       \
-    TEST_F(CoreTest, name) {                                                   \
-        reset();                                                               \
-        init_test;                                                             \
-        inst_->core->MEM_stage->cache_arbiter_->reset = 1;                     \
-        tick();                                                                \
-        RESET_PC();                                                            \
-        for (auto i = 0; i < cycle; ++i)                                       \
-            tick();                                                            \
-        check_result;                                                          \
-    }
+
+#define TestGenMemCycle(name, init_test, check_result, cycle)                  \
+    TestGenMemInternal(name, init_test, check_result, cycle, CASES_HEAD,       \
+                       CASES_TAIL,                                             \
+                       ASSERT_EQ(inst_->core->MEM_stage->cp0_->exc_code, 0))
+#define TestGenMemOnceCycle(name, init_test, check_result, cycle)              \
+    TestGenMemInternal(name, init_test, check_result, cycle, , ,               \
+                       ASSERT_EQ(inst_->core->MEM_stage->cp0_->exc_code, 0))
+
+#define TestGenMemCycleNoCheck(name, exc, init_test, check_result, cycle)      \
+    TestGenMemInternal(                                                        \
+        name, init_test, check_result, cycle, CASES_HEAD, CASES_TAIL,          \
+        ASSERT_TRUE(inst_->core->MEM_stage->cp0_->exc_code == exc ||           \
+                    inst_->core->MEM_stage->cp0_->exc_code == 0))
+#define TestGenMemOnceCycleNoCheck(name, exc, init_test, check_result, cycle)  \
+    TestGenMemInternal(                                                        \
+        name, init_test, check_result, cycle, , ,                              \
+        ASSERT_TRUE(inst_->core->MEM_stage->cp0_->exc_code == exc ||           \
+                    inst_->core->MEM_stage->cp0_->exc_code == 0))
 
 /*
     IF Stage
+    IF2 Stage
     ID Stage
-    /EX Stage
+    EX Stage
     MEM Stage
+    MEM2 Stage
+    WB Stage
 */
 #define TestGenMem(name, init_test, check_result)                              \
-    TestGenMemCycle(name, init_test, check_result, 3)
+    TestGenMemCycle(name, init_test, check_result, 6)
 #define TestGenMemOnce(name, init_test, check_result)                          \
-    TestGenMemOnceCycle(name, init_test, check_result, 3)
+    TestGenMemOnceCycle(name, init_test, check_result, 6)
+#define TestGenMemNoCheck(name, exc, init_test, check_result)                  \
+    TestGenMemCycleNoCheck(name, exc, init_test, check_result, 6)
+#define TestGenMemOnceNoCheck(name, exc, init_test, check_result)              \
+    TestGenMemOnceCycleNoCheck(name, exc, init_test, check_result, 6)
 
 class CoreTest : public TestBase<Core> {
   protected:

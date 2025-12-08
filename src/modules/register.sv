@@ -26,7 +26,7 @@ endmodule
 // d      (input)  - Next value of register
 // clk    (input)  - Clock (positive edge-sensitive)
 // enable (input)  - Load new value? (yes = 1, no = 0)
-// reset  (input)  - Synchronous reset    (reset = 1)
+// reset  (input)  - Asynchronous reset    (reset = 1)
 //
 module register #(
     parameter width = 32,
@@ -38,7 +38,7 @@ module register #(
     input logic enable,
     input logic rst
 );
-    always @(posedge clk or posedge rst) begin
+    always_ff @(posedge clk or posedge rst) begin
         if (rst) Q <= reset_value;
         else if (enable) Q <= D;
     end

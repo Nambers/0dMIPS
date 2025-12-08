@@ -34,7 +34,7 @@ module core_hazard #(
         d_valid_tmp = (EX_mem_write || EX_mem_read) && (addr >= PERIPHERAL_BASE);
         stall = load_use || (d_valid_tmp && !d_ready) || (mem_bus_req && !mem_bus_ready);
 
-        // $display("stall = %d, %d %d %d", stall, load_use, (d_valid_tmp && !d_ready),
+        // $display("t=%0t, stall = %d, %d %d %d", $time, stall, load_use, (d_valid_tmp && !d_ready),
         //          (mem_bus_req && !mem_bus_ready));
     end
 endmodule

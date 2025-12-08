@@ -5,7 +5,7 @@ module cache_arbiter #(
     parameter CACHE_LINE_SIZE = 64 * 8  // 64 Bytes
 ) (
     input logic clock,
-    input logic reset  /* verilator public */,
+    input logic reset,
 
     input  mem_bus_req_t  req1,
     output mem_bus_resp_t resp1,
@@ -92,8 +92,10 @@ module cache_arbiter #(
 
 `ifdef DEBUG
     always_ff @(posedge clock) begin
-        if (cache1_st_D) $display("Cache Arbiter: Cache 1 gain bus at time %t", $time);
-        if (cache2_st_D) $display("Cache Arbiter: Cache 2 gain bus at time %t", $time);
+        if (cache1_st_D)
+            $display("Cache Arbiter: Cache 1 gain bus at time %t", $time);
+        if (cache2_st_D)
+            $display("Cache Arbiter: Cache 2 gain bus at time %t", $time);
     end
 `endif
 endmodule

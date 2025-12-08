@@ -19,6 +19,7 @@
             EXPECT_TRUE(RF->wr_enable);                                        \
             EXPECT_EQ(RF->W_addr, 1);                                          \
             EXPECT_EQ(RF->W_data, check_W_data);                               \
+            tick();\
         })
 
 TestGenRead(LB, 0x20, sign_extend(val & 0xff, 8));
@@ -78,10 +79,26 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
 #define TEST64OVERFLOW(expr) ((expr) > INT64_MAX || (expr) < INT64_MIN)
 
 /* #region R type arithmetics operations test */
-#define TestGenArithR(name, rs, shamt, funct, check_W_data, overflow_cond,     \
-                      fixed_val)                                               \
+#define TestGenArithR(name, rs, shamt, funct, check_W_data, fixed_val)         \
     TestGenMem(                                                                \
         name,                                                                  \
+        {                                                                      \
+            WRITE_RF(1, fixed_val); /* store 1 into reg $1*/                   \
+            WRITE_RF(2, val);       /* store val into reg $2*/                 \
+                                    /* $3 = $1 <OP> $2 */                      \
+            setAddrDWord(                                                      \
+                ICACHE, 0,                                                     \
+                inst_comb(build_R_inst(0, rs, 2, 3, shamt, funct), 0));        \
+        },                                                                     \
+        {                                                                      \
+            EXPECT_TRUE(RF->wr_enable);                                        \
+            EXPECT_EQ(RF->W_addr, 3);                                          \
+            EXPECT_EQ(RF->W_data, check_W_data);                               \
+        })
+#define TestGenArithR_overflow(name, rs, shamt, funct, check_W_data,           \
+                               overflow_cond, fixed_val)                       \
+    TestGenMemNoCheck(                                                         \
+        name, OVERFLOW_EXC,                                                    \
         {                                                                      \
             WRITE_RF(1, fixed_val); /* store 1 into reg $1*/                   \
             WRITE_RF(2, val);       /* store val into reg $2*/                 \
@@ -106,14 +123,14 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
     num: resevered arg for TestGenArithR2
 */
 #define Arith32_overflow(name, opcode, overflow_expr, expr, num)               \
-    TestGenArithR(name, 1, 0, opcode, sign_extend(expr, 32),                   \
-                  TEST32OVERFLOW(overflow_expr), num);
+    TestGenArithR_overflow(name, 1, 0, opcode, sign_extend(expr, 32),          \
+                           TEST32OVERFLOW(overflow_expr), num);
 #define Arith32(name, opcode, expr, num)                                       \
-    TestGenArithR(name, 1, 0, opcode, sign_extend(expr, 32), 0, num);
+    TestGenArithR(name, 1, 0, opcode, sign_extend(expr, 32), num);
 #define Arith32Shamt(name, opcode, expr, num)                                  \
-    TestGenArithR(name, 0, num, opcode, sign_extend(expr, 32), 0, 0);
+    TestGenArithR(name, 0, num, opcode, sign_extend(expr, 32), 0);
 #define Arith32ShamtRS1(name, opcode, expr, num)                               \
-    TestGenArithR(name, 1, num, opcode, sign_extend(expr, 32), 0, 0);
+    TestGenArithR(name, 1, num, opcode, sign_extend(expr, 32), 0);
 #define TestAdd(AName, expr, num)                                              \
     Arith32_overflow(ADD##AName, 0x20, static_cast<int64_t>(num) + val, expr,  \
                      num)
@@ -135,13 +152,14 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
                      num);
 
 #define Arith64_overflow(name, opcode, overflow_expr, expr, num)               \
-    TestGenArithR(name, 1, 0, opcode, expr, TEST64OVERFLOW(overflow_expr), num);
+    TestGenArithR_overflow(name, 1, 0, opcode, expr,                           \
+                           TEST64OVERFLOW(overflow_expr), num);
 #define Arith64(name, opcode, expr, num)                                       \
-    TestGenArithR(name, 1, 0, opcode, expr, 0, num);
+    TestGenArithR(name, 1, 0, opcode, expr, num);
 #define Arith64Shamt(name, opcode, expr, num)                                  \
-    TestGenArithR(name, 0, num, opcode, expr, 0, 0);
+    TestGenArithR(name, 0, num, opcode, expr, 0);
 #define Arith64ShamtRS1(name, opcode, expr, num)                               \
-    TestGenArithR(name, 1, num, opcode, expr, 0, 0);
+    TestGenArithR(name, 1, num, opcode, expr, 0);
 #define TestDAdd(AName, expr, num)                                             \
     Arith64_overflow(DADD##AName, 0x2c, static_cast<int64_t>(num) + val, expr, \
                      num)
@@ -252,17 +270,18 @@ TestGenArith2_overflow(TestDAddIU, val +);
 /* #endregion */
 
 /* #region branching test */
-TestGenMem(
+TestGenMemCycle(
     BEQ,
     {
+        preloadCacheLine(ICACHE, 512, 516);
         WRITE_RF(1, val);
         WRITE_RF(2, val);
         // beq $1, $2, +512
         setAddrDWord(ICACHE, 0,
                      inst_comb(build_I_inst(0x4, 1, 2, 512 >> 2), 0));
     },
-    { EXPECT_EQ(FETCH_PC, 512 + 4); });
-TestGenMem(
+    { EXPECT_EQ(FETCH_PC, 512 + 4); }, 5);
+TestGenMemCycle(
     BEQ_Fail,
     {
         WRITE_RF(1, val);
@@ -272,20 +291,22 @@ TestGenMem(
                      inst_comb(build_I_inst(0x4, 1, 2, 512 >> 2), 0));
     },
     {
-        // 4 stages
-        EXPECT_EQ(FETCH_PC, 4 * 3);
-    });
-TestGenMem(
+        // 5 stages
+        EXPECT_EQ(FETCH_PC, 4 * 4);
+    },
+    5);
+TestGenMemCycle(
     BNE,
     {
+        preloadCacheLine(ICACHE, 512, 516);
         WRITE_RF(1, val);
         WRITE_RF(2, val + 1);
         // bne $1, $2, +512
         setAddrDWord(ICACHE, 0,
                      inst_comb(build_I_inst(0x5, 1, 2, 512 >> 2), 0));
     },
-    { EXPECT_EQ(FETCH_PC, 512 + 4); });
-TestGenMem(
+    { EXPECT_EQ(FETCH_PC, 512 + 4); }, 5);
+TestGenMemCycle(
     BNE_Fail,
     {
         WRITE_RF(1, val);
@@ -294,25 +315,28 @@ TestGenMem(
         setAddrDWord(ICACHE, 0,
                      inst_comb(build_I_inst(0x5, 1, 2, 512 >> 2), 0));
     },
-    { EXPECT_EQ(FETCH_PC, 4 * 3); });
-TestGenMemOnce(
+    { EXPECT_EQ(FETCH_PC, 4 * 4); }, 5);
+TestGenMemOnceCycle(
     BC,
     {
+        preloadCacheLine(ICACHE, 512, 516);
         // bc $1, +512
         setAddrDWord(ICACHE, 0, inst_comb(build_J_inst(0x32, 512 >> 2), 0));
     },
-    { EXPECT_EQ(FETCH_PC, 512 + 4); });
+    { EXPECT_EQ(FETCH_PC, 512 + 4); }, 5);
 TestGenMemOnceCycle(
     J,
     {
+        preloadCacheLine(ICACHE, 512, 516);
         // j +512
         setAddrDWord(ICACHE, 0, inst_comb(build_J_inst(0x2, 512 >> 2), 0));
     },
-    { EXPECT_EQ(FETCH_PC, 512); }, 2);
+    { EXPECT_EQ(FETCH_PC, 512); }, 4);
 
 TestGenMemOnceCycle(
     JAL,
     {
+        preloadCacheLine(ICACHE, 512, 516);
         // jal +512 (target = (512 >> 2))
         setAddrDWord(ICACHE, 0, inst_comb(build_J_inst(0x3, 512 >> 2), 0));
     },
@@ -320,22 +344,24 @@ TestGenMemOnceCycle(
         // jal should jump to pc + 512, and store return address to $ra ($31)
         // EX stage
         EXPECT_EQ(FETCH_PC, 512);
-        tick(); // MEM stage
+        tick(); // MEM1 finished
+        tick(); // MEM2 finished
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 31);
         EXPECT_EQ(RF->W_data, 4); // return address is pc + 4
     },
-    2);
+    4);
 TestGenMemOnceCycle(
     JR,
     {
+        preloadCacheLine(ICACHE, 0x0d00, 0x0d04);
         // Set $4 = 0x0d00
         WRITE_RF(4, 0x0d00);
         // jr $4
         setAddrDWord(ICACHE, 0,
                      inst_comb(build_R_inst(0x0, 4, 0, 0, 0, 0x08), 0));
     },
-    { EXPECT_EQ(FETCH_PC, 0x0d00); }, 2);
+    { EXPECT_EQ(FETCH_PC, 0x0d00); }, 4);
 TestGenMemOnceCycle(
     JALR,
     {
@@ -348,14 +374,16 @@ TestGenMemOnceCycle(
     {
         EXPECT_EQ(FETCH_PC, 0x0d00);
         tick(); // MEM stage
+        tick();
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
         EXPECT_EQ(RF->W_data, 4); // return address is pc + 4
     },
-    2);
+    4);
 TestGenMemOnceCycle(
     BAL,
     {
+        preloadCacheLine(ICACHE, 512, 520);
         // bal +512 (offset = 512 / 4 = 128)
         setAddrDWord(ICACHE, 0,
                      inst_comb(build_REGIMM_inst(0x1, 0x11, 0, 512 >> 2),
@@ -364,13 +392,14 @@ TestGenMemOnceCycle(
     {
         // bal should jump to pc + 512, and store return address to $ra ($31)
         EXPECT_EQ(FETCH_PC, 512 + 4); // FETCH_PC updated after EX
+        tick();
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 31);
         EXPECT_EQ(RF->W_data,
                   4); // return address = pc + 4 from ID stage (pc = 0 + 4)
     },
-    3);
-TestGenMemOnceCycle(
+    5);
+TestGenMemOnce(
     ADDIUPC,
     {
         // addiupc $1, 0xff
@@ -382,8 +411,7 @@ TestGenMemOnceCycle(
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
         EXPECT_EQ(RF->W_data, fixedVal<uint16_t>() & (~0b00));
-    },
-    3);
+    });
 
 /* #endregion */
 
@@ -482,6 +510,6 @@ TestGenMemOnce(
         setAddrDWord(ICACHE, 0, inst_comb(0, 0)); // nop
     },
     {
-        EXPECT_EQ(FETCH_PC, 4 * 3);
+        EXPECT_EQ(FETCH_PC, 4 * 5);
         EXPECT_FALSE(RF->wr_enable);
     });

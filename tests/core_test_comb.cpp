@@ -4,7 +4,7 @@
 #include <Core_core_branch.h>
 #include <Core_regfile__W40.h>
 
-TestGenMemCycle(
+TestGenMem(
     SLL_ADD,
     {
         WRITE_RF(1, val);
@@ -24,10 +24,9 @@ TestGenMemCycle(
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 3);
         EXPECT_EQ(RF->W_data, sign_extend(sign_extend(val << 4, 32) + val, 32));
-    },
-    3);
+    });
 
-TestGenMemCycle(
+TestGenMem(
     LW_LSA,
     {
         WRITE_RF(2, fixedVal<uint64_t>());
@@ -51,8 +50,7 @@ TestGenMemCycle(
         EXPECT_EQ(RF->W_data, sign_extend((fixedVal<uint64_t>() << (4 + 1)) +
                                               sign_extend(val, 32),
                                           32));
-    },
-    3);
+    });
 
 TestGenMemCycle(
     BEQ_Multi,
@@ -68,10 +66,10 @@ TestGenMemCycle(
                      inst_comb(0, build_I_inst(0x4, 1, 2, -(24 >> 2))));
     },
     { EXPECT_EQ(FETCH_PC, (32 + 4) - 24 + 4); },
-    // 3rd cycle EX stage jump
-    // 4th IF stage of 2nd beq (flushed)
-    // 6th EX stage of 2nd beg
-    4 + 2);
+    // 5rd cycle EX stage jump
+    // 5th IF stage of 2nd beq (flushed)
+    // 9th EX stage of 2nd beg
+    5 + 4);
 
 TestGenMemCycle(
     BEQ_StoreLoad,
@@ -95,10 +93,10 @@ TestGenMemCycle(
         EXPECT_EQ(RF->W_addr, 3);
         EXPECT_EQ(RF->W_data, sign_extend(val & MASK32, 32));
     },
-    // 4rd cycle jump
+    // 5rd cycle jump
     // 4th IF stage of sw (flushed)
     // 5th IF stage of lw, 9th MEM stage of lw, writeback
-    4 + 1 + 2);
+    5 + 1 + 2 + 3);
 
 TestGenMemOnceCycle(
     JAL_JR_Return,
@@ -113,10 +111,11 @@ TestGenMemOnceCycle(
         tick();
         tick();
         tick();
+        tick();
         EXPECT_EQ(FETCH_PC, 8); // jr $ra returns to 0 + 8
     },
-    // 3 to EX
-    2);
+    // 4 to EX
+    3);
 TestGenMemOnceCycle(
     BAL_JR_Return,
     {
@@ -135,7 +134,7 @@ TestGenMemOnceCycle(
         EXPECT_EQ(FETCH_PC, 8 + 4); // jr $ra returns to 0 + 8
     },
     // 3 to EX
-    3);
+    4);
 
 TestGenMemOnceCycle(
     LA,
@@ -167,7 +166,7 @@ TestGenMemOnceCycle(
         tick();
         EXPECT_FALSE(RF->wr_enable);
     },
-    3);
+    6);
 
 TestGenMemOnceCycle(
     LW_ADDI,
@@ -197,7 +196,7 @@ TestGenMemOnceCycle(
         tick();
         EXPECT_FALSE(RF->wr_enable);
     },
-    3);
+    6);
 
 TestGenMemOnceCycle(
     ORI_ADDI,
@@ -221,7 +220,7 @@ TestGenMemOnceCycle(
         tick();
         EXPECT_FALSE(RF->wr_enable);
     },
-    3);
+    6);
 TestGenMemOnceCycle(
     LA_LA,
     {
@@ -264,7 +263,7 @@ TestGenMemOnceCycle(
         tick(); // done
         EXPECT_FALSE(RF->wr_enable);
     },
-    3 // total 5 cycles
+    6
 );
 
 TestGenMemCycle(
@@ -275,14 +274,15 @@ TestGenMemCycle(
                                build_I_inst(0x23, 1, 2, -(1 << 15)))); // LW
     },
     {
+        EXPECT_EQ(DCACHE->addr, (1 << 16) - (1 << 15)); // 0x8000
+        tick();
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
         EXPECT_EQ(RF->W_data, 1 << 16);
         // EXPECT_EQ(inst_->core->MEM_stage->mem->addr,
         //           (1 << 16) - (1 << 15)); // 0x8000
-        EXPECT_EQ(DCACHE->__PVT__addr, (1 << 16) - (1 << 15)); // 0x8000
     },
-    3);
+    5);
 
 // --- CP0 ---
 TestGenMemOnceCycle(
@@ -301,12 +301,13 @@ TestGenMemOnceCycle(
         EXPECT_EQ(RF->W_addr, 2);
         EXPECT_EQ(RF->W_data, fixedVal<uint32_t>());
     },
-    4);
+    7);
 
 TestGenMemOnceCycleNoCheck(
-    BREAK_MFC0, const auto breakInst = ((fixedVal<uint32_t>() << 6) &
-                                        ((~0b111111UL) << 26)) |
-                                       0x0d;
+    BREAK_MFC0, BREAK_EXC,
+    const auto breakInst = ((fixedVal<uint32_t>() << 6) &
+                            ((~0b111111UL) << 26)) |
+                           0x0d;
     {
         inst_->core->branch_unit->interrupeHandlerAddr = 32;
         setAddrDWord(ICACHE, 0,
@@ -320,15 +321,18 @@ TestGenMemOnceCycleNoCheck(
         tick();
         tick();
         tick();
+        tick();
+        tick();
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 2);
         EXPECT_EQ(RF->W_data, breakInst); // badInstr
     },
-    4); // handler written in MEM stage + 1 for jump
+    7); // handler written in MEM stage + 1 for jump
 TestGenMemOnceCycleNoCheck(
-    SYSCALL_MFC0, const auto syscallInst = ((fixedVal<uint32_t>() << 6) &
-                                            ((~0b111111UL) << 26)) |
-                                           0b001100;
+    SYSCALL_MFC0, SYSCALL_EXC,
+    const auto syscallInst = ((fixedVal<uint32_t>() << 6) &
+                              ((~0b111111UL) << 26)) |
+                             0b001100;
     {
         inst_->core->branch_unit->interrupeHandlerAddr = 32;
         setAddrDWord(ICACHE, 0,
@@ -343,13 +347,15 @@ TestGenMemOnceCycleNoCheck(
         tick();
         tick();
         tick();
+        tick();
+        tick();
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 2);
         EXPECT_EQ(RF->W_data, syscallInst); // badInstr
     },
-    4); // handler written in MEM stage + 1 for jump
+    7); // handler written in MEM stage + 1 for jump
 TestGenMemOnceCycleNoCheck(
-    SYSCALL_ERET,
+    SYSCALL_ERET, SYSCALL_EXC,
     {
         inst_->core->branch_unit->interrupeHandlerAddr = 32;
         setAddrDWord(
@@ -365,12 +371,14 @@ TestGenMemOnceCycleNoCheck(
                   32); // syscall jumps to default error handler
         tick();
         tick();
+        tick();
         EXPECT_EQ(FETCH_PC, 0 + 4); // ERET returns to 0
     },
-    4);
+    7);
 TestGenMemOnceCycleNoCheck(
-    OVERFLOW_AND_ERET,
+    OVERFLOW_AND_ERET, 0,
     {
+        preloadCacheLine(ICACHE, 32, 40);
         inst_->core->branch_unit->interrupeHandlerAddr = 32;
         WRITE_RF(1, 0x100);
         WRITE_RF(2, fixedVal<uint32_t>());
@@ -402,7 +410,7 @@ TestGenMemOnceCycleNoCheck(
     5);
 
 TestGenMemOnceCycleNoCheck(
-    INTERRUPT_AND_ERET,
+    INTERRUPT_AND_ERET, 0,
     {
         inst_->core->branch_unit->interrupeHandlerAddr = 32;
         WRITE_RF(1, 0x100);
@@ -430,9 +438,11 @@ TestGenMemOnceCycleNoCheck(
         tick();
         inst_->interrupt_sources = 0;
         tick();
+        tick();
         EXPECT_EQ(FETCH_PC, 32); // jump to handler
         tick();
         EXPECT_EQ(FETCH_PC, 36);
+        tick();
         tick();
         EXPECT_EQ(FETCH_PC, 4 * 2); // ERET returns to 8
         EXPECT_EQ(getAddrDWord(DCACHE, 0x100),
@@ -443,8 +453,9 @@ TestGenMemOnceCycleNoCheck(
         tick();
         tick();
         tick();
+        tick();
         EXPECT_EQ(getAddrDWord(DCACHE, 0x100 + 8),
                   (static_cast<uint64_t>(fixedVal<uint32_t>()) << 32) |
                       fixedVal<uint32_t>());
     },
-    2);
+    3);

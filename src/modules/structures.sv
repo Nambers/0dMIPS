@@ -83,7 +83,10 @@ package structures;
         SIGN_ROTATOR32
     } cut_barrel_out32_t;
 
-    typedef struct packed {logic [63:0] fetch_pc4, fetch_pc;} IF_regs_t;
+    typedef struct packed {
+        logic [63:0] fetch_pc4, fetch_pc;
+        logic [31:0] inst;
+    } IF_regs_t;
 
     typedef struct packed {
         logic [63:0] A_data, B_data, pc4, pc_branch, jumpAddr;

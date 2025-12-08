@@ -30,15 +30,33 @@ module core #(
     input logic [7:0] interrupt_sources
 );
     // pipeline
-    logic stall  /* verilator public */, flush  /* verilator public */, B_is_reg;
+    logic
+        stall  /* verilator public */, flush  /* verilator public */, B_is_reg;
     IF_regs_t  IF_regs  /* verilator public */;
     ID_regs_t  ID_regs  /* verilator public */;
     EX_regs_t  EX_regs  /* verilator public */;
     MEM_regs_t MEM_regs  /* verilator public */;
+    mem_bus_req_t inst_req, data_req;
+    mem_bus_resp_t inst_resp, data_resp;
 
-    logic [63:0] next_fetch_pc, EX_A_data_forwarded;
-    logic [31:0] inst  /* verilator public */;
-    forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
+    logic [63:0]
+        next_fetch_pc  /* verilator public */,
+        IF_pc,
+        IF_pc4,
+        EX_A_data_forwarded;
+    forward_type_t
+        forward_A  /* verilator public */, forward_B  /* verilator public */;
+
+    cache_arbiter cache_arbiter_ (
+        .clock(clock),
+        .reset(reset),
+        .req1 (inst_req),
+        .resp1(inst_resp),
+        .req2 (data_req),
+        .resp2(data_resp),
+        .req  (mem_bus_req),
+        .resp (mem_bus_resp)
+    );
 
     core_forward forward_unit (
         .ID_rs(ID_regs.inst[25:21]),
@@ -53,8 +71,8 @@ module core #(
     );
 
     core_hazard #(PERIPHERAL_BASE) hazard_unit (
-        .IF_rs(inst[25:21]),
-        .IF_rt(inst[20:16]),
+        .IF_rs(IF_regs.inst[25:21]),
+        .IF_rt(IF_regs.inst[20:16]),
         .IF_B_is_reg(B_is_reg),
         .ID_W_regnum(ID_regs.W_regnum),
         .ID_mem_read(|ID_regs.mem_load_type),
@@ -77,7 +95,7 @@ module core #(
         .EX_regs(EX_regs),
         .forward_A(forward_A),
         .MEM_data(MEM_regs.W_data),
-        .fetch_pc4(IF_regs.fetch_pc4),
+        .fetch_pc4(IF_pc4),
         .EPC(MEM_regs.EPC),
         .takenHandler(MEM_regs.takenHandler),
         .reset(reset),
@@ -91,14 +109,17 @@ module core #(
         .next_fetch_pc(next_fetch_pc),
         .stall(stall),
         .flush(flush),
-        .IF_regs(IF_regs)
+        .first_half_pc(IF_pc),
+        .first_half_pc4(IF_pc4),
+        .IF_regs(IF_regs),
+        .inst_req(inst_req),
+        .inst_resp(inst_resp)
     );
 
     core_ID ID_stage (
         .clock(clock),
         .reset(reset),
         .IF_regs(IF_regs),
-        .inst(inst),
         .stall(stall),
         .flush(flush),
         .MEM_regs(MEM_regs),
@@ -121,20 +142,18 @@ module core #(
     core_MEM MEM_stage (
         .clock(clock),
         .reset(reset),
-        .fetch_pc(IF_regs.fetch_pc),
+        .fetch_pc(IF_pc),
         .ID_pc(ID_regs.pc),
         .ID_reserved_inst_E(ID_regs.reserved_inst_E),
         .interrupt_sources(interrupt_sources),
         .flush(flush),  // for memory fetch
         .ID_ERET(ID_regs.ERET),
         .d_valid(d_valid),
-        .d_ready(d_ready),
         .d_rdata(d_rdata),
-        .inst(inst),
         .EX_regs(EX_regs),
         .MEM_regs(MEM_regs),
-        .mem_bus_req(mem_bus_req),
-        .mem_bus_resp(mem_bus_resp)
+        .data_req(data_req),
+        .data_resp(data_resp)
     );
 
     // -- peripheral --
