@@ -45,6 +45,7 @@ TestGenMem(
         tick();
         // load-use
         tick();
+        tick();
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 3);
         EXPECT_EQ(RF->W_data, sign_extend((fixedVal<uint64_t>() << (4 + 1)) +
@@ -111,11 +112,10 @@ TestGenMemOnceCycle(
         tick();
         tick();
         tick();
-        tick();
-        EXPECT_EQ(FETCH_PC, 8); // jr $ra returns to 0 + 8
+        EXPECT_EQ(FETCH_PC, 4); // jr $ra returns to 0 + 4
     },
     // 4 to EX
-    3);
+    4);
 TestGenMemOnceCycle(
     BAL_JR_Return,
     {
@@ -130,11 +130,10 @@ TestGenMemOnceCycle(
         tick();
         tick();
         tick();
-        tick();
-        EXPECT_EQ(FETCH_PC, 8 + 4); // jr $ra returns to 0 + 8
+        EXPECT_EQ(FETCH_PC, 4); // jr $ra returns to 0 + 4
     },
     // 3 to EX
-    4);
+    5);
 
 TestGenMemOnceCycle(
     LA,
@@ -187,6 +186,7 @@ TestGenMemOnceCycle(
         tick();
         EXPECT_FALSE(RF->wr_enable);
         tick(); // stall, load-use hazard
+        tick();
 
         EXPECT_TRUE(RF->wr_enable);
         EXPECT_EQ(RF->W_addr, 1);
@@ -353,32 +353,37 @@ TestGenMemOnceCycleNoCheck(
         EXPECT_EQ(RF->W_data, syscallInst); // badInstr
     },
     7); // handler written in MEM stage + 1 for jump
-TestGenMemOnceCycleNoCheck(
-    SYSCALL_ERET, SYSCALL_EXC,
+TestGenMemOnceCycle(
+    SYSCALL_ERET,
     {
-        inst_->core->branch_unit->interrupeHandlerAddr = 32;
+        inst_->core->branch_unit->interrupeHandlerAddr = 40;
         setAddrDWord(
             ICACHE, 0,
             inst_comb(((fixedVal<uint32_t>() << 6) & ((~0b111111UL) << 26)) |
                           0b001100, // SYSCALL
                       0));
-        setAddrDWord(ICACHE, 32,
+        setAddrDWord(ICACHE, 40,
                      inst_comb(0b0100001UL << 25 | 0b011000, 0)); // ERET
     },
     {
+        tick();
+        EXPECT_EQ(inst_->core->MEM_stage->cp0_->exc_code, SYSCALL_EXC);
+        tick();
+        EXPECT_EQ(inst_->core->MEM_stage->cp0_->exc_code, SYSCALL_EXC);
+        tick();
         EXPECT_EQ(FETCH_PC,
-                  32); // syscall jumps to default error handler
+                  40); // syscall jumps to default error handler
         tick();
         tick();
         tick();
+        EXPECT_EQ(inst_->core->MEM_stage->cp0_->exc_code, 0);
         EXPECT_EQ(FETCH_PC, 0 + 4); // ERET returns to 0
     },
-    7);
-TestGenMemOnceCycleNoCheck(
-    OVERFLOW_AND_ERET, 0,
+    4);
+TestGenMemOnceCycle(
+    OVERFLOW_AND_ERET,
     {
-        preloadCacheLine(ICACHE, 32, 40);
-        inst_->core->branch_unit->interrupeHandlerAddr = 32;
+        inst_->core->branch_unit->interrupeHandlerAddr = 48;
         WRITE_RF(1, 0x100);
         WRITE_RF(2, fixedVal<uint32_t>());
         WRITE_RF(3, INT64_MAX);
@@ -391,25 +396,31 @@ TestGenMemOnceCycleNoCheck(
                      inst_comb(build_R_inst(0, 3, 4, 3, 0,
                                             0x20), // ADD $3, $4, $3, overflow
                                build_I_inst(0x2b, 1, 2, 8))); // SW $2, 8($1)
-        setAddrDWord(ICACHE, 32,
+        setAddrDWord(ICACHE, 48,
                      inst_comb(0b0100001UL << 25 | 0b011000, 0)); // ERET
     },
     {
         EXPECT_EQ(FETCH_PC, 4 * 5);
-        tick();                  // IF
-        tick();                  // ID
-        tick();                  // EX, overflow happened
-        EXPECT_EQ(FETCH_PC, 32); // jump to handler
+        tick(); // IF
+        tick(); // ID
+        tick(); // EX, overflow happened
+        EXPECT_EQ(inst_->core->MEM_stage->cp0_->exc_code, OVERFLOW_EXC);
+        tick();
+        EXPECT_EQ(inst_->core->MEM_stage->cp0_->exc_code, OVERFLOW_EXC);
+        tick();
+        EXPECT_EQ(inst_->core->MEM_stage->cp0_->exc_code, OVERFLOW_EXC);
+        EXPECT_EQ(FETCH_PC, 48); // jump to handler
         tick();                  // IF
         tick();                  // ID, ERET resolved
         tick();
+        EXPECT_EQ(inst_->core->MEM_stage->cp0_->exc_code, 0);
         EXPECT_EQ(FETCH_PC,
-                  4 * 6); // 4 * 5 cause overflow, then ERET will return to next
+                  4 * 5); // 4 * 4 cause overflow, then ERET will return to next
     },
-    5);
+    6);
 
-TestGenMemOnceCycleNoCheck(
-    INTERRUPT_AND_ERET, 0,
+TestGenMemOnceCycle(
+    INTERRUPT_AND_ERET,
     {
         inst_->core->branch_unit->interrupeHandlerAddr = 32;
         WRITE_RF(1, 0x100);

@@ -1,4 +1,4 @@
-set(UNITS timer cp0 core cache_L1 cache_arbiter)
+set(UNITS timer cp0 core cache_L1)
 set(TEST_DIR ${CMAKE_SOURCE_DIR}/tests)
 
 set(timer_SRCS
@@ -14,12 +14,6 @@ set(cp0_SRCS
 set(cache_L1_SRCS
     ${SRC_DIR}/modules/structures.sv
     ${SRC_DIR}/units/cache_L1.sv
-)
-set(cache_arbiter_SRCS
-    ${SRC_DIR}/modules/structures.sv
-    ${SRC_DIR}/modules/register.sv
-    ${SRC_DIR}/modules/mux.sv
-    ${SRC_DIR}/units/cache_arbiter.sv
 )
 
 foreach(target IN LISTS UNITS)

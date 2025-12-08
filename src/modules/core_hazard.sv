@@ -4,9 +4,11 @@ module core_hazard #(
     // --- load-use ---
     input logic [4:0] IF_rs,
     input logic [4:0] IF_rt,
+    input logic IF_B_is_reg,
     input logic [4:0] ID_W_regnum,
     input logic ID_mem_read,
-    input logic IF_B_is_reg,
+    input logic [4:0] EX_W_regnum,
+    // input logic EX_mem_read,
     output logic stall,
 
     // --- peripherals ---
@@ -22,14 +24,18 @@ module core_hazard #(
     input logic mem_bus_req,
     input logic mem_bus_ready
 );
-    logic load_use, d_valid_tmp;
+    logic load_use, d_valid_tmp, EX_load_use, MEM1_load_use;
     always_comb begin
         d_valid = (EX_mem_write || EX_mem_read) && (addr >= PERIPHERAL_BASE);
         // if addr is in the peripheral range and it's memory access operations
         // then it's a valid peripheral access
-        load_use = ID_mem_read &&
+        EX_load_use = ID_mem_read &&
                   (ID_W_regnum != 0) &&
                   ((IF_rs == ID_W_regnum) || (IF_B_is_reg && (IF_rt == ID_W_regnum)));
+        MEM1_load_use = EX_mem_read &&
+                   (EX_W_regnum != 0) &&
+                   ((IF_rs == EX_W_regnum) || (IF_B_is_reg && (IF_rt == EX_W_regnum)));
+        load_use = EX_load_use || MEM1_load_use;
 
         d_valid_tmp = (EX_mem_write || EX_mem_read) && (addr >= PERIPHERAL_BASE);
         stall = load_use || (d_valid_tmp && !d_ready) || (mem_bus_req && !mem_bus_ready);
