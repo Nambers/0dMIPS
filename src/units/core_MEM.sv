@@ -67,7 +67,6 @@ module core_MEM (
     cache_L1 data_cache (
         .clock(clock),
         .reset(reset),
-        .enable(1'b1),
         .clear(1'b0),
         .signed_type(EX_regs.signed_mem_out),
         .addr(EX_regs.out),
@@ -108,13 +107,12 @@ module core_MEM (
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
         if (|EX_regs.mem_load_type) begin
-            $display("read addr: %h, data: %h, final: %h, reg=$%d, type = %d",
-                     EX_regs.out, data_out, W_data_lui_linkpc,
-                     EX_regs.W_regnum, EX_regs.mem_load_type);
+            $display("read addr: %h, data: %h, final: %h, reg=$%d, type = %d", EX_regs.out,
+                     data_out, W_data_lui_linkpc, EX_regs.W_regnum, EX_regs.mem_load_type);
         end
         if (|EX_regs.mem_store_type) begin
-            $display("write addr: %h, data: %h, type: %d", EX_regs.out,
-                     EX_regs.B_data, EX_regs.mem_store_type);
+            $display("write addr: %h, data: %h, type: %d", EX_regs.out, EX_regs.B_data,
+                     EX_regs.mem_store_type);
         end
 `endif
         if (reset) begin

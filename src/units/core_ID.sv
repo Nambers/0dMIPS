@@ -174,15 +174,15 @@ module core_ID (
 
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
-        $display("t=%0t, addr=%h, inst=%h, stall=%b flush=%b", $time,
-                 IF_regs.fetch_pc, IF_regs.inst, stall, flush);
+        $display("t=%0t, addr=%h, inst=%h, stall=%b flush=%b", $time, IF_regs.fetch_pc,
+                 IF_regs.inst, stall, flush);
         if (MEM_regs.write_enable) begin
-            $display("ID Stage: t=%0t, writeback regnum = %d, data = %h",
-                     $time, MEM_regs.W_regnum, MEM_regs.W_data);
+            $display("ID Stage: t=%0t, writeback regnum = %d, data = %h", $time, MEM_regs.W_regnum,
+                     MEM_regs.W_data);
         end
         if (reserved_inst_E) begin
-            $display("reserved instruction detected op=0x%h, inst=0x%h",
-                     IF_regs.inst[31:26], IF_regs.inst);
+            $display("reserved instruction detected op=0x%h, inst=0x%h", IF_regs.inst[31:26],
+                     IF_regs.inst);
         end
 `endif
         // add bubble for load-use hazard instead of freeze-like stall

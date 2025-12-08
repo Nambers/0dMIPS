@@ -30,7 +30,7 @@ module core #(
     input logic [7:0] interrupt_sources
 );
     // pipeline
-    logic stall  /* verilator public */, flush  /* verilator public */, B_is_reg;
+    logic stall  /* verilator public */, flush  /* verilator public */, B_is_reg, stall_indicator;
     IF_regs_t  IF_regs  /* verilator public */;
     ID_regs_t  ID_regs  /* verilator public */;
     EX_regs_t  EX_regs  /* verilator public */;
@@ -44,12 +44,13 @@ module core #(
     cache_arbiter cache_arbiter_ (
         .clock(clock),
         .reset(reset),
-        .req1 (inst_req),
+        .req1(inst_req),
         .resp1(inst_resp),
-        .req2 (data_req),
+        .req2(data_req),
         .resp2(data_resp),
-        .req  (mem_bus_req),
-        .resp (mem_bus_resp)
+        .req(mem_bus_req),
+        .resp(mem_bus_resp),
+        .stall_indicator(stall_indicator)
     );
 
     core_forward forward_unit (
@@ -82,8 +83,7 @@ module core #(
         .d_valid(d_valid),
 
         // --- mem bus ---
-        .mem_bus_req  (mem_bus_req.mem_req_load || mem_bus_req.mem_req_store),
-        .mem_bus_ready(mem_bus_resp.mem_ready)
+        .stall_indicator(stall_indicator)
     );
 
     core_branch branch_unit (
@@ -126,6 +126,7 @@ module core #(
     core_EX EX_stage (
         .clock(clock),
         .reset(reset),
+        .stall_t2(stall_indicator),
         .ID_regs(ID_regs),
         .flush(flush),
         .EX_regs(EX_regs),

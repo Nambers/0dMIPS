@@ -21,8 +21,7 @@ module core_hazard #(
     output logic d_valid,
 
     // --- mem bus ---
-    input logic mem_bus_req,
-    input logic mem_bus_ready
+    input logic stall_indicator
 );
     logic load_use, d_valid_tmp, EX_load_use, MEM1_load_use;
     always_comb begin
@@ -38,9 +37,9 @@ module core_hazard #(
         load_use = EX_load_use || MEM1_load_use;
 
         d_valid_tmp = (EX_mem_write || EX_mem_read) && (addr >= PERIPHERAL_BASE);
-        stall = load_use || (d_valid_tmp && !d_ready) || (mem_bus_req && !mem_bus_ready);
+        stall = load_use || (d_valid_tmp && !d_ready) || stall_indicator;
 
         // $display("t=%0t, stall = %d, %d %d %d", $time, stall, load_use, (d_valid_tmp && !d_ready),
-        //          (mem_bus_req && !mem_bus_ready));
+        //          stall_indicator);
     end
 endmodule

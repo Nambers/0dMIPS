@@ -10,8 +10,9 @@ module cache_arbiter #(
     input  mem_bus_req_t  req1,
     output mem_bus_resp_t resp1,
 
-    input  mem_bus_req_t  req2,
+    input mem_bus_req_t req2,
     output mem_bus_resp_t resp2,
+    output logic stall_indicator,
 
     // L2 interface
     output mem_bus_req_t  req,
@@ -63,7 +64,7 @@ module cache_arbiter #(
         1'b0,
         req1.mem_req_load && !reset,
         req2.mem_req_load && !reset,
-        1'b0,
+        1'bx,
         {cache2_st_Q, cache1_st_Q}
     );
 
@@ -85,6 +86,7 @@ module cache_arbiter #(
         // additionally, 2nd cache has to wait for 1st cache request
         cache2_st_D = ((cache2_st_Q && !resp.mem_ready) || ((req2.mem_req_load || req2.mem_req_store) && !cache1_st_Q && !req1.mem_req_load && !req1.mem_req_store)) && !reset;
         resp2.mem_ready = (cache2_st_Q && resp.mem_ready) && !reset;
+        stall_indicator = cache1_st_D || cache2_st_D;
 
         assert (!(cache1_st_D && cache2_st_D))
         else $fatal("cache arbiter: both caches hold bus!");
@@ -92,10 +94,13 @@ module cache_arbiter #(
 
 `ifdef DEBUG
     always_ff @(posedge clock) begin
-        if (cache1_st_D)
-            $display("Cache Arbiter: Cache 1 gain bus at time %t", $time);
-        if (cache2_st_D)
-            $display("Cache Arbiter: Cache 2 gain bus at time %t", $time);
+        $display(
+            "t=%0t %m cache1_st_Q=%b cache2_st_Q=%b req1_load=%b req1_store=%b req2_load=%b req2_store=%b resp_ready=%b req_load=%b req_store=%b",
+            $time, cache1_st_Q, cache2_st_Q, req1.mem_req_load, req1.mem_req_store,
+            req2.mem_req_load, req2.mem_req_store, resp.mem_ready, req.mem_req_load,
+            req.mem_req_store);
+        if (cache1_st_D) $display("Cache Arbiter: Cache 1 gain bus at time %t", $time);
+        if (cache2_st_D) $display("Cache Arbiter: Cache 2 gain bus at time %t", $time);
     end
 `endif
 endmodule

@@ -29,7 +29,6 @@ module core_IF #(
     cache_L1 inst_cache (
         .clock(clock),
         .reset(reset),
-        .enable(!stall),
         .clear(flush),
         .signed_type(1'b0),
         .addr(IF1.fetch_pc),
@@ -50,7 +49,7 @@ module core_IF #(
     always_ff @(posedge clock, posedge reset) begin
         if (reset) begin
             IF1.fetch_pc <= RESET_PC;
-            IF1.fetch_pc4 <= RESET_PC + 4;
+            IF1.fetch_pc4 <= RESET_PC;
             IF_regs.fetch_pc <= '0;
             IF_regs.fetch_pc4 <= '0;
         end else if (!stall || flush) begin

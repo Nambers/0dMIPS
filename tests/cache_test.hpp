@@ -85,7 +85,6 @@ template <class C> class CacheTest : public TestBase<C> {
 
     void SetUp() override {
         TestBase<C>::SetUp();
-        this->inst_->enable = 1;
         this->inst_->clear = 0;
         this->inst_->signed_type = 1;
     }

@@ -28,13 +28,6 @@ module data_mem #(
         else $fatal("Data memory request cannot be both load and store");
 
         addr = {req.mem_addr[INDEX_LEN-LINE_CUT_BITS-1:0], {LINE_CUT_BITS{1'b0}}};
-        if (req.mem_req_load) begin
-            for (int i = 0; i < 64; i++) begin
-                resp.mem_data[i*8+:8] = data_seg[addr+i[16:0]];
-            end
-        end else begin
-            resp.mem_data = '0;
-        end
     end
 
     always_ff @(posedge clock or posedge reset) begin
@@ -46,132 +39,18 @@ module data_mem #(
                 for (int i = 0; i < 64; i++) begin
                     data_seg[addr+i[16:0]] <= req.mem_data_out[i*8+:8];
                 end
+                resp.mem_ready <= 1'b1;
             end
-            resp.mem_ready <= req.mem_req_load || req.mem_req_store;
+            if (req.mem_req_load) begin
+                for (int i = 0; i < 64; i++) begin
+                    resp.mem_data[i*8+:8] <= data_seg[addr+i[16:0]];
+                end
+                resp.mem_ready <= 1'b1;
+            end else begin
+                resp.mem_data  <= '0;
+                resp.mem_ready <= 1'b0;
+            end
         end
     end
 
 endmodule  // data_mem
-
-// module data_mem #(
-//     // size of data segment
-//     parameter DATA_LEN = 'h20000,  // 0x4000 * 8, unit: byte
-//     parameter INDEX_LEN = $clog2(DATA_LEN)
-// ) (
-//     output logic [63:0] data_out,
-//     /* verilator lint_off UNUSEDSIGNAL */
-//     input logic [63:0] addr  /* verilator public */,
-//     /* verilator lint_on UNUSEDSIGNAL */
-//     input logic [63:0] data_in,
-//     input logic flush,
-//     input logic signed_type,
-//     input mem_load_type_t mem_load_type,
-//     input mem_store_type_t mem_store_type,
-//     input logic clk,
-//     input logic reset,
-//     output logic [31:0] inst,
-//     /* verilator lint_off UNUSEDSIGNAL */
-//     input logic [63:0] inst_addr
-//     /* verilator lint_on UNUSEDSIGNAL */
-// );
-//     initial begin
-//         // Grab initial memory values
-//         $readmemh("memory.mem", data_seg);
-//     end
-
-//     logic [7:0] data_seg[0:DATA_LEN-1]  /* verilator public */;
-
-//     logic [INDEX_LEN-1:0] baddr, i_baddr;
-
-//     always_comb begin
-//         baddr   = addr[INDEX_LEN-1:0];
-//         i_baddr = inst_addr[INDEX_LEN-1:0];
-//     end
-
-//     // TODO move to async
-//     always_comb begin
-//         unique case (mem_load_type)
-//             LOAD_BYTE:
-//             data_out = {
-//                 {56{signed_type & data_seg[baddr][7]}}, data_seg[baddr]
-//             };
-
-//             LOAD_HALF:
-//             data_out = {
-//                 {48{signed_type & data_seg[baddr+1][7]}},
-//                 data_seg[baddr+1],
-//                 data_seg[baddr+0]
-//             };
-
-//             LOAD_WORD:
-//             data_out = {
-//                 {32{signed_type & data_seg[baddr+3][7]}},
-//                 data_seg[baddr+3],
-//                 data_seg[baddr+2],
-//                 data_seg[baddr+1],
-//                 data_seg[baddr+0]
-//             };
-
-//             LOAD_DWORD:
-//             data_out = {
-//                 data_seg[baddr+7],
-//                 data_seg[baddr+6],
-//                 data_seg[baddr+5],
-//                 data_seg[baddr+4],
-//                 data_seg[baddr+3],
-//                 data_seg[baddr+2],
-//                 data_seg[baddr+1],
-//                 data_seg[baddr+0]
-//             };
-//             NO_LOAD: data_out = 'x;  // no load
-//             default: data_out = 'x;  // unknown load type
-//         endcase
-//     end
-//     always_comb begin
-//         if (!flush)
-//             inst = {
-//                 data_seg[i_baddr+3],
-//                 data_seg[i_baddr+2],
-//                 data_seg[i_baddr+1],
-//                 data_seg[i_baddr+0]
-//             };
-//         else inst = '0;
-//     end
-
-//     always_ff @(negedge clk or posedge reset) begin
-//         if (reset) begin
-//             for (int i = 0; i < DATA_LEN; i++) begin
-//                 data_seg[i] <= '0;
-//             end
-//         end else
-//             unique case (mem_store_type)
-//                 STORE_BYTE: data_seg[baddr] <= data_in[7:0];
-
-//                 STORE_HALF: begin
-//                     data_seg[baddr+0] <= data_in[7:0];
-//                     data_seg[baddr+1] <= data_in[15:8];
-//                 end
-
-//                 STORE_WORD: begin
-//                     data_seg[baddr+0] <= data_in[7:0];
-//                     data_seg[baddr+1] <= data_in[15:8];
-//                     data_seg[baddr+2] <= data_in[23:16];
-//                     data_seg[baddr+3] <= data_in[31:24];
-//                 end
-
-//                 STORE_DWORD: begin
-//                     data_seg[baddr+0] <= data_in[7:0];
-//                     data_seg[baddr+1] <= data_in[15:8];
-//                     data_seg[baddr+2] <= data_in[23:16];
-//                     data_seg[baddr+3] <= data_in[31:24];
-//                     data_seg[baddr+4] <= data_in[39:32];
-//                     data_seg[baddr+5] <= data_in[47:40];
-//                     data_seg[baddr+6] <= data_in[55:48];
-//                     data_seg[baddr+7] <= data_in[63:56];
-//                 end
-
-//                 NO_STORE: ;  // NO_STORE
-//                 default:  ;
-//             endcase
-//     end
-// endmodule  // data_mem
