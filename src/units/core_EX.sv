@@ -5,7 +5,7 @@ import structures::forward_type_t;
 module core_EX (
     input logic clock,
     input logic reset,
-    input logic stall_t2,
+    input logic data_cache_miss_stall,
     /* verilator lint_off UNUSEDSIGNAL */
     input ID_regs_t ID_regs,
     /* verilator lint_on UNUSEDSIGNAL */
@@ -197,9 +197,7 @@ module core_EX (
     always_ff @(posedge clock, posedge reset) begin
         if (reset || (flush && (!ID_regs.linkpc || takenHandler))) begin
             EX_regs <= '0;
-        end else if (stall_t2) begin
-            EX_regs <= EX_regs_cache;
-        end else begin
+        end else if (!data_cache_miss_stall) begin
             EX_regs_cache <= EX_regs;
             EX_regs.out <= ext_out;
             EX_regs.B_data <= forwarded_B;

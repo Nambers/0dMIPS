@@ -1,6 +1,7 @@
 #include <SOC_sim.h>
 #include <SOC_sim_SOC.h>
 #include <SOC_sim_core.h>
+#include <SOC_sim_core_IF.h>
 #include <SOC_sim_core_MEM.h>
 #include <SOC_sim_cp0.h>
 #include <SOC_sim_stdout.h>

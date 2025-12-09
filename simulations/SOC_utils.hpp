@@ -11,7 +11,8 @@ void mainLoop(T *machine, C *ctx, unsigned int cycle_max, csh &cs_handle,
               std::unordered_map<uint64_t, DisasmEntry> &disasm_cache,
               bool isDebug = false) {
     std::cout << "Control: I - interrupt, F - flush, R - reset\n"
-                 "Data:    S - stall, [A/B][A/M] - forward A/B from EX/MEM in "
+                 "Data:    [I/D]S - inst/data cache miss or normal stall, "
+                 "[A/B][A/M] - forward A/B from EX/MEM in "
                  "EX stage, D - peripheral data access\n"
               << "         IE - instruction exception, SC - syscall, OE - "
                  "overflow exception"
@@ -31,6 +32,10 @@ void mainLoop(T *machine, C *ctx, unsigned int cycle_max, csh &cs_handle,
             flags += "I|";
         if (machine->SOC->core->stall)
             flags += "S|";
+        if (machine->SOC->core->IF_stage->inst_cache_miss_stall)
+            flags += "IS|";
+        if (machine->SOC->core->data_cache_miss_stall)
+            flags += "DS|";
         if (machine->SOC->core->flush)
             flags += "F|";
         if (machine->SOC->reset)

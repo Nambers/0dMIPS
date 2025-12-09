@@ -30,7 +30,11 @@ module core #(
     input logic [7:0] interrupt_sources
 );
     // pipeline
-    logic stall  /* verilator public */, flush  /* verilator public */, B_is_reg, stall_indicator;
+    logic
+        stall  /* verilator public */,
+        flush  /* verilator public */,
+        B_is_reg,
+        data_cache_miss_stall  /* verilator public */;
     IF_regs_t  IF_regs  /* verilator public */;
     ID_regs_t  ID_regs  /* verilator public */;
     EX_regs_t  EX_regs  /* verilator public */;
@@ -38,19 +42,23 @@ module core #(
     mem_bus_req_t inst_req, data_req;
     mem_bus_resp_t inst_resp, data_resp;
 
-    logic [63:0] next_fetch_pc  /* verilator public */, IF_pc, IF_pc4, EX_A_data_forwarded;
-    forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
+    logic [63:0]
+        next_fetch_pc  /* verilator public */,
+        IF_pc,
+        IF_pc4,
+        EX_A_data_forwarded;
+    forward_type_t
+        forward_A  /* verilator public */, forward_B  /* verilator public */;
 
     cache_arbiter cache_arbiter_ (
         .clock(clock),
         .reset(reset),
-        .req1(inst_req),
+        .req1 (inst_req),
         .resp1(inst_resp),
-        .req2(data_req),
+        .req2 (data_req),
         .resp2(data_resp),
-        .req(mem_bus_req),
-        .resp(mem_bus_resp),
-        .stall_indicator(stall_indicator)
+        .req  (mem_bus_req),
+        .resp (mem_bus_resp)
     );
 
     core_forward forward_unit (
@@ -80,10 +88,7 @@ module core #(
         .EX_mem_read(|EX_regs.mem_load_type),
         .EX_mem_write(|EX_regs.mem_store_type),
         .d_ready(d_ready),
-        .d_valid(d_valid),
-
-        // --- mem bus ---
-        .stall_indicator(stall_indicator)
+        .d_valid(d_valid)
     );
 
     core_branch branch_unit (
@@ -103,7 +108,7 @@ module core #(
         .clock(clock),
         .reset(reset),
         .next_fetch_pc(next_fetch_pc),
-        .stall(stall),
+        .stall(stall || data_cache_miss_stall),
         .flush(flush),
         .first_half_pc(IF_pc),
         .first_half_pc4(IF_pc4),
@@ -126,7 +131,7 @@ module core #(
     core_EX EX_stage (
         .clock(clock),
         .reset(reset),
-        .stall_t2(stall_indicator),
+        .data_cache_miss_stall(data_cache_miss_stall),
         .ID_regs(ID_regs),
         .flush(flush),
         .EX_regs(EX_regs),
@@ -148,6 +153,7 @@ module core #(
         .d_valid(d_valid),
         .d_rdata(d_rdata),
         .EX_regs(EX_regs),
+        .data_cache_miss_stall(data_cache_miss_stall),
         .MEM_regs(MEM_regs),
         .data_req(data_req),
         .data_resp(data_resp)

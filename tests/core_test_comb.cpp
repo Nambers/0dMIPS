@@ -26,7 +26,7 @@ TestGenMem(
         EXPECT_EQ(RF->W_data, sign_extend(sign_extend(val << 4, 32) + val, 32));
     });
 
-TestGenMem(
+TestGenMemCycle(
     LW_LSA,
     {
         WRITE_RF(2, fixedVal<uint64_t>());
@@ -51,7 +51,8 @@ TestGenMem(
         EXPECT_EQ(RF->W_data, sign_extend((fixedVal<uint64_t>() << (4 + 1)) +
                                               sign_extend(val, 32),
                                           32));
-    });
+    },
+    6);
 
 TestGenMemCycle(
     BEQ_Multi,
