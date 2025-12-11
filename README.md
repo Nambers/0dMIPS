@@ -4,7 +4,7 @@
 
 [![Codecov](https://img.shields.io/codecov/c/github/Nambers/0dMIPS)](https://app.codecov.io/github/nambers/0dmips)
 
-In order 5-stages pipeline MIPS64r6 SoC implementation with peripheral components, simulated and tested with Verilator.
+In order 5(+2)-stages pipeline MIPS64r6 SoC implementation with peripheral components, simulated and tested with Verilator.
 
 </div>
 
@@ -66,6 +66,5 @@ In order 5-stages pipeline MIPS64r6 SoC implementation with peripheral component
 - `VGA_sim` run demo VGA simulation.
 
 ## Schematic diagram
-**WIP**
 
-![Schematic diagram](docs/diagram/diagram.svg)
+[more in here](https://ikuyo.dev/0dMIPS/TOP.html)
