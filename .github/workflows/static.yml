@@ -38,7 +38,7 @@ jobs:
       - name: generate schematic html
         run: |
           cd docs
-          python generate_schematic_html.py
+          python gen_export_schematics_site.py
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
