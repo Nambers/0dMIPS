@@ -3,10 +3,11 @@ import os
 from string import Template
 from io import StringIO
 from xml.dom import minidom
-import re
+from datetime import datetime
 
-OUTPUT_PATH = Path("schematic_html")
-SVG_PATH = Path("schematic_svgs")
+DOCS_PATH = Path("docs")
+OUTPUT_PATH = DOCS_PATH / "schematic_html"
+SVG_PATH = DOCS_PATH / "schematic_svgs"
 
 HTML_TEMPLATE = Template(
     """<!DOCTYPE html>
@@ -31,19 +32,22 @@ HTML_TEMPLATE = Template(
 </head>
 <body style="margin:0; padding:0; width:100vw; height:100vh;">
     $svg_content
-<script>
-    var svgElement = document.querySelector('svg');
-    var panZoomTiger = svgPanZoom(svgElement, {
-        dblClickZoomEnabled:false
-    });
-    window.onmousedown = (e) => {
-        if (e.button === 1 || e.button === 0) {
-            panZoomTiger.enablePan();
-        }else{
-            panZoomTiger.disablePan();
-        }
-    };
-</script>
+    <script>
+        var svgElement = document.querySelector('svg');
+        var panZoomTiger = svgPanZoom(svgElement, {
+            dblClickZoomEnabled:false
+        });
+        window.onmousedown = (e) => {
+            if (e.button === 1 || e.button === 0) {
+                panZoomTiger.enablePan();
+            }else{
+                panZoomTiger.disablePan();
+            }
+        };
+    </script>
+    <div id="footer" style="position:fixed; bottom:0; width:100%; text-align:center;">
+        Schematic diagrams of <a href="https://github.com/Nambers/0dMIPS" target="_blank">0dMIPS</a>, generated in $date $hash
+    </div>
 </body>
 </html>
 """
@@ -121,7 +125,14 @@ if __name__ == "__main__":
         svg_content = string_ostream.getvalue().replace('cursor="crosshair"', "")
         # svg_content = re.sub(r'viewBox="[\d\s]+"', "", svg_content).strip()
         title = svg.split(os.sep)[-1].replace(".svg", "")
-        html_content = HTML_TEMPLATE.substitute(title=title, svg_content=svg_content)
+        git_last_commit_hash = os.popen("git rev-parse --short HEAD").read().strip()
+        git_last_commit_hash = f"<a href='https://github.com/Nambers/0dMIPS/commit/{git_last_commit_hash}' target='_blank'>{git_last_commit_hash}</a>"
+        html_content = HTML_TEMPLATE.substitute(
+            title=title,
+            svg_content=svg_content,
+            date=datetime.now().strftime("%Y-%m-%d"),
+            hash=git_last_commit_hash,
+        )
         output_file = OUTPUT_PATH / f"{title}.html"
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(html_content)

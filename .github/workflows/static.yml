@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/static.yml
       - docs/schematic_svgs/**
+      - docs/gen_export_schematics_site.py
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -37,8 +38,7 @@ jobs:
       - uses: actions/setup-python@v6
       - name: generate schematic html
         run: |
-          cd docs
-          python gen_export_schematics_site.py
+          python docs/gen_export_schematics_site.py
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
