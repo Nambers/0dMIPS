@@ -30,6 +30,7 @@ module core_IF #(
     cache_L1 inst_cache (
         .clock(clock),
         .reset(reset),
+        .enable(!stall),
         .clear(flush),
         .signed_type(1'b0),
         .addr(IF1.fetch_pc),

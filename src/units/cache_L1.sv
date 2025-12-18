@@ -20,6 +20,7 @@ module cache_L1 #(
 ) (
     input logic clock,
     input logic reset,
+    input logic enable,
     input logic clear,
     input logic signed_type,
     input logic [63:0] addr  /* verilator public */,
@@ -76,9 +77,9 @@ module cache_L1 #(
             dirty_array <= '{default: '{default: '0}};
             LRU_way_array <= '{default: '0};
             rdata <= '0;
-        end else if (clear) begin
+        end else if (enable && clear) begin
             rdata <= '0;
-        end else if ((|mem_load_type) || (|mem_store_type)) begin
+        end else if (enable && ((|mem_load_type) || (|mem_store_type))) begin
             if (!(|way_hit)) begin
                 // store dirty cache, then load new cache line
                 // is will take at least 2 cycles

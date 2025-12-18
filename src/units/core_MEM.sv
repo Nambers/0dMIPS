@@ -68,6 +68,7 @@ module core_MEM (
     cache_L1 data_cache (
         .clock(clock),
         .reset(reset),
+        .enable(1'b1),
         .clear(1'b0),
         .signed_type(EX_regs.signed_mem_out),
         .addr(EX_regs.out),
