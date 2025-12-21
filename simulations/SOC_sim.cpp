@@ -4,13 +4,11 @@
 #include <SOC_sim_core_IF.h>
 #include <SOC_sim_core_MEM.h>
 #include <SOC_sim_cp0.h>
+#include <SOC_sim_data_mem.h>
 #include <SOC_sim_stdout.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 
-#include <fstream>
-#include <iomanip>
-#include <iostream>
 #include <unordered_map>
 
 #include "SOC_utils.hpp"
