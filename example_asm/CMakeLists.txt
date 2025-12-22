@@ -21,6 +21,7 @@ set(C_FLAGS ${TOOLCHIAN_FLAGS}
     -fno-stack-protector
     -fno-pic
     -fno-pie
+    -fno-delete-null-pointer-checks
     -nostartfiles
     -nostdlib
     -EL

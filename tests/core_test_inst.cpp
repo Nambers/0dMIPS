@@ -276,9 +276,9 @@ TestGenMem(
     ArithI64_overflow(DADDIU##AName, 0x19, TEST64OVERFLOW(val, num, add),      \
                       expr, num);
 #define TestOrI(AName, num)                                                    \
-    ArithI64(ORI##AName, 0xd, (val & MASK64) | (num & MASK16), num);
+    ArithI64(ORI##AName, 0xd, val | (num & MASK16), num);
 #define TestXorI(AName, num)                                                   \
-    ArithI64(XORI##AName, 0xe, (val & MASK64) ^ (num & MASK16), num);
+    ArithI64(XORI##AName, 0xe, val ^ (num & MASK16), num);
 
 TestGenArith2_overflow(TestAddI, val +);
 TestGenArith2_overflow(TestAddIU, val +);

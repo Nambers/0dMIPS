@@ -1,7 +1,10 @@
+#include "optnone.h"
+
 void exception_handler();
 
-__attribute__((section(".bootinfo"))) volatile const unsigned long long exception_handler_addr =
-    (unsigned long long)(void*)&exception_handler;
+__attribute__((section(
+    ".bootinfo"))) volatile const unsigned long long exception_handler_addr =
+    (unsigned long long)(void *)&exception_handler;
 const static unsigned int step = 6;
 
 __asm__(".section .text\n"
@@ -11,18 +14,20 @@ __asm__(".section .text\n"
         "li $t9, __start\n"
         "jr $t9\n");
 
-void __start() {
+NONOPT void __start() {
     unsigned int prev = 0, curr = 1, sum = 0;
     for (unsigned int i = step; i > 0; i--) {
-        sum  = prev + curr;
+        sum = prev + curr;
         prev = curr;
         curr = sum;
     }
     // should be 13, F_6
-    *(unsigned long long*)0 = sum;
-    while (1);
+    *(volatile unsigned long long *)0 = sum;
+    while (1)
+        ;
 }
 
 void exception_handler() {
-    while (1);
+    while (1)
+        ;
 }
