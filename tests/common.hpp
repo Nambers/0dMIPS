@@ -10,6 +10,7 @@
 #define MASK6 0b111111
 #define MASK16 0xffff
 #define MASK32 0xffffffffULL
+#define MASK64 0xffffffffffffffffULL
 #define WORD_SIGN_MASK 0x80000000
 #define WORD_HIGH_FULL 0xffffffff00000000
 #define BYTE_HIGH_FULL 0xffffffffffffff00

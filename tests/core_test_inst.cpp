@@ -1,10 +1,9 @@
+#include "common.hpp"
 #include "core_test.hpp"
 #include <Core_core_ID.h>
 #include <Core_core_MEM.h>
 #include <Core_regfile__W40.h>
-
-#include <fstream>
-#include <iomanip>
+#include <cstdint>
 
 /* #region read test */
 #define TestGenRead(name, opcode, check_W_data)                                \
@@ -75,17 +74,21 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
     func_name(Pos, 1);                                                         \
     func_name(Neg, -1)
 
-#define TEST32OVERFLOW(expr) ((expr) > INT32_MAX || (expr) < INT32_MIN)
-#define TEST64OVERFLOW(expr) ((expr) > INT64_MAX || (expr) < INT64_MIN)
+// #define TEST32OVERFLOW(expr) ((expr) > INT32_MAX || (expr) < INT32_MIN)
+#define TEST32OVERFLOW(a, b, op)                                               \
+    __builtin_##op##_overflow_p(a, b, static_cast<int32_t>(0))
+// #define TEST64OVERFLOW(expr) ((expr) > INT64_MAX || (expr) < INT64_MIN)
+#define TEST64OVERFLOW(a, b, op)                                               \
+    __builtin_##op##_overflow_p(a, b, static_cast<int64_t>(0))
 
 /* #region R type arithmetics operations test */
-#define TestGenArithR(name, rs, shamt, funct, check_W_data, fixed_val)         \
+#define TestGenArithR(name, rs, shamt, funct, check_W_data, fixed_val, rev)    \
     TestGenMem(                                                                \
         name,                                                                  \
         {                                                                      \
-            WRITE_RF(1, fixed_val); /* store 1 into reg $1*/                   \
-            WRITE_RF(2, val);       /* store val into reg $2*/                 \
-                                    /* $3 = $1 <OP> $2 */                      \
+            WRITE_RF(1, rev ? fixed_val : val); /* store 1 into reg $1*/       \
+            WRITE_RF(2, rev ? val : fixed_val); /* store val into reg $2*/     \
+                                                /* $3 = $1 <OP> $2 */          \
             setAddrDWord(                                                      \
                 ICACHE, 0,                                                     \
                 inst_comb(build_R_inst(0, rs, 2, 3, shamt, funct), 0));        \
@@ -100,8 +103,8 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
     TestGenMemNoCheck(                                                         \
         name, OVERFLOW_EXC,                                                    \
         {                                                                      \
-            WRITE_RF(1, fixed_val); /* store 1 into reg $1*/                   \
-            WRITE_RF(2, val);       /* store val into reg $2*/                 \
+            WRITE_RF(1, val);       /* store 1 into reg $1*/                   \
+            WRITE_RF(2, fixed_val); /* store val into reg $2*/                 \
                                     /* $3 = $1 <OP> $2 */                      \
             setAddrDWord(                                                      \
                 ICACHE, 0,                                                     \
@@ -124,48 +127,49 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
 */
 #define Arith32_overflow(name, opcode, overflow_expr, expr, num)               \
     TestGenArithR_overflow(name, 1, 0, opcode, sign_extend(expr, 32),          \
-                           TEST32OVERFLOW(overflow_expr), num);
+                           overflow_expr, num);
 #define Arith32(name, opcode, expr, num)                                       \
-    TestGenArithR(name, 1, 0, opcode, sign_extend(expr, 32), num);
+    TestGenArithR(name, 1, 0, opcode, sign_extend(expr, 32), num, false);
+#define Arith32_rev(name, opcode, expr, num)                                   \
+    TestGenArithR(name, 1, 0, opcode, sign_extend(expr, 32), num, true);
 #define Arith32Shamt(name, opcode, expr, num)                                  \
-    TestGenArithR(name, 0, num, opcode, sign_extend(expr, 32), 0);
+    TestGenArithR(name, 0, num, opcode, sign_extend(expr, 32), 0, true);
 #define Arith32ShamtRS1(name, opcode, expr, num)                               \
-    TestGenArithR(name, 1, num, opcode, sign_extend(expr, 32), 0);
+    TestGenArithR(name, 1, num, opcode, sign_extend(expr, 32), 0, true);
 #define TestAdd(AName, expr, num)                                              \
-    Arith32_overflow(ADD##AName, 0x20, static_cast<int64_t>(num) + val, expr,  \
-                     num)
+    Arith32_overflow(ADD##AName, 0x20, TEST32OVERFLOW(val, num, add), expr,    \
+                     num);
 #define TestAddU(AName, expr, num)                                             \
-    Arith32_overflow(ADDU##AName, 0x21, static_cast<int64_t>(num) + val, expr, \
+    Arith32_overflow(ADDU##AName, 0x21, TEST32OVERFLOW(val, num, add), expr,   \
                      num);
 #define TestSLL(AName, num) Arith32Shamt(SLL##AName, 0x00, val << num, num);
 #define TestSRL(AName, num) Arith32Shamt(SRL##AName, 0x02, val >> num, num);
 #define TestSRA(AName, num) Arith32Shamt(SRA##AName, 0x03, val >> num, num);
 #define TestROTR(AName, num)                                                   \
     Arith32ShamtRS1(ROTR##AName, 0x02, (val >> num) | (val << (32 - num)), num);
-#define TestSRLV(AName, num) Arith32(SRLV##AName, 0x06, val >> num, num);
+#define TestSRLV(AName, num) Arith32_rev(SRLV##AName, 0x06, val >> num, num);
 #define TestSub(AName, expr, num)                                              \
-    Arith32_overflow(SUB##AName, 0x22, static_cast<int64_t>(num) - val, expr,  \
+    Arith32_overflow(SUB##AName, 0x22, TEST32OVERFLOW(val, num, sub), expr,    \
                      num);
 
 #define TestSubU(AName, expr, num)                                             \
-    Arith32_overflow(SUBU##AName, 0x23, static_cast<int64_t>(num) - val, expr, \
+    Arith32_overflow(SUBU##AName, 0x23, TEST32OVERFLOW(val, num, sub), expr,   \
                      num);
 
 #define Arith64_overflow(name, opcode, overflow_expr, expr, num)               \
-    TestGenArithR_overflow(name, 1, 0, opcode, expr,                           \
-                           TEST64OVERFLOW(overflow_expr), num);
+    TestGenArithR_overflow(name, 1, 0, opcode, expr, overflow_expr, num);
 #define Arith64(name, opcode, expr, num)                                       \
-    TestGenArithR(name, 1, 0, opcode, expr, num);
+    TestGenArithR(name, 1, 0, opcode, expr, num, false);
 #define Arith64Shamt(name, opcode, expr, num)                                  \
-    TestGenArithR(name, 0, num, opcode, expr, 0);
+    TestGenArithR(name, 0, num, opcode, expr, 0, true);
 #define Arith64ShamtRS1(name, opcode, expr, num)                               \
-    TestGenArithR(name, 1, num, opcode, expr, 0);
+    TestGenArithR(name, 1, num, opcode, expr, 0, true);
 #define TestDAdd(AName, expr, num)                                             \
-    Arith64_overflow(DADD##AName, 0x2c, static_cast<int64_t>(num) + val, expr, \
+    Arith64_overflow(DADD##AName, 0x2c, TEST64OVERFLOW(val, num, add), expr,   \
                      num)
 #define TestDAddU(AName, expr, num)                                            \
-    Arith64_overflow(DADDU##AName, 0x2d, static_cast<int64_t>(num) + val,      \
-                     expr, num);
+    Arith64_overflow(DADDU##AName, 0x2d, TEST64OVERFLOW(val, num, add), expr,  \
+                     num);
 #define TestDsll32(AName, num)                                                 \
     Arith64Shamt(DSLL32##AName, 0x3c, val << (num + 32), num);
 #define TestDrotr(AName, num)                                                  \
@@ -176,7 +180,7 @@ TestGenSignExtend(SEH, 0b11000, 0b100000, sign_extend(val &MASK16, 16));
 #define TestXor(AName, num) Arith64(XOR##AName, 0x26, val ^ num, num);
 #define TestNor(AName, num) Arith64(NOR##AName, 0x27, ~(val | num), num);
 #define TestDSub(AName, expr, num)                                             \
-    Arith64_overflow(DSUB##AName, 0x2e, static_cast<int64_t>(num) - val, expr, \
+    Arith64_overflow(DSUB##AName, 0x2e, TEST64OVERFLOW(val, num, sub), expr,   \
                      num);
 
 TestGenArith2(TestAnd);
@@ -219,14 +223,29 @@ TestGenMem(
         EXPECT_EQ(RF->W_addr, 1);
         EXPECT_EQ(RF->W_data, sign_extend((val & MASK16) << 16, 32));
     });
-#define TestGenArithI(name, funct, check_W_data, overflow_cond, fixed_val)     \
+#define TestGenArithI(name, funct, check_W_data, fixed_val)                    \
     TestGenMem(                                                                \
         name,                                                                  \
         {                                                                      \
-            WRITE_RF(1, fixed_val); /* store 1 into reg $1*/                   \
-                                    /* $2 = $1 <OP> val */                     \
+            WRITE_RF(1, val); /* store 1 into reg $1*/                         \
+                              /* $2 = $1 <OP> val */                           \
             setAddrDWord(ICACHE, 0,                                            \
-                         inst_comb(build_I_inst(funct, 1, 2, val), 0));        \
+                         inst_comb(build_I_inst(funct, 1, 2, fixed_val), 0));  \
+        },                                                                     \
+        {                                                                      \
+            EXPECT_TRUE(RF->wr_enable);                                        \
+            EXPECT_EQ(RF->W_addr, 2);                                          \
+            EXPECT_EQ(RF->W_data, check_W_data);                               \
+        })
+#define TestGenArithI_overflow(name, funct, check_W_data, overflow_cond,       \
+                               fixed_val)                                      \
+    TestGenMemNoCheck(                                                         \
+        name, OVERFLOW_EXC,                                                    \
+        {                                                                      \
+            WRITE_RF(1, val); /* store 1 into reg $1*/                         \
+                              /* $2 = $1 <OP> val */                           \
+            setAddrDWord(ICACHE, 0,                                            \
+                         inst_comb(build_I_inst(funct, 1, 2, fixed_val), 0));  \
         },                                                                     \
         {                                                                      \
             EXPECT_TRUE(RF->wr_enable);                                        \
@@ -235,31 +254,31 @@ TestGenMem(
                 EXPECT_EQ(RF->W_data, check_W_data);                           \
         })
 #define ArithI32_overflow(name, opcode, overflow_expr, expr, num)              \
-    TestGenArithI(name, opcode, sign_extend(expr &MASK32, 32),                 \
-                  TEST32OVERFLOW(overflow_expr), num);
+    TestGenArithI_overflow(name, opcode, sign_extend(expr &MASK32, 32),        \
+                           overflow_expr, num);
 #define ArithI32(name, opcode, expr, num)                                      \
-    TestGenArithI(name, opcode, sign_extend(expr &MASK32, 32), 0, num);
+    TestGenArithI(name, opcode, sign_extend(expr &MASK32, 32), num);
 #define TestAddI(AName, expr, num)                                             \
-    ArithI32_overflow(ADDI##AName, 0x8, static_cast<int64_t>(num) + val, expr, \
+    ArithI32_overflow(ADDI##AName, 0x8, TEST32OVERFLOW(val, num, add), expr,   \
                       num)
 #define TestAddIU(AName, expr, num)                                            \
-    ArithI32_overflow(ADDIU##AName, 0x9, static_cast<int64_t>(num) + val,      \
-                      expr, num);
+    ArithI32_overflow(ADDIU##AName, 0x9, TEST32OVERFLOW(val, num, add), expr,  \
+                      num);
 
 #define ArithI64_overflow(name, opcode, overflow_expr, expr, num)              \
-    TestGenArithI(name, opcode, expr, TEST64OVERFLOW(overflow_expr), num);
+    TestGenArithI_overflow(name, opcode, expr, overflow_expr, num);
 #define ArithI64(name, opcode, expr, num)                                      \
-    TestGenArithI(name, opcode, expr, 0, num);
+    TestGenArithI(name, opcode, expr, num);
 #define TestDAddI(AName, expr, num)                                            \
-    ArithI64_overflow(DADDI##AName, 0x18, static_cast<int64_t>(num) + val,     \
-                      expr, num)
+    ArithI64_overflow(DADDI##AName, 0x18, TEST64OVERFLOW(val, num, add), expr, \
+                      num)
 #define TestDAddIU(AName, expr, num)                                           \
-    ArithI64_overflow(DADDIU##AName, 0x19, static_cast<int64_t>(num) + val,    \
+    ArithI64_overflow(DADDIU##AName, 0x19, TEST64OVERFLOW(val, num, add),      \
                       expr, num);
 #define TestOrI(AName, num)                                                    \
-    ArithI64(ORI##AName, 0xd, (val & MASK16) | num, num);
+    ArithI64(ORI##AName, 0xd, (val & MASK64) | (num & MASK16), num);
 #define TestXorI(AName, num)                                                   \
-    ArithI64(XORI##AName, 0xe, (val & MASK16) ^ num, num);
+    ArithI64(XORI##AName, 0xe, (val & MASK64) ^ (num & MASK16), num);
 
 TestGenArith2_overflow(TestAddI, val +);
 TestGenArith2_overflow(TestAddIU, val +);

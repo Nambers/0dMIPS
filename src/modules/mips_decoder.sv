@@ -301,9 +301,9 @@ module mips_decoder (
         shift_arith = sra_family;
 
         // 0 = no cut, 1 = cut with sign extend, 2 = cut with zero extend
-        cut_alu_out32[0] = (add_inst || addi_inst || sub_inst || lsa_inst) && !except;
-        cut_alu_out32[1] = (addu_inst || addiu_inst || subu_inst) && !except;
-        // 0 = rotator in 64, 1 = rotator in 32
+        cut_alu_out32[0] = (add_inst || addi_inst || addu_inst || addiu_inst || sub_inst || subu_inst || lsa_inst) && !except;
+        // cut_alu_out32[1] = 0;
+        // 0 = rotator in 64, 1 = rotator in 32d
         rotator_src = rotr_inst && !except;
         // 0 = shifter, 1 = rotator, 2 = sign extend shifter, 3 = sign extend rotator
         cut_barrel_out32[0] = (drotr_inst || drotr32_inst || rotr_inst) && !except;
