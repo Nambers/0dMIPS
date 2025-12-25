@@ -83,6 +83,20 @@ package structures;
         SIGN_ROTATOR32
     } cut_barrel_out32_t;
 
+    typedef enum bit [1:0] {
+        ICACHE = 0,
+        DCACHE,
+        TCACHE,
+        SCACHE
+    } cache_types_t;
+
+    typedef enum bit [2:0] {WB_INVALIDATE = 0} cache_ops_t;
+
+    typedef struct packed {
+        cache_ops_t   op;
+        cache_types_t t;
+    } cache_action_t;
+
     typedef struct packed {
         logic [63:0] fetch_pc4, fetch_pc;
         logic [31:0] inst;
@@ -114,6 +128,7 @@ package structures;
             BNE,
             BC,
             BAL,
+            cache,
             lui,
             linkpc,
             B_is_reg,
@@ -148,6 +163,7 @@ package structures;
             BNE,
             BC,
             BAL,
+            cache,
             signed_mem_out,
             lui,
             linkpc
@@ -161,9 +177,7 @@ package structures;
     typedef struct packed {
         logic [63:0] EPC, W_data;
         logic [4:0] W_regnum;
-        logic write_enable,
-            takenHandler
-        ;  // ofs being used, if change, also change coreTest
+        logic write_enable, takenHandler;  // ofs being used, if change, also change coreTest
 `ifdef DEBUGGER
         logic [31:0] inst;
         logic [63:0] pc;

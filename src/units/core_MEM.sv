@@ -4,6 +4,8 @@ import structures::LOAD_WORD;
 import structures::NO_STORE;
 import structures::mem_bus_req_t;
 import structures::mem_bus_resp_t;
+import structures::cache_action_t;
+import structures::DCACHE;
 
 module core_MEM (
     input logic clock,
@@ -65,6 +67,8 @@ module core_MEM (
         .syscall(EX_regs.syscall)
     );
 
+    cache_action_t cache_action_temp = EX_regs.W_regnum;
+
     cache_L1 data_cache (
         .clock(clock),
         .reset(reset),
@@ -77,6 +81,8 @@ module core_MEM (
         .mem_store_type(EX_regs.mem_store_type & {3{~d_valid}}), // mmio use memory store type but not store into
         .rdata(data_out),
         .miss(data_cache_miss),
+        .cache_inst(EX_regs.cache && (cache_action_temp.t == DCACHE)),
+        .cache_op(cache_action_temp.op),  // W_regnum filled with rt which is cache op with target
         .req(data_req),
         .resp(data_resp)
     );
@@ -115,13 +121,12 @@ module core_MEM (
         // $display("t=%0t, data_cache_miss_stall = %d", $time, data_cache_miss_stall);
 `ifdef DEBUG
         if (|EX_regs.mem_load_type) begin
-            $display("read addr: %h, data: %h, final: %h, reg=$%d, type = %d",
-                     EX_regs.out, data_out, W_data_lui_linkpc,
-                     EX_regs.W_regnum, EX_regs.mem_load_type);
+            $display("read addr: %h, data: %h, final: %h, reg=$%d, type = %d", EX_regs.out,
+                     data_out, W_data_lui_linkpc, EX_regs.W_regnum, EX_regs.mem_load_type);
         end
         if (|EX_regs.mem_store_type) begin
-            $display("write addr: %h, data: %h, type: %d", EX_regs.out,
-                     EX_regs.B_data, EX_regs.mem_store_type);
+            $display("write addr: %h, data: %h, type: %d", EX_regs.out, EX_regs.B_data,
+                     EX_regs.mem_store_type);
         end
 `endif
         if (reset) begin

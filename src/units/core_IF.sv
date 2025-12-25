@@ -3,6 +3,8 @@ import structures::mem_bus_req_t;
 import structures::mem_bus_resp_t;
 import structures::LOAD_WORD;
 import structures::NO_STORE;
+import structures::cache_action_t;
+import structures::ICACHE;
 
 module core_IF #(
     parameter RESET_PC = 64'h100
@@ -12,6 +14,8 @@ module core_IF #(
     input logic [63:0] next_fetch_pc,
     input logic stall,
     input logic flush,
+    input logic EX_cache_inst,
+    input cache_action_t EX_cache_action,
 
     output logic [63:0] first_half_pc  /* verilator public */,
     output logic [63:0] first_half_pc4  /* verilator public */,
@@ -39,6 +43,8 @@ module core_IF #(
         .mem_store_type(NO_STORE),
         .rdata(inst_L1),
         .miss(inst_cache_miss),
+        .cache_inst(EX_cache_inst && (EX_cache_action.t == ICACHE)),
+        .cache_op(EX_cache_action.op),
         .req(inst_req),
         .resp(inst_resp)
     );

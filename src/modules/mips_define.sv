@@ -84,6 +84,7 @@ package mips_define;
     localparam OP3_FUNC_BSHFL = 6'h20;
     localparam OP3_SEH = 5'h18;
     localparam OP3_SEB = 5'h10;
+    localparam OP3_FUNC_CACHE = 6'h25;
 
     // ERET stuff
     localparam OP_CO = 1'b1;

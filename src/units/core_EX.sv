@@ -216,6 +216,7 @@ module core_EX (
             EX_regs.BNE <= ID_regs.BNE;
             EX_regs.BC <= ID_regs.BC;
             EX_regs.BAL <= ID_regs.BAL;
+            EX_regs.cache <= ID_regs.cache;
             EX_regs.pc_branch <= ID_regs.pc_branch;
             EX_regs.write_enable <= ID_regs.write_enable;
             EX_regs.signed_mem_out <= ID_regs.signed_mem_out;

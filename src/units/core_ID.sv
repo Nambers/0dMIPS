@@ -66,6 +66,7 @@ module core_ID (
         BNE,
         BC,
         BAL,
+        cache,
         signed_mem_out,
         ignore_overflow;
     logic [63:0] BranchAddr, CompactBranchAddr, JumpAddr;
@@ -103,6 +104,7 @@ module core_ID (
         .bne(BNE),
         .bc(BC),
         .bal(BAL),
+        .cache(cache),
         .signed_mem_out(signed_mem_out),
         .ignore_overflow(ignore_overflow),
         .branchAddr_src(branchAddr_src),
@@ -174,15 +176,15 @@ module core_ID (
 
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
-        $display("t=%0t, addr=%h, inst=%h, stall=%b flush=%b", $time,
-                 IF_regs.fetch_pc, IF_regs.inst, stall, flush);
+        $display("t=%0t, addr=%h, inst=%h, stall=%b flush=%b", $time, IF_regs.fetch_pc,
+                 IF_regs.inst, stall, flush);
         if (MEM_regs.write_enable) begin
-            $display("ID Stage: t=%0t, writeback regnum = %d, data = %h",
-                     $time, MEM_regs.W_regnum, MEM_regs.W_data);
+            $display("ID Stage: t=%0t, writeback regnum = %d, data = %h", $time, MEM_regs.W_regnum,
+                     MEM_regs.W_data);
         end
         if (reserved_inst_E) begin
-            $display("reserved instruction detected op=0x%h, inst=0x%h",
-                     IF_regs.inst[31:26], IF_regs.inst);
+            $display("reserved instruction detected op=0x%h, inst=0x%h", IF_regs.inst[31:26],
+                     IF_regs.inst);
         end
 `endif
         // add bubble for load-use hazard instead of freeze-like stall
@@ -215,6 +217,7 @@ module core_ID (
             ID_regs.BNE <= BNE;
             ID_regs.BC <= BC;
             ID_regs.BAL <= BAL;
+            ID_regs.cache <= cache;
             ID_regs.alu_a_src <= alu_a_src;
             ID_regs.alu_b_src <= alu_b_src;
             ID_regs.control_type <= control_type;

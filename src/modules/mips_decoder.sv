@@ -43,6 +43,7 @@ module mips_decoder (
     output logic                     bne,
     output logic                     bc,
     output logic                     bal,
+    output logic                     cache,
     output logic                     signed_mem_out,
     output logic                     ignore_overflow,
     output BranchAddr_src_t          branchAddr_src,
@@ -69,15 +70,7 @@ module mips_decoder (
     // sub family
     logic sub_inst, subu_inst, dsub_inst, sub_family;
     // LU ops
-    logic
-        or_inst,
-        ori_inst,
-        xor_inst,
-        xori_inst,
-        and_inst,
-        andi_inst,
-        nor_inst,
-        LU_family;
+    logic or_inst, ori_inst, xor_inst, xori_inst, and_inst, andi_inst, nor_inst, LU_family;
     // slt family
     logic sltu_inst, slt_inst, slti_inst, sltiu_inst, slt_family;
     // sll family
@@ -111,7 +104,7 @@ module mips_decoder (
 
     // op3
     // sign extend
-    logic seh_inst, seb_inst, se_family;
+    logic seh_inst, seb_inst, se_family, cache_inst;
 
     always_comb begin
         // --- extracting fields ---
@@ -244,10 +237,12 @@ module mips_decoder (
         seh_inst = op3 && (shamt == OP3_SEH) && (funct == OP3_FUNC_BSHFL) && no_rs;
         seb_inst = op3 && (shamt == OP3_SEB) && (funct == OP3_FUNC_BSHFL) && no_rs;
         se_family = seh_inst || seb_inst;
+        cache_inst = op3 && (funct == OP3_FUNC_CACHE) && (inst[6] == 1'b0);
+        cache = cache_inst;
 
         // --- control signal decoding ---
         // --- stage ID ---
-        except = !(add_family || addi_family || sub_family || LU_family || branch_family || j_family || lui_inst || slt_family || lw_family || lh_family || lb_family || ld_inst || store_family || nop_inst || sll_family || sra_family || srl_family || rotr_family || CP0_family || bal_inst || lsa_family || pcrel_family || se_family || syscall || break_);
+        except = !(add_family || addi_family || sub_family || LU_family || branch_family || j_family || lui_inst || slt_family || lw_family || lh_family || lb_family || ld_inst || store_family || nop_inst || sll_family || sra_family || srl_family || rotr_family || CP0_family || bal_inst || lsa_family || pcrel_family || se_family || syscall || break_ || cache_inst);
         // branch unit resolved in ID stage
         // jump to register
         control_type[1] = (jr_inst || jalr_inst) && !except;
@@ -267,12 +262,12 @@ module mips_decoder (
         signed_mem_out = (lb_inst || lw_inst || lh_inst) && !except;
 
         alu_op[0] = sub_family || or_inst || xor_inst || ori_inst || xori_inst || branch_family || slt_family;
-        alu_op[1] = sub_family || xor_inst || nor_inst || add_family || addi_family || lsa_family || xori_inst || branch_family || bal_inst || slt_family || lw_family || lh_family || lb_family || ld_inst || store_family;
+        alu_op[1] = sub_family || xor_inst || nor_inst || add_family || addi_family || lsa_family || xori_inst || branch_family || bal_inst || slt_family || lw_family || lh_family || lb_family || ld_inst || store_family || cache_inst;
         // lu switch
         alu_op[2] = LU_family;
 
         // write into which: 0 = rd, 1 = rt, 2 = rs, 3 = 31
-        rd_src[0] = (addi_family || andi_inst || ori_inst || xori_inst || lui_inst || lw_family || lh_family || lb_family || ld_inst || slti_inst || sltiu_inst || MFC0_inst || (jal_inst || bal_inst)) && !except;
+        rd_src[0] = (addi_family || andi_inst || ori_inst || xori_inst || lui_inst || lw_family || lh_family || lb_family || ld_inst || slti_inst || sltiu_inst || MFC0_inst || (jal_inst || bal_inst) || cache_inst) && !except;
         rd_src[1] = (addiupc_inst || (jal_inst || bal_inst)) && !except;
 
         // 0 = A data, 1 = shifter output, 2 = PC
@@ -284,16 +279,13 @@ module mips_decoder (
 
         // 0 = origin, 1 = shift, 2 = signed ext immediate, 3 = zero ext immediate
         alu_b_src[0] = (andi_inst || ori_inst || xori_inst) && !except;
-        alu_b_src[1] = (addiu_inst || daddiu_inst || sltiu_inst || slti_inst || addi_inst || daddi_inst || lw_family || lh_family || lb_family || ld_inst || store_family || bal_inst || (andi_inst || ori_inst || xori_inst)) && !except;
+        alu_b_src[1] = (addiu_inst || daddiu_inst || sltiu_inst || slti_inst || addi_inst || daddi_inst || lw_family || lh_family || lb_family || ld_inst || store_family || bal_inst || (andi_inst || ori_inst || xori_inst) || cache_inst) && !except;
         ignore_overflow = (addu_inst || addiu_inst || subu_inst || daddu_inst || daddiu_inst || slt_family || LU_family || branch_family || srl_family || sra_family || lsa_family) && !except;
 
         lui_out = lui_inst && !except;
         // write back data = pc4
         linkpc = (jal_inst || jalr_inst || bal_inst) && !except;
-        slt_type[1:0] = {
-            (sltu_inst || sltiu_inst) && !except,
-            (slt_inst || slti_inst) && !except
-        };
+        slt_type[1:0] = {(sltu_inst || sltiu_inst) && !except, (slt_inst || slti_inst) && !except};
         // 0 = EX_stage out is alu, 1 = EX_stage out is barrel, 2 = Branch addr
         ex_out_src[0] = sll_family || srl_family || sra_family || rotr_family;
         ex_out_src[1] = addiupc_inst;
