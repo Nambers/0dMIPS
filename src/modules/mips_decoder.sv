@@ -277,9 +277,10 @@ module mips_decoder (
         // 0 = shamt, 1 = rs
         barrel_sa_src = srlv_inst && !except;
 
-        // 0 = origin, 1 = shift, 2 = signed ext immediate, 3 = zero ext immediate
+        // 0 = origin, 1 = shift, 2 = signed ext immediate, 3 = zero ext immediate, 4 = cache immediate
         alu_b_src[0] = (andi_inst || ori_inst || xori_inst) && !except;
-        alu_b_src[1] = (addiu_inst || daddiu_inst || sltiu_inst || slti_inst || addi_inst || daddi_inst || lw_family || lh_family || lb_family || ld_inst || store_family || bal_inst || (andi_inst || ori_inst || xori_inst) || cache_inst) && !except;
+        alu_b_src[1] = (addiu_inst || daddiu_inst || sltiu_inst || slti_inst || addi_inst || daddi_inst || lw_family || lh_family || lb_family || ld_inst || store_family || bal_inst || (andi_inst || ori_inst || xori_inst)) && !except;
+        alu_b_src[2] = (cache_inst) && !except;
         ignore_overflow = (addu_inst || addiu_inst || subu_inst || daddu_inst || daddiu_inst || slt_family || LU_family || branch_family || srl_family || sra_family || lsa_family) && !except;
 
         lui_out = lui_inst && !except;

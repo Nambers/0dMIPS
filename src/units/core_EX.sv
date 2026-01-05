@@ -39,6 +39,7 @@ module core_EX (
         forwarded_B,
         SignExtImm,
         ZeroExtImm,
+        CacheExtImm,
         SEH_out,
         SEB_out;
 
@@ -58,12 +59,16 @@ module core_EX (
         forward_B
     );
 
-    mux4v #(64) B_in_barrel_mux (
+    mux8v #(64) B_in_barrel_mux (
         B_in_barrel,
         forwarded_B,
         barrel_out,
         SignExtImm,
         ZeroExtImm,
+        CacheExtImm,
+        'x,
+        'x,
+        'x,
         ID_regs.alu_b_src
     );
 
@@ -188,17 +193,15 @@ module core_EX (
     always_comb begin
         SignExtImm = {{48{ID_regs.inst[15]}}, ID_regs.inst[15:0]};
         ZeroExtImm = {{48{1'b0}}, ID_regs.inst[15:0]};
+        CacheExtImm = {{55{ID_regs.inst[15]}}, ID_regs.inst[15:7]};
         SEH_out = {{48{ID_regs.B_data[15]}}, ID_regs.B_data[15:0]};
         SEB_out = {{56{ID_regs.B_data[7]}}, ID_regs.B_data[7:0]};
     end
-
-    EX_regs_t EX_regs_cache;
 
     always_ff @(posedge clock, posedge reset) begin
         if (reset || (flush && (!ID_regs.linkpc || takenHandler))) begin
             EX_regs <= '0;
         end else if (!data_cache_miss_stall) begin
-            EX_regs_cache <= EX_regs;
             EX_regs.out <= ext_out;
             EX_regs.B_data <= forwarded_B;
             EX_regs.W_regnum <= ID_regs.W_regnum;

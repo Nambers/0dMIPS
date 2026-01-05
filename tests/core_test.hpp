@@ -233,4 +233,12 @@ inline uint32_t build_CP0_inst(uint8_t MT5, uint8_t rt5, uint8_t rd5,
            (static_cast<uint32_t>(rt5) << 16) |
            (static_cast<uint32_t>(rd5) << 11) | (sel3 & 0b111);
 }
+inline uint32_t build_cache_inst(uint8_t base5, uint8_t op3, uint8_t target2,
+                                 uint16_t offset9) {
+    return (static_cast<uint32_t>(0b011111) << 26) |
+           ((static_cast<uint32_t>(base5) & 0b11111) << 21) |
+           ((static_cast<uint32_t>(op3) & 0b111) << 18) |
+           ((static_cast<uint32_t>(target2) & 0b11) << 16) |
+           ((static_cast<uint32_t>(offset9) & 0x1ff) << 7) | 0b100101;
+}
 #endif // CORE_TEST_HPP

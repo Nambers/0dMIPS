@@ -51,11 +51,12 @@ package structures;
         A_PC
     } alu_a_src_t;
 
-    typedef enum bit [1:0] {
+    typedef enum bit [2:0] {
         B_DATA = 0,
         B_SHIFTER,
         SIGN_IMM,
-        ZERO_IMM
+        ZERO_IMM,
+        CACHE_IMM
     } alu_b_src_t;
 
     typedef enum bit [1:0] {

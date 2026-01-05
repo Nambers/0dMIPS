@@ -67,7 +67,7 @@ module core_MEM (
         .syscall(EX_regs.syscall)
     );
 
-    cache_action_t cache_action_temp = EX_regs.W_regnum;
+    cache_action_t cache_action_temp;
 
     cache_L1 data_cache (
         .clock(clock),
@@ -115,6 +115,7 @@ module core_MEM (
 
     always_comb begin
         data_cache_miss_stall = data_cache_miss && !data_resp.mem_ready;
+        cache_action_temp = EX_regs.W_regnum;
     end
 
     always_ff @(posedge clock, posedge reset) begin

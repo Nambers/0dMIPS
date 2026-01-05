@@ -4,6 +4,7 @@
 #include <Core_core_MEM.h>
 #include <Core_regfile__W40.h>
 #include <cstdint>
+#include <gtest/gtest.h>
 
 /* #region read test */
 #define TestGenRead(name, opcode, check_W_data)                                \
@@ -533,3 +534,17 @@ TestGenMemOnce(
         EXPECT_EQ(FETCH_PC, 4 * 5);
         EXPECT_FALSE(RF->wr_enable);
     });
+
+TestGenMemOnceCycle(
+    CACHE,
+    {
+        // cache wb_invalidate to index=1 DCACHE
+        setAddrDWord(ICACHE, 0, inst_comb(build_cache_inst(0, 0, 1, 1), 0));
+        DCACHE->valid_array[0][1] = true;
+    },
+    {
+        //
+        EXPECT_FALSE(DCACHE->valid_array[0][1]);
+        EXPECT_FALSE(DCACHE->valid_array[1][1]);
+    },
+    6);
