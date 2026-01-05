@@ -4,7 +4,6 @@
 #include <Core_core_MEM.h>
 #include <Core_regfile__W40.h>
 #include <cstdint>
-#include <gtest/gtest.h>
 
 /* #region read test */
 #define TestGenRead(name, opcode, check_W_data)                                \

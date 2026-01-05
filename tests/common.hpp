@@ -18,7 +18,6 @@
 
 #include <endian.h>
 #include <gtest/gtest.h>
-#include <limits>
 #include <random>
 #include <verilated.h>
 #include <verilated_cov.h>
