@@ -20,7 +20,7 @@ module core_hazard #(
     // data peripheral access
     output logic d_valid
 );
-    logic load_use, d_valid_tmp, EX_load_use, MEM1_load_use;
+    logic load_use, EX_load_use, MEM1_load_use;
     always_comb begin
         d_valid = (EX_mem_write || EX_mem_read) && (addr >= PERIPHERAL_BASE);
         // if addr is in the peripheral range and it's memory access operations
@@ -33,8 +33,7 @@ module core_hazard #(
                    ((IF_rs == EX_W_regnum) || (IF_B_is_reg && (IF_rt == EX_W_regnum)));
         load_use = EX_load_use || MEM1_load_use;
 
-        d_valid_tmp = (EX_mem_write || EX_mem_read) && (addr >= PERIPHERAL_BASE);
-        stall = load_use || (d_valid_tmp && !d_ready);
+        stall = load_use || (d_valid && !d_ready);
 
         // $display("t=%0t, stall = %d, %d %d", $time, stall, load_use, (d_valid_tmp && !d_ready));
     end

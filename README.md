@@ -4,7 +4,7 @@
 
 [![Codecov](https://img.shields.io/codecov/c/github/Nambers/0dMIPS)](https://app.codecov.io/github/nambers/0dmips)
 
-In order 5(+2)-stages pipeline MIPS64r6 SoC implementation with peripheral components, simulated and tested with Verilator.
+In order 5(+1)-stages pipeline MIPS64r6 SoC implementation with peripheral components, simulated and tested with Verilator.
 
 </div>
 

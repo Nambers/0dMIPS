@@ -27,7 +27,9 @@ module data_mem #(
         assert (!(req.mem_req_load && req.mem_req_store))
         else $fatal("Data memory request cannot be both load and store");
 
-        addr = {req.mem_addr[INDEX_LEN-LINE_CUT_BITS-1:0], {LINE_CUT_BITS{1'b0}}};
+        addr = {
+            req.mem_addr[INDEX_LEN-LINE_CUT_BITS-1:0], {LINE_CUT_BITS{1'b0}}
+        };
     end
 
     always_ff @(posedge clock or posedge reset) begin
@@ -40,8 +42,7 @@ module data_mem #(
                     data_seg[addr+i[16:0]] <= req.mem_data_out[i*8+:8];
                 end
                 resp.mem_ready <= 1'b1;
-            end
-            if (req.mem_req_load) begin
+            end else if (req.mem_req_load) begin
                 for (int i = 0; i < 64; i++) begin
                     resp.mem_data[i*8+:8] <= data_seg[addr+i[16:0]];
                 end

@@ -43,15 +43,15 @@ module cache_L1 #(
     localparam CACHE_WAYS = 2;
     localparam CACHE_WAYS_BITS = $clog2(CACHE_WAYS);
 
+    localparam OFFSET_BITS = $clog2(CACHE_LINE_SIZE / 8);
+    localparam INDEX_BITS = $clog2(CACHE_ENTRIES);
+    localparam TAG_BITS = WIDTH - INDEX_BITS - OFFSET_BITS;
+
     logic [TAG_BITS-1:0] tag_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0]  /* verilator public */;
     logic valid_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0]  /* verilator public */;
     logic dirty_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0]  /* verilator public */;
     logic LRU_way_array[CACHE_ENTRIES-1:0];
     logic [CACHE_LINE_SIZE-1:0] data_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0] /* verilator public */;
-
-    localparam OFFSET_BITS = $clog2(CACHE_LINE_SIZE / 8);
-    localparam INDEX_BITS = $clog2(CACHE_ENTRIES);
-    localparam TAG_BITS = WIDTH - INDEX_BITS - OFFSET_BITS;
 
     logic [TAG_BITS-1:0] tag;
     logic [INDEX_BITS-1:0] index;
