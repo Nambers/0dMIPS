@@ -17,3 +17,5 @@
 !runAllTests.sh
 !LICENSE
 !README.md
+!boards
+!boards/**
