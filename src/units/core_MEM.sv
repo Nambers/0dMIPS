@@ -22,6 +22,9 @@ module core_MEM (
     input logic d_valid,
     input logic [63:0] d_rdata,
     output MEM_regs_t MEM_regs,
+    output logic [63:0] MEM1_forward_data,
+    output logic [4:0] MEM1_forward_regnum,
+    output logic MEM1_forward_write_enable,
     output logic data_cache_miss_stall  /* verilator public */,
 
     // -- mem bus --
@@ -113,21 +116,33 @@ module core_MEM (
         MEM1.EX_linkpc
     );
 
+    mux4v #(64) forward_mux (
+        MEM1_forward_data,
+        MEM1.EX_out,
+        MEM1.c0_rd_data,
+        MEM1.EX_out,
+        MEM1.EX_pc4,
+        {MEM1.EX_linkpc, MEM1.EX_MFC0}
+    );
+
     always_comb begin
         data_cache_miss_stall = data_cache_miss && !data_resp.mem_ready;
         cache_action_temp = EX_regs.W_regnum;
+        MEM1_forward_regnum = MEM1.W_regnum;
+        MEM1_forward_write_enable = MEM1.write_enable && !MEM1.EX_mem_load;
     end
 
     always_ff @(posedge clock, posedge reset) begin
         // $display("t=%0t, data_cache_miss_stall = %d", $time, data_cache_miss_stall);
 `ifdef DEBUG
         if (|EX_regs.mem_load_type) begin
-            $display("read addr: %h, data: %h, final: %h, reg=$%d, type = %d", EX_regs.out,
-                     data_out, W_data_lui_linkpc, EX_regs.W_regnum, EX_regs.mem_load_type);
+            $display("read addr: %h, data: %h, final: %h, reg=$%d, type = %d",
+                     EX_regs.out, data_out, W_data_lui_linkpc,
+                     EX_regs.W_regnum, EX_regs.mem_load_type);
         end
         if (|EX_regs.mem_store_type) begin
-            $display("write addr: %h, data: %h, type: %d", EX_regs.out, EX_regs.B_data,
-                     EX_regs.mem_store_type);
+            $display("write addr: %h, data: %h, type: %d", EX_regs.out,
+                     EX_regs.B_data, EX_regs.mem_store_type);
         end
 `endif
         if (reset) begin

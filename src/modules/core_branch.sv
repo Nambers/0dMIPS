@@ -12,6 +12,7 @@ module core_branch (
     input EX_regs_t EX_regs,
     /* verilator lint_on UNUSEDSIGNAL */
     input forward_type_t forward_A,
+    input logic [63:0] MEM1_data,
     input logic [63:0] MEM_data,
     input logic [63:0] fetch_pc4,
     input logic [63:0] EPC,
@@ -20,34 +21,14 @@ module core_branch (
     output logic [63:0] next_fetch_pc  /* verilator public */,
     output logic flush
 );
-    logic [63:0] interrupeHandlerAddr  /* verilator public */, forwarded_A;
+    logic [63:0] interrupeHandlerAddr  /* verilator public */ = 64'd0;
+    logic [63:0] forwarded_A;
 
-    initial begin
-        integer fd;
-        // plz put the error handler address at first in .data section
-        // this can help the memory be compacted
-        // TODO make it boot vector or configurable in CP0
-        fd = $fopen("memory.mem", "r");
-        if (|fd) begin
-            $fscanf(fd, "@%h", interrupeHandlerAddr);  // skip the first line
-            if (interrupeHandlerAddr != 'b0) begin
-                interrupeHandlerAddr = 'h0;  // default value
-            end else begin
-                logic [7:0] a, b, c, d, e, f, g, h;
-                $fscanf(fd, "%h %h %h %h\n%h %h %h %h", a, b, c, d, e, f, g, h);
-                interrupeHandlerAddr = {h, g, f, e, d, c, b, a};
-`ifdef DEBUG
-                $display("Interrupe Handler Address: %h", interrupeHandlerAddr);
-`endif
-            end
-            $fclose(fd);
-        end
-    end
-
-    mux3v #(64) forward_mux_A (
+    mux4v #(64) forward_mux_A (
         forwarded_A,
         ID_regs.A_data,
         EX_regs.out,
+        MEM1_data,
         MEM_data,
         forward_A
     );

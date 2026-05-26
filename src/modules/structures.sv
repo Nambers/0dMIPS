@@ -8,6 +8,7 @@ package structures;
     typedef enum bit [1:0] {
         NO_FORWARD  = 0,
         FORWARD_ALU,
+        FORWARD_MEM1,
         FORWARD_MEM
     } forward_type_t;
 

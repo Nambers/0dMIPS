@@ -43,6 +43,9 @@ module core #(
     mem_bus_resp_t inst_resp, data_resp;
 
     logic [63:0] next_fetch_pc  /* verilator public */, IF_pc, IF_pc4, EX_A_data_forwarded;
+    logic [63:0] MEM1_forward_data;
+    logic [4:0] MEM1_forward_regnum;
+    logic MEM1_forward_write_enable;
     forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
 
     cache_arbiter cache_arbiter_ (
@@ -62,6 +65,8 @@ module core #(
         .ID_B_is_reg(ID_regs.B_is_reg),
         .EX_rd(EX_regs.W_regnum),
         .EX_alu_writeback(EX_regs.write_enable && !(|EX_regs.mem_load_type)),
+        .MEM1_rd(MEM1_forward_regnum),
+        .MEM1_writeback(MEM1_forward_write_enable),
         .MEM_rd(MEM_regs.W_regnum),
         .MEM_mem_writeback(MEM_regs.write_enable),
         .forward_A(forward_A),
@@ -90,6 +95,7 @@ module core #(
         .ID_regs(ID_regs),
         .EX_regs(EX_regs),
         .forward_A(forward_A),
+        .MEM1_data(MEM1_forward_data),
         .MEM_data(MEM_regs.W_data),
         .fetch_pc4(IF_pc4),
         .EPC(MEM_regs.EPC),
@@ -133,6 +139,7 @@ module core #(
         .flush(flush),
         .EX_regs(EX_regs),
         .MEM_data(MEM_regs.W_data),
+        .MEM1_data(MEM1_forward_data),
         .forward_A(forward_A),
         .forward_B(forward_B),
         .takenHandler(MEM_regs.takenHandler)
@@ -150,6 +157,9 @@ module core #(
         .d_valid(d_valid),
         .d_rdata(d_rdata),
         .EX_regs(EX_regs),
+        .MEM1_forward_data(MEM1_forward_data),
+        .MEM1_forward_regnum(MEM1_forward_regnum),
+        .MEM1_forward_write_enable(MEM1_forward_write_enable),
         .data_cache_miss_stall(data_cache_miss_stall),
         .MEM_regs(MEM_regs),
         .data_req(data_req),

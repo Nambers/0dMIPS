@@ -4,16 +4,20 @@ import structures::mem_bus_resp_t;
 import configurations::PERIPHERAL_BASE;
 
 module SOC (
-    input logic clk,
-    input logic VGA_clk,
-    input logic reset,
-
+    input logic sys_clk,
+`ifdef VGA_ENABLED
     // -- VGA --
+    input logic VGA_clk,
     output logic [3:0] VGA_r,
     output logic [3:0] VGA_g,
     output logic [3:0] VGA_b,
     output logic Hsync,
-    output logic Vsync
+    output logic Vsync,
+`endif
+`ifdef LED_ENABLED
+    output logic [3:0] led,
+`endif
+    input logic sys_rst_n
 );
     logic [63:0]
         d_addr  /* verilator public */,
@@ -24,18 +28,46 @@ module SOC (
     mem_store_type_t d_store_type;
     mem_bus_req_t mem_bus_req  /* verilator public */;
     mem_bus_resp_t mem_bus_resp  /* verilator public */;
+    logic reset;  // active-high: inversion of active-low sys_rst_n
     logic
         d_valid  /* verilator public */,
         d_ready,
+        taken,
         timer_taken,
-        timer_interrupt,
-        VGA_taken,
-        stdout_taken;
+        timer_interrupt;
+`ifdef VGA_ENABLED
+    logic VGA_taken;
+`endif
+`ifdef MOCK_STDOUT_ENABLED
+    logic stdout_taken;
+`endif
+`ifdef LED_ENABLED
+    logic led_taken;
+`endif
+    logic cpu_clk;
+
+`ifdef VERILATOR
+    assign cpu_clk = sys_clk;
+    assign reset   = ~sys_rst_n;
+`else
+    logic pll_locked;
+    logic soc_rst_n;
+
+    clk_wiz_0 clk_wiz_inst (
+        .clk_in1 (sys_clk),
+        .resetn  (1'b1),
+        .clk_out1(cpu_clk),
+        .locked  (pll_locked)
+    );
+
+    assign reset = ~sys_rst_n | ~pll_locked;
+
+`endif
 
     assign interrupt_sources = {timer_interrupt, 7'b0};
 
     core #(PERIPHERAL_BASE) core (
-        .clock(clk),
+        .clock(cpu_clk),
         .reset(reset),
         .mem_bus_req(mem_bus_req),
         .mem_bus_resp(mem_bus_resp),
@@ -57,12 +89,13 @@ module SOC (
         .address(d_addr),
         .MemRead(d_valid & (~(|d_store_type))),
         .MemWrite(d_valid & (|d_store_type)),
-        .clock(clk),
+        .clock(cpu_clk),
         .reset(reset)
     );
 
+`ifdef VGA_ENABLED
     VGA vga (
-        .clk(clk),
+        .clk(cpu_clk),
         .VGA_clk(VGA_clk),
         .rst(reset),
         .wr_enable(|d_store_type),
@@ -75,9 +108,11 @@ module SOC (
         .VGA_g(VGA_g),
         .VGA_b(VGA_b)
     );
+`endif
 
+`ifdef MOCK_STDOUT_ENABLED
     stdout stdout (
-        .clock(clk),
+        .clock(cpu_clk),
         .reset(reset),
         .enable(d_valid),
         .addr(d_addr),
@@ -85,9 +120,23 @@ module SOC (
         .w_data(d_wdata),
         .stdout_taken(stdout_taken)
     );
+`endif
+
+`ifdef LED_ENABLED
+    led led_ (
+        .clock(cpu_clk),
+        .reset(reset),
+        .enable(d_valid),
+        .addr(d_addr),
+        .mem_store_type(d_store_type),
+        .w_data(d_wdata),
+        .led_out(led),
+        .led_taken(led_taken)
+    );
+`endif
 
     data_mem data_mem (
-        .clock(clk),
+        .clock(cpu_clk),
         .reset(reset),
         .req  (mem_bus_req),
         .resp (mem_bus_resp)
@@ -99,10 +148,20 @@ module SOC (
             default: d_rdata = 'x;
         endcase
         // in-cycle peripheral access
-        d_ready = ~reset & (timer_taken | VGA_taken | stdout_taken);
+        taken = timer_taken;
+`ifdef VGA_ENABLED
+        taken = taken | VGA_taken;
+`endif
+`ifdef MOCK_STDOUT_ENABLED
+        taken = taken | stdout_taken;
+`endif
+`ifdef LED_ENABLED
+        taken = taken | led_taken;
+`endif
+        d_ready = ~reset & taken;
     end
 
-    // always_ff @(posedge clk, posedge reset) begin
+    // always_ff @(posedge cpu_clk, posedge reset) begin
     //     if (reset) begin
     //         d_ready <= '0;
     //     end else begin

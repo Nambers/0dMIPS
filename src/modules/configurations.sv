@@ -22,6 +22,8 @@ package configurations;
     localparam VGA_COLOR_ADDR = VGA_BASE_ADDR;
     // --- simulation output ---
     localparam STDOUT_BASE_ADDR = VGA_BASE_ADDR + 64'h8; // start from 0x2000_0010
+    // --- led ---
+    localparam LED_BASE_ADDR = STDOUT_BASE_ADDR + 64'h8; // start from 0x2000_0018
     // --- Keyboard ---
     // localparam KB_BASE_ADDR = STDOUT_BASE_ADDR + 64'h8;
 

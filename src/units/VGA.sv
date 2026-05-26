@@ -30,7 +30,10 @@ module VGA (
     localparam BUF_HEIGHT = V_DISPLAY / SCALE_FACTOR;
 
     // double buffers for write and display
-    logic [11:0] frame_buf0[BUF_WIDTH * BUF_HEIGHT - 1:0], frame_buf1[BUF_WIDTH * BUF_HEIGHT - 1:0];
+    // Forced to block RAM: each buffer is 128*96*12 = 147456 bits; without the
+    // attribute Vivado infers ~9000 LUT-RAMs per buffer, consuming ~18000 LUTs.
+    (* ram_style = "block" *) logic [11:0] frame_buf0[BUF_WIDTH * BUF_HEIGHT - 1:0];
+    (* ram_style = "block" *) logic [11:0] frame_buf1[BUF_WIDTH * BUF_HEIGHT - 1:0];
 
     // display counters
     logic [9:0] h  /* verilator public */, v  /* verilator public */;

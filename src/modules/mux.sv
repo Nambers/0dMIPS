@@ -9,7 +9,9 @@ module mux2v #(
     input logic sel
 );
     always_comb begin
-        out = ({{width{~sel}}} & a) | ({{width{sel}}} & b);
+        // out = ({{width{~sel}}} & a) | ({{width{sel}}} & b);
+        // OR
+        out = sel ? b : a;
     end
 endmodule
 

@@ -11,6 +11,7 @@ module core_EX (
     /* verilator lint_on UNUSEDSIGNAL */
     input logic flush,
     input logic [63:0] MEM_data,
+    input logic [63:0] MEM1_data,
     // -- forward --
     input forward_type_t forward_A,
     input forward_type_t forward_B,
@@ -43,18 +44,20 @@ module core_EX (
         SEH_out,
         SEB_out;
 
-    mux3v #(64) forward_mux_A (
+    mux4v #(64) forward_mux_A (
         forwarded_A,
         ID_regs.A_data,
         EX_regs.out,
+        MEM1_data,
         MEM_data,
         forward_A
     );
 
-    mux3v #(64) forward_mux_B (
+    mux4v #(64) forward_mux_B (
         forwarded_B,
         ID_regs.B_data,
         EX_regs.out,
+        MEM1_data,
         MEM_data,
         forward_B
     );
