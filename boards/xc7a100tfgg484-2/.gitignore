@@ -1,0 +1,8 @@
+*
+!.gitignore
+!readme.md
+!generate_vivado_project.py
+# Constraint files
+!*.xdc
+# IP core files
+!*.xci
