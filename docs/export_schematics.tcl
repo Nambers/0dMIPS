@@ -10,7 +10,8 @@ set other_cells [get_cells -hierarchical -filter {TYPE == Others}]
 
 set exported [dict create]
 # ban some huge module
-dict set exported "data_mem" 1
+# dict set exported "data_mem" 1
+# Too large
 dict set exported "cache_L1" 1
 set idx 1
 
@@ -32,7 +33,7 @@ foreach cell $other_cells {
     show_schematic [get_nets]
     write_schematic -format svg -scope all -force "${output_dir}/${clean_name}.svg"
     
-    puts "\[[format %02d $idx]\] $ref (instance: $inst_name)"
+    puts "\[[format %02d $idx]\] $ref"
     incr idx
     
     current_instance

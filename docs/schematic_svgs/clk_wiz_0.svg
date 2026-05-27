@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg viewBox="0 0 372 179"
+     preserveAspectRatio="xMidYMid meet"
+     version="1.1"
+     baseProfile="full"
+     xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     xmlns:ev="http://www.w3.org/2001/xml-events"
+     xml:space="preserve">
+<title>SOC</title>
+<desc>Nlview schematic (SVG)</desc>
+<clipPath id="clippingbbox">
+<rect x="0" y="0" width="372" height="179" />
+</clipPath>
+<g stroke="#8bc34a"
+   stroke-width="1"
+   stroke-linecap="butt"
+   stroke-linejoin="miter"
+   stroke-miterlimit="4"
+   stroke-dasharray="none"
+   stroke-dashoffset="0"
+   fill="none"
+   font-family="Helvetica"
+   font-style="normal"
+   font-size="12"
+   writing-mode="lr-tb"
+   cursor="crosshair"
+   clip-path="url(#clippingbbox)">
+<path d="M0 0h372v180h-372z" stroke="none" fill="white" />
+<path d="M70 29h224l3 1l3 1l1 3l1 3v104l-1 3l-1 3l-3 1l-3 1h-224l-3 -1l-3 -1l-1 -3l-1 -3v-104l1 -3l1 -3l3 -1z" stroke="none" fill="white" />
+<g stroke="#575d6c">
+<path d="M70 29h224" />
+<path d="M294,29 A7.83511,7.83511 1.61334 0,1 302,37" />
+<path d="M302 37v104" />
+<path d="M302,141 A7.83511,7.83511 1.61334 0,1 294,149" />
+<path d="M294 149h-224" />
+<path d="M70,149 A7.83511,7.83511 1.61334 0,1 62,141" />
+<path d="M62 141v-104" />
+<path d="M62,37 A7.83511,7.83511 1.61334 0,1 70,29" />
+</g>
+<g stroke="#575d6c" stroke-width="3">
+<path d="M67 40h12" />
+</g>
+<g stroke="#575d6c">
+<path d="M65 32h16v16h-16z" />
+<text x="182" y="27" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">clk_wiz_inst</text>
+<text x="182" y="151" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">clk_wiz_0</text>
+</g>
+<g stroke="#1c1f28">
+<path d="M52 89h10" />
+<text x="60" y="87" fill="#1c1f28" stroke-width="0" font-size="10" text-anchor="end" dy="-1.33333">clk_in1</text>
+<path d="M312 89h-10" />
+<text x="304" y="87" fill="#1c1f28" stroke-width="0" font-size="10" dy="-1.33333">clk_out1</text>
+<path d="M312 109h-10" />
+<text x="304" y="107" fill="#1c1f28" stroke-width="0" font-size="10" dy="-1.33333">locked</text>
+<path d="M52 109h10" />
+<text x="60" y="107" fill="#1c1f28" stroke-width="0" font-size="10" text-anchor="end" dy="-1.33333">resetn</text>
+<path d="M72 89h-10" />
+<path d="M292 89h10" />
+<path d="M292 109h10" />
+<path d="M72 109h-10" />
+<path d="M152 57h60v62h-60z" stroke="none" fill="#cde5ff" />
+</g>
+<g stroke="#575d6c">
+<path d="M152 57h60v62h-60z" />
+</g>
+<g stroke="#575d6c" stroke-width="3">
+<path d="M163 62v12" />
+<path d="M157 68h12" />
+</g>
+<g stroke="#575d6c">
+<path d="M155 60h16v16h-16z" />
+<text x="182" y="55" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">inst</text>
+<text x="182" y="121" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">clk_wiz_0_clk_wiz</text>
+</g>
+<g stroke="#1c1f28">
+<path d="M142 89h10" />
+<text x="150" y="88" fill="#1c1f28" stroke-width="0" font-size="10" text-anchor="end" dy="-1.33333">clk_in1</text>
+<path d="M222 89h-10" />
+<text x="214" y="88" fill="#1c1f28" stroke-width="0" font-size="10" dy="-1.33333">clk_out1</text>
+<path d="M222 109h-10" />
+<text x="214" y="108" fill="#1c1f28" stroke-width="0" font-size="10" dy="-1.33333">locked</text>
+<path d="M142 109h10" />
+<text x="150" y="108" fill="#1c1f28" stroke-width="0" font-size="10" text-anchor="end" dy="-1.33333">resetn</text>
+<path d="M162 89h-10" />
+<path d="M202 89h10" />
+<path d="M202 109h10" />
+<path d="M162 109h-10" />
+</g>
+<g>
+<path d="M72 89h70" />
+<path d="M222 89h70" />
+<path d="M222 109h70" />
+<path d="M72 109h70" />
+</g>
+</g>
+</svg>

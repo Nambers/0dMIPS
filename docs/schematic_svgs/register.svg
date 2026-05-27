@@ -12,7 +12,7 @@
 <clipPath id="clippingbbox">
 <rect x="0" y="0" width="427" height="365" />
 </clipPath>
-<g stroke="#19b400"
+<g stroke="#8bc34a"
    stroke-width="1"
    stroke-linecap="butt"
    stroke-linejoin="miter"
@@ -27,8 +27,8 @@
    cursor="crosshair"
    clip-path="url(#clippingbbox)">
 <path d="M0 0h426v366h-426z" stroke="none" fill="white" />
-<path d="M18 29h391l3 1l3 1l1 3l1 3v290l-1 3l-1 3l-3 1l-3 1h-391l-3 -1l-3 -1l-1 -3l-1 -3v-290l1 -3l1 -3l3 -1z" stroke="none" fill="#fafafa" />
-<g stroke="black">
+<path d="M18 29h391l3 1l3 1l1 3l1 3v290l-1 3l-1 3l-3 1l-3 1h-391l-3 -1l-3 -1l-1 -3l-1 -3v-290l1 -3l1 -3l3 -1z" stroke="none" fill="white" />
+<g stroke="#575d6c">
 <path d="M18 29h391" />
 <path d="M409,29 A7.83511,7.83511 1.61334 0,1 417,37" />
 <path d="M417 37v290" />
@@ -37,15 +37,15 @@
 <path d="M18,335 A7.83511,7.83511 1.61334 0,1 10,327" />
 <path d="M10 327v-290" />
 <path d="M10,37 A7.83511,7.83511 1.61334 0,1 18,29" />
-<text x="213" y="27" fill="black" stroke-width="0" text-anchor="middle" dy="-1.6">core</text>
+<text x="213" y="27" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">core</text>
 </g>
-<g stroke="black" stroke-width="3">
+<g stroke="#575d6c" stroke-width="3">
 <path d="M15 40h12" />
 </g>
-<g stroke="black">
+<g stroke="#575d6c">
 <path d="M13 32h16v16h-16z" />
-<text x="213" y="337" fill="black" stroke-width="0" text-anchor="middle" dy="9.6">core</text>
-<path d="M28 69h371l3 1l3 1l1 3l1 3v220l-1 3l-1 3l-3 1l-3 1h-371l-3 -1l-3 -1l-1 -3l-1 -3v-220l1 -3l1 -3l3 -1z" stroke="none" fill="#fafafa" />
+<text x="213" y="337" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">core</text>
+<path d="M28 69h371l3 1l3 1l1 3l1 3v220l-1 3l-1 3l-3 1l-3 1h-371l-3 -1l-3 -1l-1 -3l-1 -3v-220l1 -3l1 -3l3 -1z" stroke="none" fill="white" />
 <path d="M28 69h371" />
 <path d="M399,69 A7.83511,7.83511 1.61334 0,1 407,77" />
 <path d="M407 77v220" />
@@ -54,15 +54,15 @@
 <path d="M28,305 A7.83511,7.83511 1.61334 0,1 20,297" />
 <path d="M20 297v-220" />
 <path d="M20,77 A7.83511,7.83511 1.61334 0,1 28,69" />
-<text x="213" y="67" fill="black" stroke-width="0" text-anchor="middle" dy="-1.6">cache_arbiter_</text>
+<text x="213" y="67" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">cache_arbiter_</text>
 </g>
-<g stroke="black" stroke-width="3">
+<g stroke="#575d6c" stroke-width="3">
 <path d="M25 80h12" />
 </g>
-<g stroke="black">
+<g stroke="#575d6c">
 <path d="M23 72h16v16h-16z" />
-<text x="213" y="307" fill="black" stroke-width="0" text-anchor="middle" dy="9.6">cache_arbiter</text>
-<path d="M98 115h244l3 1l3 1l1 3l1 3v144l-1 3l-1 3l-3 1l-3 1h-244l-3 -1l-3 -1l-1 -3l-1 -3v-144l1 -3l1 -3l3 -1z" stroke="none" fill="#fafafa" />
+<text x="213" y="307" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">cache_arbiter</text>
+<path d="M98 115h244l3 1l3 1l1 3l1 3v144l-1 3l-1 3l-3 1l-3 1h-244l-3 -1l-3 -1l-1 -3l-1 -3v-144l1 -3l1 -3l3 -1z" stroke="none" fill="white" />
 <path d="M98 115h244" />
 <path d="M342,115 A7.83511,7.83511 1.61334 0,1 350,123" />
 <path d="M350 123v144" />
@@ -72,61 +72,65 @@
 <path d="M90 267v-144" />
 <path d="M90,123 A7.83511,7.83511 1.61334 0,1 98,115" />
 </g>
-<g stroke="black" stroke-width="3">
+<g stroke="#575d6c" stroke-width="3">
 <path d="M95 126h12" />
 </g>
-<g stroke="black">
+<g stroke="#575d6c">
 <path d="M93 118h16v16h-16z" />
-<text x="220" y="113" fill="black" stroke-width="0" text-anchor="middle" dy="-1.6">cache_st</text>
-<text x="220" y="277" fill="black" stroke-width="0" text-anchor="middle" dy="9.6">register</text>
+<text x="220" y="113" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">cache_st</text>
+<text x="220" y="277" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">register</text>
+</g>
+<g stroke="#1c1f28">
 <path d="M80 175h10" />
-<text x="88" y="173" fill="black" stroke-width="0" font-size="10" text-anchor="end" dy="-1.33333">clk</text>
+<text x="88" y="173" fill="#1c1f28" stroke-width="0" font-size="10" text-anchor="end" dy="-1.33333">clk</text>
 <path d="M80 195h10" />
-<text x="88" y="193" fill="black" stroke-width="0" font-size="10" text-anchor="end" dy="-1.33333">enable</text>
+<text x="88" y="193" fill="#1c1f28" stroke-width="0" font-size="10" text-anchor="end" dy="-1.33333">enable</text>
 <path d="M80 215h10" />
-<text x="88" y="213" fill="black" stroke-width="0" font-size="10" text-anchor="end" dy="-1.33333">rst</text>
+<text x="88" y="213" fill="#1c1f28" stroke-width="0" font-size="10" text-anchor="end" dy="-1.33333">rst</text>
 </g>
-<g stroke="black" stroke-width="3">
+<g stroke="#1c1f28" stroke-width="3">
 <path d="M80 155h10" />
-<text x="88" y="153" fill="black" stroke-width="0" font-size="10" text-anchor="end" dy="-1.33333">D[1:0]</text>
+<text x="88" y="153" fill="#1c1f28" stroke-width="0" font-size="10" text-anchor="end" dy="-1.33333">D[1:0]</text>
 <path d="M360 195h-10" />
-<text x="352" y="193" fill="black" stroke-width="0" font-size="10" dy="-1.33333">Q[1:0]</text>
+<text x="352" y="193" fill="#1c1f28" stroke-width="0" font-size="10" dy="-1.33333">Q[1:0]</text>
 </g>
-<g stroke="black">
+<g stroke="#1c1f28">
 <path d="M100 175h-10" />
 <path d="M100 195h-10" />
 <path d="M100 215h-10" />
 </g>
-<g stroke="black" stroke-width="3">
+<g stroke="#1c1f28" stroke-width="3">
 <path d="M100 155h-10" />
 <path d="M340 195h10" />
-<path d="M212 167h60v80h-60z" stroke="none" fill="#fcfc35" />
+<path d="M212 167h60v80h-60z" stroke="none" fill="#9e31fc" />
 </g>
-<g stroke="black">
+<g stroke="#575d6c">
 <path d="M212 167h60v80h-60z" />
-<path d="M208 163h60v80h-60z" stroke="none" fill="#fdfd67" />
+<path d="M208 163h60v80h-60z" stroke="none" fill="#b563fd" />
 <path d="M208 163h60v80h-60z" />
-<path d="M204 159h60v80h-60z" stroke="none" fill="#fefe99" />
+<path d="M204 159h60v80h-60z" stroke="none" fill="#cd95fe" />
 <path d="M204 159h60v80h-60z" />
-<path d="M200 155h60v80h-60z" stroke="none" fill="#ffffcc" />
+<path d="M200 155h60v80h-60z" stroke="none" fill="#e5c7ff" />
 <path d="M200 155h60v80h-60z" />
 <path d="M200 178l7 -3l-7 -3" />
-<text x="230" y="153" fill="black" stroke-width="0" dy="-1.6">Q_reg[1:0]</text>
-<text x="230" y="249" fill="black" stroke-width="0" text-anchor="middle" dy="9.6">RTL_REG_ASYNC</text>
+<text x="230" y="153" fill="#1c1f28" stroke-width="0" dy="-1.6">Q_reg[1:0]</text>
+<text x="230" y="249" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">RTL_REG_ASYNC</text>
+</g>
+<g stroke="#1c1f28">
 <path d="M190 175h10" />
-<text x="209" y="175" fill="black" stroke-width="0" font-size="10" dy="3.66667">C</text>
+<text x="209" y="175" fill="#1c1f28" stroke-width="0" font-size="10" dy="3.66667">C</text>
 <path d="M190 195h10" />
-<text x="202" y="195" fill="black" stroke-width="0" font-size="10" dy="3.66667">CE</text>
+<text x="202" y="195" fill="#1c1f28" stroke-width="0" font-size="10" dy="3.66667">CE</text>
 <path d="M220 145v10" />
-<text x="217" y="157" fill="black" stroke-width="0" font-size="10" dy="8">CLR</text>
+<text x="217" y="157" fill="#1c1f28" stroke-width="0" font-size="10" dy="8">CLR</text>
 </g>
-<g stroke="black" stroke-width="3">
+<g stroke="#1c1f28" stroke-width="3">
 <path d="M190 215h10" />
-<text x="202" y="215" fill="black" stroke-width="0" font-size="10" dy="3.66667">D</text>
+<text x="202" y="215" fill="#1c1f28" stroke-width="0" font-size="10" dy="3.66667">D</text>
 <path d="M270 195h-10" />
-<text x="258" y="195" fill="black" stroke-width="0" font-size="10" text-anchor="end" dy="3.66667">Q</text>
+<text x="258" y="195" fill="#1c1f28" stroke-width="0" font-size="10" text-anchor="end" dy="3.66667">Q</text>
 </g>
-<g stroke="green" stroke-width="3">
+<g stroke="#009633" stroke-width="3">
 <path d="M100 155h40v60h50" />
 <path d="M270 195h70" />
 </g>
