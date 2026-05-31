@@ -29,6 +29,7 @@ module core_IF #(
 
     IF1_t IF1;
     logic [63:0] inst_L1;
+    logic [63:0] if_fetch_pc, if_fetch_pc4;
     logic inst_cache_miss, inst_cache_miss_stall  /* verilator public */;
 
     cache_L1 inst_cache (
@@ -52,6 +53,8 @@ module core_IF #(
     always_comb begin
         first_half_pc = IF1.fetch_pc;
         first_half_pc4 = IF1.fetch_pc4;
+        IF_regs.fetch_pc4 = if_fetch_pc4;
+        IF_regs.fetch_pc = if_fetch_pc;
         IF_regs.inst = inst_L1[31:0];
         inst_cache_miss_stall = inst_cache_miss && !inst_resp.mem_ready;
     end
@@ -60,20 +63,20 @@ module core_IF #(
         // $display("t=%0t, inst_cache_miss_stall = %d", $time,
         //          inst_cache_miss_stall);
         if (reset) begin
-            IF1.fetch_pc <= RESET_PC;
+            IF1.fetch_pc  <= RESET_PC;
             IF1.fetch_pc4 <= RESET_PC;
-            IF_regs.fetch_pc <= '0;
-            IF_regs.fetch_pc4 <= '0;
+            if_fetch_pc   <= '0;
+            if_fetch_pc4  <= '0;
         end else if (!(stall || inst_cache_miss_stall) || flush) begin
             IF1.fetch_pc  <= next_fetch_pc;
             IF1.fetch_pc4 <= next_fetch_pc + 4;
 
             if (flush) begin
-                IF_regs.fetch_pc  <= '0;
-                IF_regs.fetch_pc4 <= '0;
+                if_fetch_pc  <= '0;
+                if_fetch_pc4 <= '0;
             end else begin
-                IF_regs.fetch_pc  <= IF1.fetch_pc;
-                IF_regs.fetch_pc4 <= IF1.fetch_pc4;
+                if_fetch_pc  <= IF1.fetch_pc;
+                if_fetch_pc4 <= IF1.fetch_pc4;
             end
         end
     end
