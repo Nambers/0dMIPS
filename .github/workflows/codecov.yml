@@ -37,15 +37,11 @@ jobs:
             build-essential \
             cmake \
             ninja-build \
-            pkg-config \
             verilator \
-            libgtest-dev \
-            libcapstone-dev \
-            libsdl3-dev \
-            lcov
+            libgtest-dev
 
       - name: Configure
-        run: cmake -B build -G Ninja .
+        run: cmake -B build -G Ninja -DODMIPS_BUILD_SIMULATIONS=OFF .
 
       - name: Build tests
         run: cmake --build build --target allTests -j "$(nproc)"

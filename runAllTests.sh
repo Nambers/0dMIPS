@@ -8,8 +8,10 @@ GTEST_COLOR=1 ctest --test-dir build -V
 
 if [ -n "$DUMP_COV" ]; then
     echo "Dumping coverage data..."
-    verilator_coverage --write-info coverage.info build/tests/logs/*.dat
-    if command -v genhtml &>/dev/null; then
-        genhtml --output-dir coverage_html coverage.info
+    mapfile -t coverage_logs < <(find ./build/tests/logs -type f -name "*.dat" -print)
+    if [ "${#coverage_logs[@]}" -eq 0 ]; then
+        echo "No Verilator coverage logs found under ./build/tests/logs" >&2
+        exit 1
     fi
+    verilator_coverage --write-info coverage.info "${coverage_logs[@]}"
 fi
