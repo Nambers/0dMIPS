@@ -1,5 +1,6 @@
 set(UNITS timer cp0 core cache_L1)
 set(TEST_DIR ${CMAKE_SOURCE_DIR}/tests)
+set(TEST_TARGETS)
 
 set(timer_SRCS
     ${SRC_DIR}/modules/configurations.sv
@@ -37,5 +38,8 @@ foreach(target IN LISTS UNITS)
     add_test(NAME ${target}Test COMMAND $<TARGET_FILE:${target}Test>)
     target_link_libraries(${target}Test PRIVATE GTest::GTest GTest::Main Threads::Threads)
     target_include_directories(${target}Test PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${target})
+    list(APPEND TEST_TARGETS ${target}Test)
     message(STATUS "Added test target: ${target}Test")
 endforeach()
+
+add_custom_target(allTests DEPENDS ${TEST_TARGETS})

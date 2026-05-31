@@ -5,6 +5,9 @@
 !tests/**
 !docs
 !docs/**
+!.github
+!.github/workflows
+!.github/workflows/*.yml
 !scripts
 !scripts/**
 !simulations
