@@ -222,6 +222,24 @@ TestGenMemOnceCycle(
         EXPECT_FALSE(RF->wr_enable);
     },
     6);
+
+TestGenMemOnceCycle(
+    ADDIU_NOP_SB_MEM1Forward,
+    {
+        WRITE_RF(2, 0x20);
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_I_inst(0x9, 0, 3, 0x0f), 0)); // addiu; nop
+        setAddrDWord(ICACHE, 8,
+                     inst_comb(build_I_inst(0x28, 2, 3, 0), 0)); // sb; nop
+    },
+    {
+        EXPECT_EQ(inst_->core->forward_B, 2); // FORWARD_MEM1
+        tick();
+        tick();
+        EXPECT_EQ(getAddrDWord(DCACHE, 0x20) & 0xff, 0x0f);
+    },
+    5);
+
 TestGenMemOnceCycle(
     LA_LA,
     {

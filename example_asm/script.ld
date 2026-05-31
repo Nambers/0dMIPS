@@ -35,7 +35,7 @@ SECTIONS
     }
 
     .data : {
-        PROVIDE(__global_pointer$ = .);
+        PROVIDE(_gp = .);
         *(.sdata)
         *(.data)
     }

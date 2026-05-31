@@ -35,36 +35,114 @@ inline unsigned int getIndex(uint64_t addr) {
 
 inline unsigned int getOffset(uint64_t addr) { return addr & OFS_MASK; }
 
-// using DataType = VlUnpacked<VlUnpacked<VlWide<16> /*511:0*/, 64>, 2>;
-// using ValidType = VlUnpacked<VlUnpacked<CData /*0:0*/, 64>, 2>;
-// using DirtyType = VlUnpacked<VlUnpacked<CData /*0:0*/, 64>, 2>;
-// using TagType = VlUnpacked<VlUnpacked<QData /*51:0*/, 64>, 2>;
+#define CACHE_DATA(way, word)                                                  \
+    cache                                                                      \
+        ->way_bank__BRA__##way##__KET____DOT__word_bank__BRA__##word##__KET____DOT__data
+template <typename T>
+auto &cacheDataBank(T *cache, unsigned int way, unsigned int word) {
+    assert(way < 2);
+    assert(word < 8);
 
-template <typename T> uint64_t getAddrDWord(T *cache, uint64_t addr) {
+    if (way == 0) {
+        switch (word) {
+        case 0:
+            return CACHE_DATA(0, 0);
+        case 1:
+            return CACHE_DATA(0, 1);
+        case 2:
+            return CACHE_DATA(0, 2);
+        case 3:
+            return CACHE_DATA(0, 3);
+        case 4:
+            return CACHE_DATA(0, 4);
+        case 5:
+            return CACHE_DATA(0, 5);
+        case 6:
+            return CACHE_DATA(0, 6);
+        case 7:
+            return CACHE_DATA(0, 7);
+        }
+    }
+
+    switch (word) {
+    case 0:
+        return CACHE_DATA(1, 0);
+    case 1:
+        return CACHE_DATA(1, 1);
+    case 2:
+        return CACHE_DATA(1, 2);
+    case 3:
+        return CACHE_DATA(1, 3);
+    case 4:
+        return CACHE_DATA(1, 4);
+    case 5:
+        return CACHE_DATA(1, 5);
+    case 6:
+        return CACHE_DATA(1, 6);
+    case 7:
+        return CACHE_DATA(1, 7);
+    }
+
+    __builtin_unreachable();
+}
+
+#undef CACHE_DATA
+
+template <typename T>
+uint64_t readCacheDWord(T *cache, unsigned int way, uint64_t addr) {
     const auto offset = getOffset(addr);
     assert((offset % sizeof(uint32_t)) == 0);
-    assert(offset < 64 - sizeof(uint32_t));
+
     const auto index = getIndex(addr);
+    const auto word_idx = offset / sizeof(uint64_t);
+    const auto byte_idx = offset % sizeof(uint64_t);
+    const auto low_word = cacheDataBank(cache, way, word_idx)[index];
+
+    if (byte_idx == 0)
+        return low_word;
+
+    assert(word_idx + 1 < 8);
+    const auto high_word = cacheDataBank(cache, way, word_idx + 1)[index];
+    const auto shift = byte_idx * 8;
+    return (low_word >> shift) | (high_word << (64 - shift));
+}
+
+template <typename T>
+void writeCacheDWord(T *cache, unsigned int way, uint64_t addr,
+                     uint64_t dword) {
+    const auto offset = getOffset(addr);
+    assert((offset % sizeof(uint32_t)) == 0);
+
+    const auto index = getIndex(addr);
+    const auto word_idx = offset / sizeof(uint64_t);
+    const auto byte_idx = offset % sizeof(uint64_t);
+    auto &low_word = cacheDataBank(cache, way, word_idx)[index];
+
+    if (byte_idx == 0) {
+        low_word = dword;
+        return;
+    }
+
+    assert(word_idx + 1 < 8);
+    auto &high_word = cacheDataBank(cache, way, word_idx + 1)[index];
+    const auto shift = byte_idx * 8;
+    const uint64_t low_keep_mask = (1ULL << shift) - 1;
+    const uint64_t high_keep_mask = ~((1ULL << (64 - shift)) - 1);
+
+    low_word = (low_word & low_keep_mask) | (dword << shift);
+    high_word = (high_word & high_keep_mask) | (dword >> (64 - shift));
+}
+
+template <typename T> uint64_t getAddrDWord(T *cache, uint64_t addr) {
     const auto way = 0; // for test simplicity
-    // data_line is 64bytes
-    auto &data_line = cache->data_array[way][index];
-    static_assert(sizeof(decltype(data_line[0])) == sizeof(uint32_t));
-    uint64_t low = data_line[offset / sizeof(uint32_t)];
-    uint64_t high = data_line[offset / sizeof(uint32_t) + 1];
-    return (high << 32) | low;
+    return readCacheDWord(cache, way, addr);
 }
 
 template <typename T>
 void setAddrDWord(T *cache, uint64_t addr, uint64_t dword) {
-    const auto offset = getOffset(addr);
-    assert((offset % sizeof(uint32_t)) == 0);
     const auto index = getIndex(addr);
     const auto fixedWay = 0; // for test simplicity
-    // data_line is 64bytes
-    auto &data_line = cache->data_array[fixedWay][index];
-    static_assert(sizeof(decltype(data_line[0])) == sizeof(uint32_t));
-    data_line[offset / sizeof(uint32_t)] = dword & MASK32;
-    data_line[offset / sizeof(uint32_t) + 1] = (dword >> 32) & MASK32;
+    writeCacheDWord(cache, fixedWay, addr, dword);
     cache->valid_array[fixedWay][index] = 1;
     cache->tag_array[fixedWay][index] = getTag(addr);
     // printf("set to index=%d, tag=%lx\n", index, getTag(addr));

@@ -20,7 +20,7 @@ endfunction()
 
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 
-set(PERIPHERALS VGA timer stdout)
+set(PERIPHERALS VGA timer stdout led)
 string(REPLACE ";" "|" PERIPH_REGEX "${PERIPHERALS}")
 
 # ensure the include order
@@ -37,12 +37,14 @@ list(REMOVE_ITEM core_other_SRCS
     ${SRC_DIR}/modules/structures.sv
     ${SRC_DIR}/modules/mips_define.sv
     ${SRC_DIR}/modules/configurations.sv
+    ${SRC_DIR}/modules/xpm_memory_sdpram_verilator.sv
 )
 list(APPEND core_SRCS ${core_other_SRCS})
 
 set(SOC_SRCS
     ${core_SRCS}
     ${SRC_DIR}/modules/configurations.sv
+    ${SRC_DIR}/modules/xpm_memory_sdpram_verilator.sv
     ${SRC_DIR}/SOC.sv
 )
 # add peripheral sources to SOC_SRCS

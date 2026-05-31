@@ -35,26 +35,14 @@ template <typename T> inline constexpr T fixedVal2() {
 // using TagType = VlUnpacked<VlUnpacked<QData /*51:0*/, 64>, 2>;
 
 inline uint64_t getAddrDWord(Core_cache_L1 *cache, uint64_t addr) {
-    const auto offset = getOffset(addr);
-    assert((offset % sizeof(uint32_t)) == 0);
-    const auto index = getIndex(addr);
     const auto way = 0; // for test simplicity
-    // data_line is 64bytes
-    auto &data_line = cache->data_array[way][index];
-    uint64_t low = data_line[offset / sizeof(uint32_t)];
-    uint64_t high = data_line[offset / sizeof(uint32_t) + 1];
-    return (high << 32) | low;
+    return readCacheDWord(cache, way, addr);
 }
 
 inline void setAddrDWord(Core_cache_L1 *cache, uint64_t addr, uint64_t dword) {
-    const auto offset = getOffset(addr);
-    assert((offset % sizeof(uint32_t)) == 0);
     const auto index = getIndex(addr);
     const auto fixedWay = 0; // for test simplicity
-    // data_line is 64bytes
-    auto &data_line = cache->data_array[fixedWay][index];
-    data_line[offset / sizeof(uint32_t)] = dword & MASK32;
-    data_line[offset / sizeof(uint32_t) + 1] = (dword >> 32) & MASK32;
+    writeCacheDWord(cache, fixedWay, addr, dword);
     cache->valid_array[fixedWay][index] = 1;
     cache->tag_array[fixedWay][index] = getTag(addr);
     // printf("set to index=%x, tag=%x, ofs=%x\n", index, getTag(addr), offset);
@@ -64,7 +52,8 @@ inline void preloadCacheLine(Core_cache_L1 *cache, uint64_t start_addr,
                              uint64_t end_addr) {
     const auto fixedWay = 0; // for test simplicity
     for (auto i = getIndex(start_addr); i <= getIndex(end_addr) + 1; i++) {
-        memset(&cache->data_array[fixedWay][i], 0, sizeof(VlWide<16>));
+        for (int w = 0; w < 8; w++)
+            cacheDataBank(cache, fixedWay, w)[i] = 0;
         cache->valid_array[fixedWay][i] = 1;
         cache->tag_array[fixedWay][i] = getTag(start_addr);
         // printf("preload index=%x, tag=%x\n", i, getTag(start_addr));
