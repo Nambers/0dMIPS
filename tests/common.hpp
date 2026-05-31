@@ -185,13 +185,15 @@ template <class T> class TestBase : public TestBaseI<T> {
     }
     void TearDown() override {
         this->inst_->final();
-        if (dumpCov)
+        if (dumpCov) {
+            const std::string coverage_path = std::string("logs/coverage_") +
+                                              ::testing::UnitTest::GetInstance()
+                                                  ->current_test_info()
+                                                  ->name() +
+                                              ".dat";
             Verilated::threadContextp()->coveragep()->write(
-                std::string("logs/coverage_") +
-                ::testing::UnitTest::GetInstance()
-                    ->current_test_info()
-                    ->name() +
-                ".dat");
+                coverage_path.c_str());
+        }
         delete this->inst_;
     };
     void reset() {
