@@ -116,7 +116,8 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         }
     }
     if (as->top->SOC->stdout->stdout_taken) {
-        printf("stdout: %s \n", (const char *)&as->top->SOC->stdout->buffer);
+        uint64_t stdout_data = be64toh(as->top->SOC->stdout->buffer);
+        printf("stdout: %s \n", (const char *)&stdout_data);
     }
     TICK;
     TICK;
@@ -133,10 +134,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
         case SDL_SCANCODE_Q:
             return SDL_APP_SUCCESS;
         case SDL_SCANCODE_R: {
-            as->top->reset = 1;
+            as->top->sys_rst_n = 0;
             TICK;
             TICK;
-            as->top->reset = 0;
+            as->top->sys_rst_n = 1;
             std::cout << "reset done" << std::endl;
             break;
         }
