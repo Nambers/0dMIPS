@@ -52,7 +52,7 @@ In order 5(+1)-stages pipeline MIPS64r6 SoC implementation with peripheral compo
 <details>
     <summary>Hello world with debugger (asciinema)</summary>
 
-[![Hello world with debugger](https://asciinema.org/a/bU0a0fpWcxJT1erWZx5JkgBuQ.svg)](https://asciinema.org/a/bU0a0fpWcxJT1erWZx5JkgBuQ)
+[![Hello world with debugger](https://asciinema.org/a/1173366.svg)](https://asciinema.org/a/1173366)
 
 </details>
 
