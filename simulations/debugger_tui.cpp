@@ -356,7 +356,7 @@ Element render_cache_L1() {
 Element render_memory(uint64_t &center_addr) {
     constexpr int bytes_per_row = 16;
     constexpr int row_radius = 8;
-    uint64_t base_row = (center_addr / bytes_per_row) * bytes_per_row;
+    uint64_t base_row;
 
     // mem_bus_req packed fields (572 bits total, little-endian in VlWide):
     //   [0]      = mem_req_load
@@ -373,6 +373,8 @@ Element render_memory(uint64_t &center_addr) {
         // cache line
         center_addr = bus_lo;
         base_row = bus_lo;
+    } else {
+        base_row = (center_addr / bytes_per_row) * bytes_per_row;
     }
 
     auto load_byte = [&](uint64_t addr) -> uint8_t {
@@ -525,7 +527,7 @@ int main(int argc, char **argv) {
     TICK;
     machine->sys_rst_n = 1;
 
-    auto screen = ScreenInteractive::TerminalOutput();
+    auto screen = ScreenInteractive::Fullscreen();
 
     bool showModal = false;
 
