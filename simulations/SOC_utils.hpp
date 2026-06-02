@@ -95,11 +95,18 @@ void mainLoop(T *machine, C *ctx, unsigned int cycle_max, csh &cs_handle,
 
 template <class T> void dumpMem(T *machine) {
     std::ofstream mem_out("memory_after.txt");
-    auto &mem = machine->SOC->data_mem->data_seg;
-    for (size_t i = 0; i < mem.size() - 3; i += 4) {
-        mem_out << std::hex << std::setfill('0') << std::setw(2) << (int)mem[i]
-                << std::setw(2) << (int)mem[i + 1] << std::setw(2)
-                << (int)mem[i + 2] << std::setw(2) << (int)mem[i + 3] << "\n";
+    auto &mem = machine->SOC->data_mem->data_seg_xpm->mem;
+    for (size_t line = 0; line < mem.size(); ++line) {
+        for (size_t offset = 0; offset < 64; offset += 4) {
+            mem_out << std::hex << std::setfill('0') << std::setw(2)
+                    << vlwide_get(mem[line], (offset + 0) * 8, 8)
+                    << std::setw(2)
+                    << vlwide_get(mem[line], (offset + 1) * 8, 8)
+                    << std::setw(2)
+                    << vlwide_get(mem[line], (offset + 2) * 8, 8)
+                    << std::setw(2)
+                    << vlwide_get(mem[line], (offset + 3) * 8, 8) << "\n";
+        }
     }
     mem_out.close();
 }

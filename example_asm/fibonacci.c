@@ -1,18 +1,11 @@
+#include "header.h"
 #include "optnone.h"
 
 void exception_handler();
 
-__attribute__((section(
-    ".bootinfo"))) volatile const unsigned long long exception_handler_addr =
-    (unsigned long long)(void *)&exception_handler;
 const static unsigned int step = 6;
 
-__asm__(".section .text\n"
-        "li $sp, _stack_top\n"
-        "li $gp, __global_pointer$\n"
-        "li $ra, 0x0d00\n" // placeholder
-        "li $t9, __start\n"
-        "jr $t9\n");
+DEFAULT_HEADER_DEFINITIONS;
 
 NONOPT void __start() {
     unsigned int prev = 0, curr = 1, sum = 0;

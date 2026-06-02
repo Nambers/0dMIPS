@@ -4,30 +4,32 @@
 #include <ftxui/dom/node.hpp>
 
 #include <array>
-#include <chrono>
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <map>
-#include <signal.h>
 #include <sstream>
 #include <string>
-#include <thread>
 #include <unordered_map>
 
 #include <SOC_sim.h>
 #include <SOC_sim_SOC.h>
+#include <SOC_sim_cache_L1.h>
 #include <SOC_sim_core.h>
 #include <SOC_sim_core_ID.h>
+#include <SOC_sim_core_IF.h>
 #include <SOC_sim_core_MEM.h>
 #include <SOC_sim_cp0.h>
-#include <SOC_sim_data_mem__D2000.h>
+#include <SOC_sim_data_mem.h>
 #include <SOC_sim_regfile__W40.h>
 #include <SOC_sim_stdout.h>
+#include <SOC_sim_timer.h>
+#include <SOC_sim_xpm_memory_sdpram__pi1.h>
 #include <capstone/capstone.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 
+#include "../tests/cache_L1_helper.hpp"
 #include "common.hpp"
 
 enum class MemType { NO = 0, BYTE, WORD, DWORD };
@@ -112,9 +114,9 @@ std::unordered_map<uint64_t, DisasmEntry> disasm_cache;
 void update_state_from_sim() {
     TICK;
     pipeline["IF"] = "N/A";
-    pipeline["ID"] =
-        get_disasm(vlwide_get(machine->SOC->core->IF_regs, 0, 64),
-                   machine->SOC->core->inst, disasm_cache, cs_handle);
+    pipeline["ID"] = get_disasm(vlwide_get(machine->SOC->core->IF_regs, 32, 64),
+                                vlwide_get(machine->SOC->core->IF_regs, 0, 32),
+                                disasm_cache, cs_handle);
     pipeline["EX"] = get_disasm(vlwide_get(machine->SOC->core->ID_regs, 0, 64),
                                 vlwide_get(machine->SOC->core->ID_regs, 64, 32),
                                 disasm_cache, cs_handle);
@@ -211,15 +213,14 @@ Element render_pipeline() {
     auto timer_panel =
         vbox({
             text("⏱ Peripheral: Timer") | bold,
-            text("Cycle: " +
-                 std::to_string(machine->SOC->__PVT__timer__DOT__cycle_D)),
+            text("Cycle: " + std::to_string(machine->SOC->timer->cycle_D)),
         }) |
         border | size(WIDTH, EQUAL, 22);
 
     // PC indicator
     std::ostringstream pc_hex;
     pc_hex << "0x" << std::hex << std::setw(8) << std::setfill('0')
-           << vlwide_get(machine->SOC->core->IF_regs, 64, 64);
+           << vlwide_get(machine->SOC->core->IF_regs, 32, 64);
 
     auto pc_panel = vbox({
                         text("📍 PC") | bold,
@@ -257,17 +258,129 @@ Element render_registers() {
     return vbox(lines) | border;
 }
 
-Element render_memory(uint64_t center_addr) {
-    const int bytes_per_row = 16;
-    const int row_radius = 8;
+Element render_cache(SOC_sim_cache_L1 *cache, const std::string &label,
+                     bool miss_stall) {
+    constexpr int num_entries = 32;
+    uint64_t cur_addr = cache->addr;
+    unsigned int cur_idx = getIndex(cur_addr);
+    uint64_t cur_tag = getTag(cur_addr);
+    uint8_t way_hit_bits = cache->way_hit;
+
+    std::ostringstream addr_oss;
+    addr_oss << "0x" << std::hex << std::setw(8) << std::setfill('0')
+             << (uint32_t)cur_addr;
+
+    std::vector<Element> rows;
+    rows.push_back(hbox({
+        text(label) | bold,
+        text("  addr:") | dim,
+        text(addr_oss.str()) | color(Color::Cyan),
+        text("  idx:" + std::to_string(cur_idx)) | color(Color::Yellow),
+        text(miss_stall ? "  MISS-STALL" : "") | color(Color::Red) | bold,
+    }));
+
+    rows.push_back(hbox({
+        text("Idx") | size(WIDTH, EQUAL, 3) | bold | dim,
+        text(" LRU") | bold | dim,
+        text(" | ") | dim,
+        text("W0 V D Tag    Data[0]          ") | bold | dim,
+        text("| ") | dim,
+        text("W1 V D Tag    Data[0]         ") | bold | dim,
+    }));
+
+    auto make_way_elem = [&](int w, int i, bool is_lru) -> Element {
+        bool valid = (bool)cache->valid_array[w][i];
+        bool dirty = (bool)cache->dirty_array[w][i];
+        uint64_t tag = cache->tag_array[w][i];
+        uint64_t data0 = cacheDataBank(cache, w, 0)[i];
+        bool is_hit = (way_hit_bits >> w) & 1;
+        bool tag_match = (i == (int)cur_idx) && valid && (tag == cur_tag);
+
+        std::ostringstream tag_oss, data_oss;
+        tag_oss << std::hex << std::setw(6) << std::setfill('0')
+                << (tag & 0x1FFFFF);
+        data_oss << std::hex << std::setw(16) << std::setfill('0') << data0;
+
+        auto v_elem = text(valid ? "V" : ".") |
+                      color(valid ? (is_lru ? Color::GrayLight : Color::Green)
+                                  : Color::GrayDark);
+        auto d_elem = text(dirty ? "D" : ".") |
+                      color(dirty ? Color::Red : Color::GrayDark);
+        auto tag_elem = text(tag_oss.str()) | size(WIDTH, EQUAL, 6);
+        if (tag_match || is_hit)
+            tag_elem = tag_elem | color(Color::Yellow) | bold;
+        auto data_elem = text(data_oss.str()) | dim | size(WIDTH, EQUAL, 16);
+
+        return hbox({v_elem, text(" "), d_elem, text("  "), tag_elem,
+                     text("  "), data_elem});
+    };
+
+    for (int i = 0; i < num_entries; ++i) {
+        bool is_cur = (i == (int)cur_idx);
+        uint8_t lru = cache->__PVT__LRU_way_array[i];
+
+        std::ostringstream idx_oss;
+        idx_oss << std::setw(2) << std::setfill(' ') << i;
+
+        auto lru_elem = text(lru == 0 ? " W0 " : " W1 ") | color(Color::Blue);
+
+        auto row_elem = hbox({
+            text(idx_oss.str()) | size(WIDTH, EQUAL, 3),
+            lru_elem,
+            text("| ") | dim,
+            make_way_elem(0, i, lru == 0) | size(WIDTH, EQUAL, 30),
+            text(" | ") | dim,
+            make_way_elem(1, i, lru == 1),
+        });
+
+        if (is_cur)
+            row_elem = row_elem | bgcolor(Color::DarkBlue);
+
+        rows.push_back(row_elem);
+    }
+
+    return vbox(rows) | border | flex;
+}
+
+Element render_cache_L1() {
+    bool dcache_miss =
+        (bool)machine->SOC->core->MEM_stage->data_cache_miss_stall;
+    return hbox({
+        render_cache(machine->SOC->core->IF_stage->inst_cache, "⚡ ICache L1",
+                     false),
+        render_cache(machine->SOC->core->MEM_stage->data_cache, "⚡ DCache L1",
+                     dcache_miss),
+    });
+}
+
+Element render_memory(uint64_t &center_addr) {
+    constexpr int bytes_per_row = 16;
+    constexpr int row_radius = 8;
     uint64_t base_row = (center_addr / bytes_per_row) * bytes_per_row;
 
-    uint64_t sp = RF[29];
-    uint64_t stack_lo = (sp >= 128 ? sp - 128 : 0);
-    uint64_t stack_hi = sp + 128;
+    // mem_bus_req packed fields (572 bits total, little-endian in VlWide):
+    //   [0]      = mem_req_load
+    //   [1]      = mem_req_store
+    //   [513:2]  = mem_data_out (512 bits)
+    //   [571:514]= mem_addr (58 bits = physical_addr >> 6, cache-line aligned)
+    bool bus_load = vlwide_get(machine->SOC->mem_bus_req, 0, 1);
+    bool bus_store = vlwide_get(machine->SOC->mem_bus_req, 1, 1);
+    uint64_t bus_lo = vlwide_get(machine->SOC->mem_bus_req, 512 + 2, 58) << 6;
+    uint64_t bus_hi = bus_lo + 64;
+
+    if (bus_load || bus_store) {
+        // if there's an ongoing bus request, center the view on the requested
+        // cache line
+        center_addr = bus_lo;
+        base_row = bus_lo;
+    }
 
     auto load_byte = [&](uint64_t addr) -> uint8_t {
-        return machine->SOC->core->MEM_stage->mem->data_seg[addr];
+        constexpr size_t W = 16; // VlWide<16>
+        auto &row = machine->SOC->data_mem->data_seg_xpm
+                        ->mem[addr / (sizeof(EData) * W)];
+        EData word = row[(addr / sizeof(EData)) % W];
+        return word >> ((addr % sizeof(EData)) * 8);
     };
 
     std::vector<Element> lines;
@@ -300,10 +413,10 @@ Element render_memory(uint64_t center_addr) {
             h << std::hex << std::setw(2) << std::setfill('0') << (int)val;
             auto cell = text(h.str());
 
-            // stack background highlight
-            if (addr >= stack_lo && addr < stack_hi) {
-                cell |= bgcolor(Color::DarkMagenta);
-            }
+            // bus request highlight: dim background for the 64-byte cache line
+            if ((bus_load || bus_store) && addr >= bus_lo && addr < bus_hi)
+                cell = cell |
+                       bgcolor(bus_store ? Color::DarkRed : Color::DarkMagenta);
 
             if (addr == center_addr) {
                 cell |= bgcolor(Color::Blue) | color(Color::White);
@@ -407,10 +520,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    machine->clk = 1;
-    machine->reset = 1;
+    machine->sys_clk = 1;
+    machine->sys_rst_n = 0;
     TICK;
-    machine->reset = 0;
+    machine->sys_rst_n = 1;
 
     auto screen = ScreenInteractive::TerminalOutput();
 
@@ -424,6 +537,7 @@ int main(int argc, char **argv) {
         return vbox({render_pipeline(),
                      hbox({render_registers() | flex, render_perip()}) |
                          size(HEIGHT, GREATER_THAN, 10),
+                     render_cache_L1() | size(HEIGHT, GREATER_THAN, 10),
                      render_memory(mem_center) | flex, footer}) |
                flex;
     });

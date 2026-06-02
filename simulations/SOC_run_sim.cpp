@@ -3,6 +3,7 @@
 #include <SOC_run_sim_core.h>
 #include <SOC_run_sim_core_MEM.h>
 #include <SOC_run_sim_cp0.h>
+#include <SOC_run_sim_data_mem.h>
 #include <SOC_run_sim_stdout.h>
 #include <verilated.h>
 
@@ -24,7 +25,7 @@
 
 #define TICK_HALF                                                              \
     do {                                                                       \
-        machine->clk = !machine->clk;                                          \
+        machine->sys_clk = !machine->sys_clk;                                          \
         machine->eval();                                                       \
         TICK_TRACE                                                             \
         ctx->timeInc(1);                                                       \
@@ -46,10 +47,10 @@ int main(int argc, char **argv) {
     tfp->open("trace.vcd");
 #endif
 
-    machine->clk = 1;
-    machine->reset = 1;
+    machine->sys_clk = 1;
+    machine->sys_rst_n = 0;
     TICK;
-    machine->reset = 0;
+    machine->sys_rst_n = 1;
 
     while (1) {
         if (machine->SOC->stdout->stdout_taken) {

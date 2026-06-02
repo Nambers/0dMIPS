@@ -100,6 +100,7 @@ package structures;
     } cache_action_t;
 
     typedef struct packed {
+        // ofs being used, if change, also change debugger_tui
         logic [63:0] fetch_pc4, fetch_pc;
         logic [31:0] inst;
     } IF_regs_t;

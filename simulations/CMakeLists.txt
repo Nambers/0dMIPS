@@ -9,6 +9,7 @@ set(VGA_SRCS
 set(SDL3_ENABLED SOC_VGA VGA)
 set(CAPSTONE_DISABLED SOC_run)
 set(SOC_run_C_flag -O3 -flto)
+set(VERILATOR_ARGS +define+MOCK_STDOUT_ENABLED)
 set(sim_VCD_dump OFF CACHE BOOL "Enable or disable VCD dump in simulation targets")
 
 find_package(SDL3)
@@ -38,13 +39,18 @@ foreach(sim_src IN LISTS SIM_SOURCES)
     if(${target}_linker_flags)
         set_target_properties(${target_name} PROPERTIES LINK_FLAGS "${${target}_linker_flags}")
     endif()
+    if(target IN_LIST SDL3_ENABLED)
+        set(LOCAL_VERILATOR_ARGS ${VERILATOR_ARGS} +define+VGA_ENABLED)
+    else()
+        set(LOCAL_VERILATOR_ARGS ${VERILATOR_ARGS})
+    endif()
 
     if(sim_VCD_dump)
         verilate(${target_name}
             SOURCES ${${srclist}}
             TOP_MODULE ${base_target}
             PREFIX ${unitCap}_sim
-            VERILATOR_ARGS 
+            VERILATOR_ARGS ${LOCAL_VERILATOR_ARGS}
             DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${target}
             TRACE_VCD
         )
@@ -54,7 +60,7 @@ foreach(sim_src IN LISTS SIM_SOURCES)
             SOURCES ${${srclist}}
             TOP_MODULE ${base_target}
             PREFIX ${unitCap}_sim
-            VERILATOR_ARGS 
+            VERILATOR_ARGS ${LOCAL_VERILATOR_ARGS}
             DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${target}
         )
     endif()
@@ -92,10 +98,9 @@ foreach(debug_src IN LISTS DEBUG_SOURCES)
         SOURCES ${${srclist}}
         TOP_MODULE ${base_target}
         PREFIX ${unitCap}_debug
-        VERILATOR_ARGS 
         DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${target}
         TRACE_VCD
-        VERILATOR_ARGS +define+DEBUG
+        VERILATOR_ARGS +define+DEBUG ${VERILATOR_ARGS}
     )
     target_link_libraries(${target_name} PRIVATE ${CAPSTONE_LIBRARIES})
     target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${target} ${CAPSTONE_INCLUDE_DIRS})
@@ -120,9 +125,8 @@ else()
         SOURCES ${SOC_SRCS}
         TOP_MODULE SOC
         PREFIX SOC_sim
-        VERILATOR_ARGS 
         DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/debugger_tui
-        VERILATOR_ARGS +define+DEBUGGER
+        VERILATOR_ARGS +define+DEBUGGER ${VERILATOR_ARGS}
     )
 
     target_include_directories(debugger_tui

@@ -22,7 +22,7 @@ module timer #(
 
     // -- logic declarations --
     // cycle counter
-    logic [width - 1:0] cycle_D, cycle_Q;
+    logic [width - 1:0] cycle_D  /*verilator public*/, cycle_Q;
     // interrupt cycle
     logic [width - 1:0] icycle_Q;
     logic Acknowledge, TimerWrite, TimerRead, addr_eq1, addr_eq2;

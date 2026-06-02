@@ -8,7 +8,7 @@
 
 #define TICK_HALF                                                              \
     do {                                                                       \
-        machine->clk = !machine->clk;                                          \
+        machine->sys_clk = !machine->sys_clk;                                          \
         machine->eval();                                                       \
         ctx->timeInc(1);                                                       \
     } while (0)

@@ -6,6 +6,7 @@
 #include <SOC_sim_cp0.h>
 #include <SOC_sim_data_mem.h>
 #include <SOC_sim_stdout.h>
+#include <SOC_sim_xpm_memory_sdpram__pi1.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 
@@ -40,10 +41,10 @@ int main(int argc, char **argv) {
     // return -1;
     // }
 
-    machine->clk = 1;
-    machine->reset = 1;
+    machine->sys_clk = 1;
+    machine->sys_rst_n = 0;
     TICK;
-    machine->reset = 0;
+    machine->sys_rst_n = 1;
     mainLoop(machine, ctx, cycle_max, cs_handle, disasm_cache);
     dumpMem(machine);
 

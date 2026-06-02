@@ -1,10 +1,11 @@
+#include "header.h"
+
 // should run in SOC
 void exception_handler();
 
-__attribute__((section(
-    ".bootinfo"))) volatile const unsigned long long exception_handler_addr =
-    (unsigned long long)(void *)&exception_handler;
 const static unsigned int step = 12; // should be >= 12
+
+DEFAULT_HEADER_DEFINITIONS;
 
 __asm__(".section .text\n"
         "li $sp, _stack_top\n"

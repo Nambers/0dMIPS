@@ -17,7 +17,7 @@ module SOC (
 `ifdef LED_ENABLED
     output logic [3:0] led,
 `endif
-    input logic sys_rst_n
+    input logic sys_rst_n  // active low
 );
     logic [63:0]
         d_addr  /* verilator public */,
@@ -28,7 +28,7 @@ module SOC (
     mem_store_type_t d_store_type;
     mem_bus_req_t mem_bus_req  /* verilator public */;
     mem_bus_resp_t mem_bus_resp  /* verilator public */;
-    logic reset;  // active-high: inversion of active-low sys_rst_n
+    logic reset  /* verilator public */;
     logic
         d_valid  /* verilator public */,
         d_ready,
