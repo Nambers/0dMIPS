@@ -4,7 +4,7 @@
 
 [![Codecov](https://img.shields.io/codecov/c/github/Nambers/0dMIPS)](https://app.codecov.io/github/nambers/0dmips)
 
-In order 5(+1)-stages pipeline MIPS64r6 SoC implementation with peripheral components, simulated and tested with Verilator.
+MIPS64r6 SoC implementation with a 5-stage in-order pipeline (2-cycle MEM stage) and peripheral components, simulated and tested with Verilator.
 
 </div>
 
@@ -15,37 +15,28 @@ In order 5(+1)-stages pipeline MIPS64r6 SoC implementation with peripheral compo
 - `verilator` <https://github.com/verilator/verilator> for simulations.
 - \[OPTIONAL\] `sdl3` <https://github.com/libsdl-org/SDL> for any simulation with VGA output.
 - \[OPTIONAL\] `lcov` <https://github.com/linux-test-project/lcov> for gather coverage data.
+- \[OPTIONAL\] `ftxui` <https://github.com/ArthurSonzogni/FTXUI> for building the debugger TUI.
 - \[OPTIONAL\] `capstone` <https://github.com/capstone-engine/capstone> for show disassembly in debugger TUI.
 
 ## How to run
 
 1. `cmake -B build .`
-2. `cmake --build build -j ${$(nproc)-1}` to build all. All binaries are placed under `build/bin`
-3. `cmake --build build --target help` to list all targets
-4. `./runAllTest.sh` to run all generated tests under `build/bin`(by cmake), and use `DUMP_COV=1 ./runAllTest.sh` to dump coverage data
-5. `cmake --build build --target <script_name>` to compile script into memory.dat, e.g. `fibonacci`
+2. `cmake --build build -j ${$(nproc)-1}` to build all. All binaries are placed under `build/bin`.
+3. `cmake --build build --target allTests` to build all tests.
+4. `./runAllTests.sh` to run all generated tests under `build/bin`(by cmake), and use `DUMP_COV=1 ./runAllTests.sh` to dump coverage data.
+5. `cmake --build build --target <script_name>` to compile script into memory.dat, e.g. `hello_world_c`.
 
-## Plan
+## Features
 
-- [x] Basic 5-stages pipeline
-- [x] TUI GDB-style debugger (simulated)
-- [ ] Peripherals by MMIO
-  - [ ] UART
-  - [x] VGA
-  - [x] Timer
-  - [x] mock stdout
-- [ ] Cache
-  - [x] L1 inst & data cache and arbiter
-- [x] Interrupts
-  - [x] Timer interrupt
-  - [x] Break
-  - [x] Syscall
-- [ ] ~~out-of-order execution~~ double-issue in-order
-- [ ] AXI
-  - [ ] Memory
-- [ ] Branch prediction
-- [ ] Multiplier/Divider
-- [ ] FPU(cp1)
+- 5-stage in-order pipeline with forwarding and hazard detection
+- L1 instruction & data cache with arbiter
+- CP0 coprocessor: timer interrupt, syscall, break, overflow exception
+- Peripherals via MMIO: VGA (640×480 @ 72Hz, deprecated), Timer, LED, mock stdout (simulation only)
+- TUI GDB-style debugger with pipeline state, registers, memory, and peripheral views
+
+## Roadmap
+
+See [open milestones](https://github.com/Nambers/0dMIPS/milestones) for planned features.
 
 ## Demo
 
