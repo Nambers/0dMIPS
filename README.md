@@ -10,9 +10,11 @@ MIPS64r6 SoC implementation with a 5-stage in-order pipeline (2-cycle MEM stage)
 
 ## Dependenices
 
-- `mips64el-linux-gnu-binutils` toolchains(`as` and `objdump`), they're under [mips64el-linux-gnu-binutils](https://aur.archlinux.org/packages/mips64el-linux-gnu-binutils) in Arch.
+- `mips64el-linux-gnu-binutils` toolchains(`as` and `objdump`), they're under [mips64el-linux-gnu-binutils](https://aur.archlinux.org/packages/mips64el-linux-gnu-binutils) in Arch Linux.
+- `verilator` <https://github.com/verilator/verilator> for simulations and tests.
+- `googletest` <https://github.com/google/googletest> for test framework.
+- \[OPTIONAL\] `Vivado` <https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vivado.html> I upload vivado projects under `boards/`.
 - \[OPTIONAL\] If you like to write C directly, I mainly use `mips64el-linux-gnu-gcc-bootstrap` with `musl` as `sysroot`. Use `scripts/install_mips64el_musl.sh` to download musl and [mips64el-linux-gnu-gcc-bootstrap](https://aur.archlinux.org/packages/mips64el-linux-gnu-gcc-bootstrap).
-- `verilator` <https://github.com/verilator/verilator> for simulations.
 - \[OPTIONAL\] `sdl3` <https://github.com/libsdl-org/SDL> for any simulation with VGA output.
 - \[OPTIONAL\] `lcov` <https://github.com/linux-test-project/lcov> for gather coverage data.
 - \[OPTIONAL\] `ftxui` <https://github.com/ArthurSonzogni/FTXUI> for building the debugger TUI.
