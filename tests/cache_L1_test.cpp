@@ -166,7 +166,7 @@ TEST_F(Cache_L1Test, writeTest) {
 
 TEST_F(Cache_L1Test, directWriteTest) {
     // use setAddrDWord
-    const uint64_t testAddr = addrDist(rng) & ~0x3; // align to word
+    const uint64_t testAddr = addrDist(rng) & ~0x7; // align to dword
     uint64_t testData = 0x12345678;
     setAddrDWord(this->inst_->cache_L1, testAddr, testData);
     EXPECT_EQ(getAddrDWord(this->inst_->cache_L1, testAddr), testData);
