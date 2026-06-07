@@ -534,16 +534,139 @@ TestGenMemOnce(
         EXPECT_FALSE(RF->wr_enable);
     });
 
+// Clean line in way 0 at index 1: addr = cache_set_offset(1) = 64 → addr[10:6]
+// = 1, addr[11] = 0
 TestGenMemOnceCycle(
     CACHE,
     {
-        // cache wb_invalidate to index=1 DCACHE
-        setAddrDWord(ICACHE, 0, inst_comb(build_cache_inst(0, 0, 1, 1), 0));
+        setAddrDWord(
+            ICACHE, 0,
+            inst_comb(build_cache_inst(0, 0, 1, cache_set_offset(1)), 0));
         DCACHE->valid_array[0][1] = true;
     },
     {
-        //
         EXPECT_FALSE(DCACHE->valid_array[0][1]);
         EXPECT_FALSE(DCACHE->valid_array[1][1]);
+    },
+    6);
+
+// Clean line in way 1 at index 1: $1 = CACHE_WAY1_BASE = 2048, addr = 2048 + 64
+// = 2112 → addr[11]=1, addr[10:6]=1
+TestGenMemOnceCycle(
+    CACHE_way1_only_clean,
+    {
+        WRITE_RF(1, CACHE_WAY1_BASE);
+        setAddrDWord(
+            ICACHE, 0,
+            inst_comb(build_cache_inst(1, 0, 1, cache_set_offset(1)), 0));
+        DCACHE->valid_array[0][1] = false;
+        DCACHE->valid_array[1][1] = true;
+    },
+    {
+        EXPECT_FALSE(DCACHE->valid_array[0][1]);
+        EXPECT_FALSE(DCACHE->valid_array[1][1]);
+    },
+    6);
+
+TestGenMemOnceCycle(
+    CACHE_dirty_way0,
+    {
+        setAddrDWord(
+            ICACHE, 0,
+            inst_comb(build_cache_inst(0, 0, 1, cache_set_offset(1)), 0));
+        DCACHE->valid_array[0][1] = true;
+        DCACHE->dirty_array[0][1] = true;
+    },
+    {
+        EXPECT_TRUE(inst_->core->data_cache_miss_stall);
+        // wait one for req being created
+        tick();
+        // wait one for arbiter enabling
+        tick();
+        EXPECT_TRUE(inst_->core->data_cache_miss_stall);
+        EXPECT_TRUE(mem_req_is_store(inst_->mem_bus_req));
+        EXPECT_FALSE(mem_req_is_load(inst_->mem_bus_req));
+        // simulate ready
+        mem_resp_set_ready(inst_->mem_bus_resp, true);
+        tick();
+        EXPECT_FALSE(DCACHE->valid_array[0][1]);
+        EXPECT_FALSE(DCACHE->dirty_array[0][1]);
+    },
+    4);
+
+TestGenMemOnceCycle(
+    CACHE_dirty_way1,
+    {
+        WRITE_RF(1, CACHE_WAY1_BASE);
+        setAddrDWord(
+            ICACHE, 0,
+            inst_comb(build_cache_inst(1, 0, 1, cache_set_offset(1)), 0));
+        DCACHE->valid_array[0][1] = false;
+        DCACHE->valid_array[1][1] = true;
+        DCACHE->dirty_array[1][1] = true;
+    },
+    {
+        EXPECT_TRUE(inst_->core->data_cache_miss_stall);
+        // wait one for req being created
+        tick();
+        // wait one for arbiter enabling
+        tick();
+        EXPECT_TRUE(inst_->core->data_cache_miss_stall);
+        EXPECT_TRUE(mem_req_is_store(inst_->mem_bus_req));
+        EXPECT_FALSE(mem_req_is_load(inst_->mem_bus_req));
+        // simulate ready
+        mem_resp_set_ready(inst_->mem_bus_resp, true);
+        tick();
+        EXPECT_FALSE(DCACHE->valid_array[1][1]);
+        EXPECT_FALSE(DCACHE->dirty_array[1][1]);
+    },
+    4);
+
+TestGenMemOnceCycle(
+    CACHE_both_ways_dirty,
+    {
+        setAddrDWord(
+            ICACHE, 0,
+            inst_comb(build_cache_inst(0, 0, 1, cache_set_offset(1)), 0));
+        DCACHE->valid_array[0][1] = true;
+        DCACHE->dirty_array[0][1] = true;
+        DCACHE->valid_array[1][1] = true;
+        DCACHE->dirty_array[1][1] = true;
+    },
+    {
+        EXPECT_TRUE(inst_->core->data_cache_miss_stall);
+        // wait one for req being created
+        tick();
+        // wait one for arbiter enabling
+        tick();
+        EXPECT_TRUE(inst_->core->data_cache_miss_stall);
+        EXPECT_TRUE(mem_req_is_store(inst_->mem_bus_req));
+        EXPECT_FALSE(mem_req_is_load(inst_->mem_bus_req));
+        // simulate ready
+        mem_resp_set_ready(inst_->mem_bus_resp, true);
+        tick();
+        EXPECT_FALSE(DCACHE->valid_array[0][1]);
+        EXPECT_FALSE(DCACHE->dirty_array[0][1]);
+        EXPECT_TRUE(DCACHE->valid_array[1][1]);
+        EXPECT_TRUE(DCACHE->dirty_array[1][1]);
+    },
+    4);
+
+// Index addressing: offset9=64 → addr=64 → correct index=addr[10:6]=1, buggy
+// index=addr[4:0]=0. preloadCacheLine sets valid for indices 0..3; after CACHE,
+// index 1 must be cleared and index 0 must NOT be spuriously cleared.
+TestGenMemOnceCycle(
+    CACHE_index_addressing,
+    {
+        // base=r0=0, offset9=64 → CacheExtImm=64 → addr=64
+        setAddrDWord(ICACHE, 0, inst_comb(build_cache_inst(0, 0, 1, 64), 0));
+        // preloadCacheLine already set valid_array[0][0] and [0][1]; keep them
+    },
+    {
+        // index 1 (addr[10:6]=1) must be invalidated
+        EXPECT_FALSE(DCACHE->valid_array[0][1]);
+        EXPECT_FALSE(DCACHE->valid_array[1][1]);
+        // index 0 must not be touched
+        EXPECT_TRUE(DCACHE->valid_array[0][0]);
     },
     6);

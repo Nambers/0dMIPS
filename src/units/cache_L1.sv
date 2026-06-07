@@ -43,8 +43,15 @@ module cache_L1 #(
     localparam CACHE_WAYS = 2;
     localparam OFFSET_BITS = $clog2(CACHE_LINE_SIZE / 8);
     localparam INDEX_BITS = $clog2(CACHE_ENTRIES);
+    localparam WAY_BITS = $clog2(CACHE_WAYS);
     localparam TAG_BITS = WIDTH - INDEX_BITS - OFFSET_BITS;
     localparam WORDS_PER_LINE = CACHE_LINE_SIZE / WIDTH;
+
+    localparam CACHE_INST_OFFSET_BITS = $clog2(CACHE_LINE_SIZE / 8);
+    localparam CACHE_INST_INDEX_BITS = $clog2(
+        CACHE_ENTRIES * CACHE_LINE_SIZE / 8
+    );
+    localparam CACHE_INST_WAY_BITS = CACHE_INST_INDEX_BITS + $clog2(CACHE_WAYS);
 
     logic [TAG_BITS-1:0] tag_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0]  /* verilator public */;
     logic valid_array[CACHE_WAYS-1:0][CACHE_ENTRIES-1:0]  /* verilator public */;
@@ -56,6 +63,8 @@ module cache_L1 #(
     logic fill_enable;
     logic hit_store_enable;
     logic [INDEX_BITS-1:0] cache_op_index;
+    logic [WAY_BITS-1:0] cache_op_way;
+    logic cache_inst_stall;
 
     logic [TAG_BITS-1:0] tag;
     logic [INDEX_BITS-1:0] index;
@@ -132,7 +141,8 @@ module cache_L1 #(
         {tag, index, offset} = addr;
         word_idx = offset[OFFSET_BITS-1:3];
         byte_idx = offset[2:0];
-        cache_op_index = addr[INDEX_BITS-1:0];
+        cache_op_index = addr[CACHE_INST_INDEX_BITS-1:CACHE_INST_OFFSET_BITS];
+        cache_op_way = addr[CACHE_INST_WAY_BITS-1:CACHE_INST_INDEX_BITS];
 
         way_hit = {
             valid_array[1][index] && (tag_array[1][index] == tag),
@@ -141,7 +151,8 @@ module cache_L1 #(
         hit_way_idx = way_hit[1];
         replace_way = LRU_way_array[index];
         dirty_wb = valid_array[replace_way][index] && dirty_array[replace_way][index];
-        miss = (|mem_load_type || |mem_store_type) && !(|way_hit);
+        cache_inst_stall = (cache_inst && (cache_op == WB_INVALIDATE) && valid_array[cache_op_way][cache_op_index] && dirty_array[cache_op_way][cache_op_index] && !resp.mem_ready);
+        miss = ((|mem_load_type || |mem_store_type) && !(|way_hit)) || cache_inst_stall;
 
         case (mem_store_type)
             STORE_BYTE:  byte_wr_en = 8'h01 << byte_idx;
@@ -194,29 +205,34 @@ module cache_L1 #(
         end else if (cache_inst) begin
             case (cache_op)
                 WB_INVALIDATE: begin
-                    if (valid_array[0][cache_op_index] && dirty_array[0][cache_op_index]) begin
-                        req.mem_req_store <= 1'b1;
-                        req.mem_req_load <= 1'b0;
-                        req.mem_addr <= {
-                            tag_array[0][cache_op_index], cache_op_index
-                        };
-                        for (int w = 0; w < WORDS_PER_LINE; w++)
-                        req.mem_data_out[w*WIDTH+:WIDTH] <= data_bank_rd[0][w];
-                    end else if (valid_array[1][cache_op_index] && dirty_array[1][cache_op_index]) begin
-                        req.mem_req_store <= 1'b1;
-                        req.mem_req_load <= 1'b0;
-                        req.mem_addr <= {
-                            tag_array[1][cache_op_index], cache_op_index
-                        };
-                        for (int w = 0; w < WORDS_PER_LINE; w++)
-                        req.mem_data_out[w*WIDTH+:WIDTH] <= data_bank_rd[1][w];
+                    if (valid_array[cache_op_way][cache_op_index] && dirty_array[cache_op_way][cache_op_index]) begin
+                        if (resp.mem_ready) begin
+                            dirty_array[cache_op_way][cache_op_index] <= 1'b0;
+                            valid_array[cache_op_way][cache_op_index] <= 1'b0;
+                            req.mem_req_store <= 1'b0;
+                            req.mem_req_load <= 1'b0;
+                            req.mem_data_out <= '0;
+                            // $display(
+                            //     "%m: writed back dirty cache line, addr = %h, tag = %h, index = %h",
+                            //     tag_array[cache_op_way][cache_op_index],
+                            //     cache_op_index, {OFFSET_BITS{1'b0}});
+                        end else begin
+                            // $display(
+                            //     "%m: write back dirty cache line, addr = %h, tag = %h, index = %h",
+                            //     tag_array[cache_op_way][cache_op_index],
+                            //     cache_op_index, {OFFSET_BITS{1'b0}});
+                            req.mem_req_store <= 1'b1;
+                            req.mem_req_load <= 1'b0;
+                            req.mem_addr <= {
+                                tag_array[cache_op_way][cache_op_index],
+                                cache_op_index
+                            };
+                            for (int w = 0; w < WORDS_PER_LINE; w++)
+                            req.mem_data_out[w*WIDTH+:WIDTH] <= data_bank_rd[cache_op_way][w];
+                        end
                     end else begin
-                        valid_array[0][cache_op_index] <= 1'b0;
-                        valid_array[1][cache_op_index] <= 1'b0;
-                        req.mem_req_store <= 1'b0;
-                        req.mem_req_load <= 1'b0;
+                        valid_array[cache_op_way][cache_op_index] <= 1'b0;
                     end
-
                 end
                 default: $display("unsupported cache operation %b", cache_op);
             endcase

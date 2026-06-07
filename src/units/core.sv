@@ -42,11 +42,16 @@ module core #(
     mem_bus_req_t inst_req, data_req;
     mem_bus_resp_t inst_resp, data_resp;
 
-    logic [63:0] next_fetch_pc  /* verilator public */, IF_pc, IF_pc4, EX_A_data_forwarded;
+    logic [63:0]
+        next_fetch_pc  /* verilator public */,
+        IF_pc,
+        IF_pc4,
+        EX_A_data_forwarded;
     logic [63:0] MEM1_forward_data;
     logic [4:0] MEM1_forward_regnum;
     logic MEM1_forward_write_enable;
-    forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
+    forward_type_t
+        forward_A  /* verilator public */, forward_B  /* verilator public */;
 
     cache_arbiter cache_arbiter_ (
         .clock(clock),
@@ -125,6 +130,7 @@ module core #(
         .reset(reset),
         .IF_regs(IF_regs),
         .stall(stall),
+        .data_cache_miss_stall(data_cache_miss_stall),
         .flush(flush),
         .MEM_regs(MEM_regs),
         .ID_regs(ID_regs),

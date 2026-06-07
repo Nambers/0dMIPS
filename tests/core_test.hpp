@@ -86,6 +86,50 @@ uint64_t vlwide_get(const Wide &wide, int idx /* low_bit */, int width) {
     return (high_part | low_part) & mask;
 }
 
+template <typename Wide>
+inline bool mem_req_is_load(const Wide &req) { return vlwide_get(req, 1, 1); }
+template <typename Wide>
+inline bool mem_req_is_store(const Wide &req) { return vlwide_get(req, 0, 1); }
+template <typename Wide>
+inline uint64_t mem_req_addr(const Wide &req) { return vlwide_get(req, 514, 58) << 6; }
+// n = 0..7: n-th 64-bit word from mem_data_out (cache line)
+template <typename Wide>
+inline uint64_t mem_req_data_dword(const Wide &req, int n) {
+    return vlwide_get(req, 2 + n * 64, 64);
+}
+
+
+template <typename Wide>
+inline bool mem_resp_is_ready(const Wide &resp) { return vlwide_get(resp, 0, 1); }
+// n = 0..7: n-th 64-bit word from mem_data (cache line)
+template <typename Wide>
+inline uint64_t mem_resp_data_dword(const Wide &resp, int n) {
+    return vlwide_get(resp, 1 + n * 64, 64);
+}
+template <typename Wide>
+inline void mem_resp_set_ready(Wide &resp, bool v) {
+    if (v)
+        resp[0] |= 1U;
+    else
+        resp[0] &= ~1U;
+}
+// n = 0..7: set the n-th 64-bit word of mem_data
+template <typename Wide>
+inline void mem_resp_set_dword(Wide &resp, int n, uint64_t val) {
+    auto *base = reinterpret_cast<uint8_t *>(&resp.m_storage[0]);
+    for (int b = 0; b < 8; b++) {
+        int start_bit = 1 + n * 64 + b * 8;
+        int byte_offset = start_bit / 8;
+        int bit_offset = start_bit % 8;
+        uint16_t tmp;
+        std::memcpy(&tmp, base + byte_offset, sizeof(tmp));
+        uint16_t mask = static_cast<uint16_t>(0xFF) << bit_offset;
+        tmp = (tmp & ~mask) |
+              (static_cast<uint16_t>((val >> (b * 8)) & 0xFF) << bit_offset);
+        std::memcpy(base + byte_offset, &tmp, sizeof(tmp));
+    }
+}
+
 constexpr static auto common_boundary_cases = make_array<uint64_t>(
     0, 1, 0x7fffffffffffffff, 0x8000000000000000, 0xffffffffffffffff);
 
@@ -230,4 +274,12 @@ inline uint32_t build_cache_inst(uint8_t base5, uint8_t op3, uint8_t target2,
            ((static_cast<uint32_t>(target2) & 0b11) << 16) |
            ((static_cast<uint32_t>(offset9) & 0x1ff) << 7) | 0b100101;
 }
+// offset9 for a CACHE instruction targeting cache index `idx` (way 0, base = $0).
+// addr = cache_set_offset(idx) → addr[10:6] = idx, addr[11] = 0.
+// For way 1: WRITE_RF(reg, CACHE_WAY1_BASE), then use that reg as base_reg.
+// addr = CACHE_WAY1_BASE + cache_set_offset(idx) → addr[10:6] = idx, addr[11] = 1.
+constexpr uint16_t cache_set_offset(unsigned idx) {
+    return static_cast<uint16_t>(idx * 64u);
+}
+constexpr uint64_t CACHE_WAY1_BASE = 1u << 11; // addr[11] = 1 selects way 1
 #endif // CORE_TEST_HPP
