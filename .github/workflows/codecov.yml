@@ -6,13 +6,10 @@ on:
     paths:
       - ".github/workflows/codecov.yml"
       - "CMakeLists.txt"
-      - "tests/CMakeLists.txt"
       - "runAllTests.sh"
       - "src/**/*.sv"
-      - "tests/core_test*.cpp"
-      - "tests/*_test.hpp"
-      - "tests/common.hpp"
-      - "tests/test.cpp"
+      - "tests/*.*pp"
+      - "tests/CMakeLists.txt"
   workflow_dispatch:
 
 permissions:
