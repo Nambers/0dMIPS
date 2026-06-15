@@ -66,7 +66,7 @@ module core_EX (
     mux8v #(64) B_in_barrel_mux (
         B_in_barrel,
         forwarded_B,
-        shifter_small_tmp_out,
+        'x,
         SignExtImm,
         ZeroExtImm,
         CacheExtImm,

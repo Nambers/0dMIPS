@@ -22,6 +22,8 @@ OMITTED_SYNTH_SOURCES = {
 
 TARGET_CONSTRS = [CURRENT_PATH / "DaVinci_Pro_PIN.xdc"]
 DEBUG_CONSTRS = [CURRENT_PATH / "Debug.xdc"]
+# Implementation-only constraints (floorplan / pblocks): applied in impl, not synth.
+IMPL_CONSTRS = [CURRENT_PATH / "Floorplan.xdc"]
 
 
 def collect_sources():
@@ -97,7 +99,7 @@ def emit_tcl(output_path):
         "  generate_target all $imported_ip_files",
         "}",
         "",
-        f"set constr_files {tcl_list(TARGET_CONSTRS + DEBUG_CONSTRS, script_dir)}",
+        f"set constr_files {tcl_list(TARGET_CONSTRS + DEBUG_CONSTRS + IMPL_CONSTRS, script_dir)}",
         "add_files -norecurse -fileset [get_filesets constrs_1] $constr_files",
         'set_property file_type "XDC" [get_files -of_objects [get_filesets constrs_1] $constr_files]',
     ]
@@ -117,6 +119,15 @@ def emit_tcl(output_path):
                 f"set debug_xdc {tcl_source_path(constrs, script_dir)}",
                 'set_property used_in "implementation" [get_files -of_objects [get_filesets constrs_1] $debug_xdc]',
                 "set_property used_in_synthesis false [get_files -of_objects [get_filesets constrs_1] $debug_xdc]",
+            ]
+        )
+
+    for constrs in IMPL_CONSTRS:
+        lines.extend(
+            [
+                f"set impl_xdc {tcl_source_path(constrs, script_dir)}",
+                'set_property used_in "implementation" [get_files -of_objects [get_filesets constrs_1] $impl_xdc]',
+                "set_property used_in_synthesis false [get_files -of_objects [get_filesets constrs_1] $impl_xdc]",
             ]
         )
 
