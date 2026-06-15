@@ -52,7 +52,7 @@ connect_debug_port u_ila_0/probe6 [get_nets [list core/flush]]
 create_debug_port u_ila_0 probe
 set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe7]
 set_property port_width 1 [get_debug_ports u_ila_0/probe7]
-connect_debug_port u_ila_0/probe7 [get_nets [list core/stall]]
+connect_debug_port u_ila_0/probe7 [get_nets [list core/stall3]]
 
 create_debug_port u_ila_0 probe
 set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe8]

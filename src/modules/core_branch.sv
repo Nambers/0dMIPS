@@ -14,7 +14,7 @@ module core_branch (
     input forward_type_t forward_A,
     input logic [63:0] MEM1_data,
     input logic [63:0] MEM_data,
-    input logic [63:0] fetch_pc4,
+    input logic [63:0] pred_npc,  // speculative next PC from branch predictor
     input logic [63:0] EPC,
     input logic takenHandler,
     input logic reset,
@@ -23,6 +23,8 @@ module core_branch (
 );
     logic [63:0] interrupeHandlerAddr  /* verilator public */ = 64'd0;
     logic [63:0] forwarded_A;
+    logic [63:0] correct_npc;
+    logic is_cond_branch, actual_taken, mispredict;
 
     mux4v #(64) forward_mux_A (
         forwarded_A,
@@ -34,6 +36,16 @@ module core_branch (
     );
 
     always_comb begin
+        // -- resolve conditional branch in EX and check the prediction --
+        is_cond_branch = EX_regs.BEQ || EX_regs.BNE || EX_regs.BC || EX_regs.BAL;
+        actual_taken   = EX_regs.BC || EX_regs.BAL ||
+                         (EX_regs.BEQ && EX_regs.zero) ||
+                         (EX_regs.BNE && !EX_regs.zero);
+        correct_npc    = actual_taken ? EX_regs.pc_branch : EX_regs.pc4;
+        // the predictor steered fetch to EX_regs.predicted_npc; flush only if
+        // that disagrees with the resolved next PC.
+        mispredict     = is_cond_branch && (EX_regs.predicted_npc != correct_npc);
+
         if (reset) begin
             next_fetch_pc = 64'd0;
             flush = 1'b1;
@@ -43,16 +55,16 @@ module core_branch (
         end else if (ID_regs.ERET) begin
             next_fetch_pc = EPC;
             flush = 1'b1;
-            // branch resolve in EX stage
-        end else if (EX_regs.BC || EX_regs.BAL || (EX_regs.BEQ && EX_regs.zero) || (EX_regs.BNE && !EX_regs.zero)) begin
-            next_fetch_pc = EX_regs.pc_branch;
+        end else if (mispredict) begin
+            next_fetch_pc = correct_npc;
             flush = 1'b1;
         end else
             // jump resolve in ID stage
             /* verilator lint_off CASEINCOMPLETE */
             unique case (ID_regs.control_type)
                 NORMAL: begin
-                    next_fetch_pc = fetch_pc4;
+                    // follow the predicted (speculative) path
+                    next_fetch_pc = pred_npc;
                     flush = 1'b0;
                 end
                 J: begin

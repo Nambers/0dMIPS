@@ -25,13 +25,14 @@ module core_EX (
         B_in_barrel,
         A_in_barrel,
         barrel_in,
-        slt_out,
         ext_out,
         alu_tmp_out,
         alu_out,
-        out,
-        lui_out,
+        lui_val,
+        slt_calc,
+        borrow_val,
         shifter_tmp_out,
+        shifter_small_tmp_out,
         rotator_tmp_out,
         rotator_len_out,
         barrel_out,
@@ -65,7 +66,7 @@ module core_EX (
     mux8v #(64) B_in_barrel_mux (
         B_in_barrel,
         forwarded_B,
-        barrel_out,
+        shifter_small_tmp_out,
         SignExtImm,
         ZeroExtImm,
         CacheExtImm,
@@ -78,7 +79,7 @@ module core_EX (
     mux3v #(64) A_in_barrel_mux (
         A_in_barrel,
         forwarded_A,
-        barrel_out,
+        shifter_small_tmp_out,
         ID_regs.pc,
         ID_regs.alu_a_src
     );
@@ -101,7 +102,7 @@ module core_EX (
     alu #(64) alu_ (
         .out(alu_tmp_out),
         .overflow(overflow),
-        .zero(zero),
+        .zero(),
         .negative(negative),
         .borrow_out(borrow_out),
         .a(A_in_barrel),
@@ -123,6 +124,11 @@ module core_EX (
         barrel_sa,
         ID_regs.barrel_right,
         ID_regs.shift_arith
+    );
+    barrel_shifter_left_small #(64) shifter_small (
+        shifter_small_tmp_out,
+        barrel_in,
+        barrel_sa[2:0]
     );
     barrel_rotator32 #(64) rotator (
         rotator_tmp_out,
@@ -159,38 +165,21 @@ module core_EX (
         ID_regs.barrel_plus32
     );
 
-    mux3v #(64) alu_barrel_mux (
-        out,
-        alu_out,
-        barrel_plus32_out,
-        ID_regs.pc_branch,
-        ID_regs.ex_out_src
-    );
-
-    mux2v #(64) lui_mux (
-        lui_out,
-        out,
-        {{32{ID_regs.inst[15]}}, ID_regs.inst[15:0], 16'b0},
-        ID_regs.lui
-    );
-    mux3v #(64) slt_mux (
-        slt_out,
-        lui_out,
-        {
-            63'b0,
-            // if different sign, check if A < 0, else check negative flag from alu
-            ((forwarded_A[63] ^ forwarded_B[63]) & forwarded_A[63]) | (~(forwarded_A[63] ^ forwarded_B[63]) & negative)
-        },
-        {63'b0, borrow_out},
-        ID_regs.slt_type
-    );
-
-    mux3v #(64) ext_mux (
+    // Flatten the former alu_barrel -> lui -> slt -> ext mux cascade (4 serial
+    // muxes, ~7 LUT levels on the 64-bit datapath) into one parallel mux. The
+    // select ex_out_src is fully resolved in the decoder and matches the input
+    // order below; the data now passes through a single mux level.
+    mux8v #(64) out_sel (
         ext_out,
-        slt_out,
-        SEB_out,
-        SEH_out,
-        ID_regs.ext_src
+        alu_out,  // ALU_OUT
+        barrel_plus32_out,  // SHIFTER_OUT
+        ID_regs.pc_branch,  // PC_BRANCH
+        lui_val,  // LUI_OUT
+        slt_calc,  // SLT_OUT
+        borrow_val,  // SLTU_OUT
+        SEB_out,  // SEB_OUT
+        SEH_out,  // SEH_OUT
+        ID_regs.ex_out_src
     );
 
     always_comb begin
@@ -199,6 +188,19 @@ module core_EX (
         CacheExtImm = {{55{ID_regs.inst[15]}}, ID_regs.inst[15:7]};
         SEH_out = {{48{ID_regs.B_data[15]}}, ID_regs.B_data[15:0]};
         SEB_out = {{56{ID_regs.B_data[7]}}, ID_regs.B_data[7:0]};
+        // bypass alu for timing constrain
+        // also in MIPS64, nearly only branching or similar semantics
+        // using zero signal, transform to equivalently with a equal b
+        zero = A_in_barrel == B_in_barrel;
+
+        // output value candidates selected by ex_out_src (see out_sel above)
+        lui_val = {{32{ID_regs.inst[15]}}, ID_regs.inst[15:0], 16'b0};
+        // if different sign, check if A < 0, else check negative flag from alu
+        slt_calc = {
+            63'b0,
+            ((forwarded_A[63] ^ forwarded_B[63]) & forwarded_A[63]) | (~(forwarded_A[63] ^ forwarded_B[63]) & negative)
+        };
+        borrow_val = {63'b0, borrow_out};
     end
 
     always_ff @(posedge clock, posedge reset) begin
@@ -209,6 +211,7 @@ module core_EX (
             EX_regs.B_data <= forwarded_B;
             EX_regs.W_regnum <= ID_regs.W_regnum;
             EX_regs.pc4 <= ID_regs.pc4;
+            EX_regs.predicted_npc <= ID_regs.predicted_npc;
             EX_regs.overflow <= overflow && (!ID_regs.ignore_overflow);
             EX_regs.zero <= zero;
             EX_regs.sel <= ID_regs.inst[2:0];

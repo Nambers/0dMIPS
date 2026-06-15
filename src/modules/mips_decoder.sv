@@ -1,8 +1,6 @@
 import structures::control_type_t;
 import structures::mem_load_type_t;
 import structures::mem_store_type_t;
-import structures::slt_type_t;
-import structures::ext_src_t;
 import structures::alu_cut_t;
 import structures::alu_a_src_t;
 import structures::alu_b_src_t;
@@ -19,9 +17,6 @@ module mips_decoder (
     output control_type_t            control_type,
     output mem_store_type_t          mem_store_type,
     output mem_load_type_t           mem_load_type,
-    output slt_type_t                slt_type,
-    output ext_src_t                 ext_src,
-    output logic                     lui_out,
     output logic                     linkpc,
     output logic                     barrel_right,
     output logic                     shift_arith,
@@ -283,13 +278,25 @@ module mips_decoder (
         alu_b_src[2] = (cache_inst) && !except;
         ignore_overflow = (addu_inst || addiu_inst || subu_inst || daddu_inst || daddiu_inst || slt_family || LU_family || branch_family || srl_family || sra_family || lsa_family) && !except;
 
-        lui_out = lui_inst && !except;
         // write back data = pc4
         linkpc = (jal_inst || jalr_inst || bal_inst) && !except;
-        slt_type[1:0] = {(sltu_inst || sltiu_inst) && !except, (slt_inst || slti_inst) && !except};
-        // 0 = EX_stage out is alu, 1 = EX_stage out is barrel, 2 = Branch addr
-        ex_out_src[0] = sll_family || srl_family || sra_family || rotr_family;
-        ex_out_src[1] = addiupc_inst;
+        // EX output form, selected by ex_out_src (see out_sel mux in core_EX):
+        //   0 ALU_OUT  1 SHIFTER_OUT  2 PC_BRANCH  3 LUI_OUT
+        //   4 SLT_OUT  5 SLTU_OUT     6 SEB_OUT    7 SEH_OUT
+        // The instruction classes below are mutually exclusive, so the per-bit
+        // OR encodes one value per instruction (priority is irrelevant).
+        ex_out_src[0] = sll_family || srl_family || sra_family || rotr_family  // 1
+        || (lui_inst && !except)  // 3
+        || ((sltu_inst || sltiu_inst) && !except)  // 5
+        || (seh_inst && !except);  // 7
+        ex_out_src[1] = addiupc_inst  // 2
+        || (lui_inst && !except)  // 3
+        || (seb_inst && !except)  // 6
+        || (seh_inst && !except);  // 7
+        ex_out_src[2] = ((slt_inst || slti_inst) && !except)  // 4
+        || ((sltu_inst || sltiu_inst) && !except)  // 5
+        || (seb_inst && !except)  // 6
+        || (seh_inst && !except);  // 7
         barrel_right = srl_family || sra_family || rotr_family;
         shift_arith = sra_family;
 
@@ -305,10 +312,8 @@ module mips_decoder (
         barrel_plus32[0] = op0 && (dsll32_inst || drotr32_inst) && !except;
         barrel_plus32[1] = op0 && (dsrl32_inst || drotr32_inst) && !except;
 
-        ext_src[0] = (seb_inst) && !except;
-        ext_src[1] = (seh_inst) && !except;
-
         shamt_out = shamt + {4'b0, lsa_family};
+
 
         // --- stage MEM ---
         // 0b001 byte, 0b010 half, 0b011 word, 0b100 double word

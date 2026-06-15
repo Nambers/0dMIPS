@@ -42,6 +42,41 @@ module barrel_shifter_left #(
     );
 endmodule
 
+// Small left-only shifter for LSA/DLSA. The scaled-address shift amount is
+// sa+1 (range 1..4, max == 3'b100), so a 3-stage chain (<<1, <<2, <<4) covers
+// it. Kept separate from the full 5-stage barrel_shifter_left so the LSA
+// shift-then-add path does not pay the full barrel depth (and the direction /
+// arithmetic muxes) in series with the ALU adder.
+module barrel_shifter_left_small #(
+    parameter WIDTH = 32
+) (
+    output logic [WIDTH-1:0] w3,
+    input  logic [WIDTH-1:0] w0,
+    input  logic [      2:0] shift_amount
+);
+
+    logic [WIDTH-1:0] w1, w2;
+
+    mux2v #(WIDTH) mux_l1 (
+        w1,
+        w0,
+        {w0[WIDTH-2:0], 1'b0},
+        shift_amount[0]
+    );
+    mux2v #(WIDTH) mux_l2 (
+        w2,
+        w1,
+        {w1[WIDTH-3:0], 2'b0},
+        shift_amount[1]
+    );
+    mux2v #(WIDTH) mux_l4 (
+        w3,
+        w2,
+        {w2[WIDTH-5:0], 4'b0},
+        shift_amount[2]
+    );
+endmodule
+
 module barrel_shifter_right #(
     parameter WIDTH = 32
 ) (

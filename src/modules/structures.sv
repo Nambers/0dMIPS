@@ -6,7 +6,7 @@ package structures;
     } control_type_t;
 
     typedef enum bit [1:0] {
-        NO_FORWARD  = 0,
+        NO_FORWARD   = 0,
         FORWARD_ALU,
         FORWARD_MEM1,
         FORWARD_MEM
@@ -60,10 +60,15 @@ package structures;
         CACHE_IMM
     } alu_b_src_t;
 
-    typedef enum bit [1:0] {
+    typedef enum bit [2:0] {
         ALU_OUT = 0,
         SHIFTER_OUT,
-        PC_BRANCH
+        PC_BRANCH,
+        LUI_OUT,
+        SLT_OUT,
+        SLTU_OUT,
+        SEB_OUT,
+        SEH_OUT
     } EX_out_src_t;
 
     typedef enum bit [1:0] {
@@ -100,12 +105,16 @@ package structures;
     } cache_action_t;
 
     typedef struct packed {
+        // predicted_npc is kept first so the low-bit offsets of fetch_pc/inst
+        // (read by debugger_tui and SOC_utils) stay unchanged.
+        logic [63:0] predicted_npc;
         // ofs being used, if change, also change debugger_tui
         logic [63:0] fetch_pc4, fetch_pc;
         logic [31:0] inst;
     } IF_regs_t;
 
     typedef struct packed {
+        logic [63:0] predicted_npc;
         logic [63:0] A_data, B_data, pc4, pc_branch, jumpAddr;
         logic [4:0] W_regnum, cp0_rd, shamt;
         logic [2:0] alu_op, sel;
@@ -113,8 +122,6 @@ package structures;
         control_type_t control_type;
         mem_load_type_t mem_load_type;
         mem_store_type_t mem_store_type;
-        slt_type_t slt_type;
-        ext_src_t ext_src;
         alu_cut_t cut_alu_out32;
         alu_a_src_t alu_a_src;
         alu_b_src_t alu_b_src;
@@ -132,7 +139,6 @@ package structures;
             BC,
             BAL,
             cache,
-            lui,
             linkpc,
             B_is_reg,
             signed_mem_out,
@@ -150,6 +156,7 @@ package structures;
     } ID_regs_t;
 
     typedef struct packed {
+        logic [63:0] predicted_npc;
         logic [63:0] out, B_data, pc4, pc_branch;
         logic [4:0] W_regnum, cp0_rd;
         logic [2:0] sel;
