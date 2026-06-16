@@ -4,8 +4,6 @@ import structures::MEM_regs_t;
 import structures::control_type_t;
 import structures::mem_load_type_t;
 import structures::mem_store_type_t;
-import structures::slt_type_t;
-import structures::ext_src_t;
 import structures::alu_cut_t;
 import structures::alu_a_src_t;
 import structures::alu_b_src_t;
@@ -40,8 +38,6 @@ module core_ID (
     control_type_t control_type;
     mem_load_type_t mem_load_type;
     mem_store_type_t mem_store_type;
-    slt_type_t slt_type;
-    ext_src_t ext_src;
     alu_cut_t alu_cut;
     alu_a_src_t alu_a_src;
     alu_b_src_t alu_b_src;
@@ -51,7 +47,6 @@ module core_ID (
     logic
         reserved_inst_E,
         write_enable,
-        lui,
         linkpc,
         barrel_right,
         shift_arith,
@@ -81,9 +76,6 @@ module core_ID (
         .control_type(control_type),
         .mem_store_type(mem_store_type),
         .mem_load_type(mem_load_type),
-        .slt_type(slt_type),
-        .ext_src(ext_src),
-        .lui_out(lui),
         .linkpc(linkpc),
         .barrel_right(barrel_right),
         .shift_arith(shift_arith),
@@ -177,15 +169,15 @@ module core_ID (
 
     always_ff @(posedge clock, posedge reset) begin
 `ifdef DEBUG
-        $display("t=%0t, addr=%h, inst=%h, stall=%b flush=%b", $time,
-                 IF_regs.fetch_pc, IF_regs.inst, stall, flush);
+        $display("t=%0t, addr=%h, inst=%h, stall=%b flush=%b", $time, IF_regs.fetch_pc,
+                 IF_regs.inst, stall, flush);
         if (MEM_regs.write_enable) begin
-            $display("ID Stage: t=%0t, writeback regnum = %d, data = %h",
-                     $time, MEM_regs.W_regnum, MEM_regs.W_data);
+            $display("ID Stage: t=%0t, writeback regnum = %d, data = %h", $time, MEM_regs.W_regnum,
+                     MEM_regs.W_data);
         end
         if (reserved_inst_E) begin
-            $display("reserved instruction detected op=0x%h, inst=0x%h",
-                     IF_regs.inst[31:26], IF_regs.inst);
+            $display("reserved instruction detected op=0x%h, inst=0x%h", IF_regs.inst[31:26],
+                     IF_regs.inst);
         end
 `endif
         // add bubble for load-use hazard instead of freeze-like stall
@@ -201,8 +193,6 @@ module core_ID (
             ID_regs.write_enable <= write_enable;
             ID_regs.mem_store_type <= mem_store_type;
             ID_regs.mem_load_type <= mem_load_type;
-            ID_regs.slt_type <= slt_type;
-            ID_regs.ext_src <= ext_src;
             ID_regs.cut_barrel_out32 <= cut_barrel_out32;
             ID_regs.cut_alu_out32 <= alu_cut;
             ID_regs.barrel_right <= barrel_right;
@@ -229,9 +219,9 @@ module core_ID (
             ID_regs.B_data <= B_data_badinst;
             ID_regs.inst <= IF_regs.inst;
             ID_regs.pc4 <= IF_regs.fetch_pc4;
+            ID_regs.predicted_npc <= IF_regs.predicted_npc;
             ID_regs.pc_branch <= BranchAddrFinal;
             ID_regs.jumpAddr <= JumpAddr;
-            ID_regs.lui <= lui;
             ID_regs.linkpc <= linkpc;
             ID_regs.signed_mem_out <= signed_mem_out;
             ID_regs.ignore_overflow <= ignore_overflow;

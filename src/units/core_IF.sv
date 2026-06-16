@@ -12,6 +12,7 @@ module core_IF #(
     input logic clock,
     input logic reset,
     input logic [63:0] next_fetch_pc,
+    input logic [63:0] pred_npc,  // predicted next PC for the inst now in IF1
     input logic stall,
     input logic flush,
     input logic EX_cache_inst,
@@ -29,7 +30,7 @@ module core_IF #(
 
     IF1_t IF1;
     logic [63:0] inst_L1;
-    logic [63:0] if_fetch_pc, if_fetch_pc4;
+    logic [63:0] if_fetch_pc, if_fetch_pc4, if_predicted_npc;
     logic inst_cache_miss, inst_cache_miss_stall  /* verilator public */;
 
     cache_L1 inst_cache (
@@ -55,6 +56,7 @@ module core_IF #(
         first_half_pc4 = IF1.fetch_pc4;
         IF_regs.fetch_pc4 = if_fetch_pc4;
         IF_regs.fetch_pc = if_fetch_pc;
+        IF_regs.predicted_npc = if_predicted_npc;
         IF_regs.inst = inst_L1[31:0];
         inst_cache_miss_stall = inst_cache_miss && !inst_resp.mem_ready;
     end
@@ -67,6 +69,7 @@ module core_IF #(
             IF1.fetch_pc4 <= RESET_PC;
             if_fetch_pc   <= '0;
             if_fetch_pc4  <= '0;
+            if_predicted_npc <= '0;
         end else if (!(stall || inst_cache_miss_stall) || flush) begin
             IF1.fetch_pc  <= next_fetch_pc;
             IF1.fetch_pc4 <= next_fetch_pc + 4;
@@ -74,9 +77,12 @@ module core_IF #(
             if (flush) begin
                 if_fetch_pc  <= '0;
                 if_fetch_pc4 <= '0;
+                if_predicted_npc <= '0;
             end else begin
                 if_fetch_pc  <= IF1.fetch_pc;
                 if_fetch_pc4 <= IF1.fetch_pc4;
+                // prediction made for the inst moving IF1 -> IF this cycle
+                if_predicted_npc <= pred_npc;
             end
         end
     end

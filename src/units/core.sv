@@ -44,14 +44,14 @@ module core #(
 
     logic [63:0]
         next_fetch_pc  /* verilator public */,
+        pred_npc  /* verilator public */,
         IF_pc,
         IF_pc4,
         EX_A_data_forwarded;
     logic [63:0] MEM1_forward_data;
     logic [4:0] MEM1_forward_regnum;
     logic MEM1_forward_write_enable;
-    forward_type_t
-        forward_A  /* verilator public */, forward_B  /* verilator public */;
+    forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
 
     cache_arbiter cache_arbiter_ (
         .clock(clock),
@@ -96,13 +96,22 @@ module core #(
         .d_valid(d_valid)
     );
 
+    core_branch_predictor branch_predictor (
+        .clock(clock),
+        .reset(reset),
+        .pc(IF_pc),
+        .pc4(IF_pc4),
+        .pred_npc(pred_npc),
+        .EX_regs(EX_regs)
+    );
+
     core_branch branch_unit (
         .ID_regs(ID_regs),
         .EX_regs(EX_regs),
         .forward_A(forward_A),
         .MEM1_data(MEM1_forward_data),
         .MEM_data(MEM_regs.W_data),
-        .fetch_pc4(IF_pc4),
+        .pred_npc(pred_npc),
         .EPC(MEM_regs.EPC),
         .takenHandler(MEM_regs.takenHandler),
         .reset(reset),
@@ -114,6 +123,7 @@ module core #(
         .clock(clock),
         .reset(reset),
         .next_fetch_pc(next_fetch_pc),
+        .pred_npc(pred_npc),
         .stall(stall || data_cache_miss_stall),
         .flush(flush),
         .EX_cache_inst(EX_regs.cache),
