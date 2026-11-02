@@ -17,6 +17,7 @@ module core_branch (
     input logic [63:0] pred_npc,  // speculative next PC from branch predictor
     input logic [63:0] EPC,
     input logic takenHandler,
+    input logic data_cache_miss_stall,
     input logic reset,
     output logic [63:0] next_fetch_pc  /* verilator public */,
     output logic flush
@@ -52,6 +53,13 @@ module core_branch (
         end else if (takenHandler) begin
             next_fetch_pc = interrupeHandlerAddr;
             flush = 1'b1;
+        end else if (data_cache_miss_stall) begin
+            // EX and later stages are frozen: resolving an ID-stage jump now
+            // would flush ID_regs (the jump itself, so a JAL/JALR loses its
+            // link write) and, for non-link jumps, the older instruction in
+            // EX_regs. Resolve it once the freeze ends.
+            next_fetch_pc = pred_npc;
+            flush = 1'b0;
         end else if (ID_regs.ERET) begin
             next_fetch_pc = EPC;
             flush = 1'b1;

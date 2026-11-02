@@ -30,20 +30,16 @@ module core #(
     input logic [7:0] interrupt_sources
 );
     // pipeline
-    logic
-        stall  /* verilator public */,
-        flush  /* verilator public */,
-        B_is_reg,
-        data_cache_miss_stall  /* verilator public */;
-    IF_regs_t  IF_regs  /* verilator public */;
-    ID_regs_t  ID_regs  /* verilator public */;
-    EX_regs_t  EX_regs  /* verilator public */;
+    logic stall, flush, B_is_reg, data_cache_miss_stall  /* verilator public */;
+    IF_regs_t  IF_regs;
+    ID_regs_t  ID_regs;
+    EX_regs_t  EX_regs;
     MEM_regs_t MEM_regs  /* verilator public */;
     mem_bus_req_t inst_req, data_req;
     mem_bus_resp_t inst_resp, data_resp;
 
     logic [63:0]
-        next_fetch_pc  /* verilator public */,
+        next_fetch_pc,
         pred_npc  /* verilator public */,
         IF_pc,
         IF_pc4,
@@ -51,7 +47,7 @@ module core #(
     logic [63:0] MEM1_forward_data;
     logic [4:0] MEM1_forward_regnum;
     logic MEM1_forward_write_enable;
-    forward_type_t forward_A  /* verilator public */, forward_B  /* verilator public */;
+    forward_type_t forward_A, forward_B  /* verilator public */;
 
     cache_arbiter cache_arbiter_ (
         .clock(clock),
@@ -114,6 +110,7 @@ module core #(
         .pred_npc(pred_npc),
         .EPC(MEM_regs.EPC),
         .takenHandler(MEM_regs.takenHandler),
+        .data_cache_miss_stall(data_cache_miss_stall),
         .reset(reset),
         .next_fetch_pc(next_fetch_pc),
         .flush(flush)

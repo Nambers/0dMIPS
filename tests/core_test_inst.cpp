@@ -370,6 +370,37 @@ TestGenMemOnceCycle(
         EXPECT_EQ(RF->W_data, 4); // return address is pc + 4
     },
     4);
+
+// A JAL decoded while an older store's D-cache miss freezes EX/MEM must still
+// write $ra once the freeze ends (it used to flush itself out of ID_regs).
+TestGenMemOnceCycle(
+    JAL_during_DCacheMiss,
+    {
+        preloadCacheLine(ICACHE, 512, 516);
+        // 0: sd $0, 0x400($0)  -- index 16 is not preloaded: D-cache miss
+        // 4: jal 512
+        setAddrDWord(ICACHE, 0,
+                     inst_comb(build_I_inst(0x3f, 0, 0, 0x400),
+                               build_J_inst(0x3, 512 >> 2)));
+    },
+    {
+        bool saw_miss = false;
+        bool ra_written = false;
+        for (int i = 0; i < 40 && !ra_written; ++i) {
+            saw_miss |= bool(inst_->core->data_cache_miss_stall);
+            // serve line fills (all-zero data) as soon as they are requested
+            mem_resp_set_ready(inst_->mem_bus_resp,
+                               mem_req_is_load(inst_->mem_bus_req));
+            if (RF->wr_enable && RF->W_addr == 31) {
+                EXPECT_EQ(RF->W_data, 8); // return address = jal pc + 4
+                ra_written = true;
+            }
+            tick();
+        }
+        EXPECT_TRUE(saw_miss);
+        EXPECT_TRUE(ra_written);
+    },
+    1);
 TestGenMemOnceCycle(
     JR,
     {
