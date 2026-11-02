@@ -12,6 +12,7 @@ TEST_F(TimerTest, ReadCycleTest) {
     inst_->MemRead = 1;
     inst_->MemWrite = 0;
     inst_->enable = 1;
+    inst_->eval(); // `cycle` is combinational; settle it before the first read
     std::uniform_int_distribution<int> dist{0, 10};
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < dist(rng); j++) {
@@ -33,6 +34,7 @@ TEST_F(TimerTest, InterruptTest) {
     tick();
     inst_->MemWrite = 0;
     inst_->MemRead = 1;
+    inst_->eval(); // interruptCycle == 1 reads `cycle` before any tick
     const auto realCycle = interruptCycle - this->ctx.time() / 2;
     for (int i = 0; i < realCycle; i++) {
         EXPECT_FALSE(inst_->TimerInterrupt);

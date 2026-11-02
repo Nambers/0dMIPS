@@ -17,6 +17,13 @@ set(cache_L1_SRCS
     ${SRC_DIR}/units/cache_L1.sv
 )
 
+# Replace every explicit 'x (don't-care) with a per-run random value
+option(ODMIPS_TEST_X_UNIQUE "Verilate unit tests with --x-assign unique" OFF)
+set(ODMIPS_TEST_X_ARGS)
+if(ODMIPS_TEST_X_UNIQUE)
+    set(ODMIPS_TEST_X_ARGS --x-assign unique --x-initial 0)
+endif()
+
 foreach(target IN LISTS UNITS)
     set(_name "${target}")
     capitalize_first(_name unitCap)
@@ -31,7 +38,7 @@ foreach(target IN LISTS UNITS)
         SOURCES ${${target}_SRCS}
         TOP_MODULE ${target}
         PREFIX ${unitCap}
-        VERILATOR_ARGS +define+MOCK_STDOUT_ENABLED
+        VERILATOR_ARGS +define+MOCK_STDOUT_ENABLED ${ODMIPS_VERILATOR_WARN_ARGS} ${ODMIPS_TEST_X_ARGS}
         DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${target}
         COVERAGE
     )

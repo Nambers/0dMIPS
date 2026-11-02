@@ -20,6 +20,8 @@
 #include "cache_L1_helper.hpp"
 
 extern bool dumpCov;
+extern int testArgc;
+extern char **testArgv;
 
 template <typename T>
 void writeCacheDWord(T *cache, unsigned int way, uint64_t addr,
@@ -72,7 +74,10 @@ constexpr inline int64_t sign_extend(uint64_t val, int bits) {
 
 template <class T> class TestBaseI : public testing::Test {
   protected:
-    TestBaseI() : rng(std::random_device{}()), ctx() {}
+    TestBaseI() : rng(std::random_device{}()), ctx() {
+        if (testArgc > 0)
+            ctx.commandArgs(testArgc, testArgv);
+    }
     virtual void tick() = 0;
     virtual void SetUp() override = 0;
     virtual void TearDown() override = 0;
