@@ -89,6 +89,7 @@
 <text x="732" y="373" fill="#1c1f28" stroke-width="0" font-size="10" dy="-1.33333">overflow</text>
 <path d="M740 395h-10" />
 <text x="732" y="393" fill="#1c1f28" stroke-width="0" font-size="10" dy="-1.33333">zero</text>
+<text x="760" y="393" fill="black" stroke-width="0" font-size="8" dy="-1.06667">n/c</text>
 </g>
 <g stroke="#1c1f28" stroke-width="3">
 <path d="M100 175h10" />
@@ -195,7 +196,7 @@
 <g stroke="#575d6c">
 <path d="M553 186h16v16h-16z" />
 <text x="580" y="181" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">mux2v_0</text>
-<text x="580" y="267" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized2</text>
+<text x="580" y="267" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized7</text>
 </g>
 <g stroke="#1c1f28">
 <path d="M540 255h10" />

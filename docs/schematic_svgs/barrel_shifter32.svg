@@ -114,7 +114,7 @@
 <g stroke="#575d6c">
 <path d="M623 166h16v16h-16z" />
 <text x="650" y="161" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">final_mux</text>
-<text x="650" y="247" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized2</text>
+<text x="650" y="247" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized7</text>
 </g>
 <g stroke="#1c1f28">
 <path d="M610 235h10" />

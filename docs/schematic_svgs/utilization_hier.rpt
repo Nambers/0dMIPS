@@ -1,0 +1,79 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.2 (lin64) Build 6299465 Fri Nov 14 12:34:56 MST 2025
+| Date         : Mon Nov  2 03:53:07 2026
+| Command      : report_utilization -hierarchical -hierarchical_depth 10 -file ./schematic_svgs/utilization_hier.rpt
+| Design       : SOC
+| Device       : xc7a100tfgg484-2
+| Speed File   : -2
+| Design State : Synthesized
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++----------------------+-----------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+|       Instance       |            Module           | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs  | RAMB36 | RAMB18 | DSP Blocks |
++----------------------+-----------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+| SOC                  |                       (top) |      17178 |      15130 |    2048 |    0 | 17700 |      7 |      1 |          0 |
+|   (SOC)              |                       (top) |          0 |          0 |       0 |    0 |     0 |      0 |      0 |          0 |
+|   (data_mem)         |                    data_mem |       2448 |       2448 |       0 |    0 |     1 |      0 |      0 |          0 |
+|   core               |                        core |      14705 |      12657 |    2048 |    0 | 17564 |      0 |      0 |          0 |
+|     (core)           |                        core |         56 |         56 |       0 |    0 |     0 |      0 |      0 |          0 |
+|     EX_stage         |                     core_EX |       2247 |       2247 |       0 |    0 |   460 |      0 |      0 |          0 |
+|     ID_stage         |                     core_ID |       1847 |       1847 |       0 |    0 |  2544 |      0 |      0 |          0 |
+|       (ID_stage)     |                     core_ID |        726 |        726 |       0 |    0 |   496 |      0 |      0 |          0 |
+|       rf             |                     regfile |       1121 |       1121 |       0 |    0 |  2048 |      0 |      0 |          0 |
+|         regs[0]      |  register__parameterized0_4 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[10]     |  register__parameterized0_5 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[11]     |  register__parameterized0_6 |        128 |        128 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[12]     |  register__parameterized0_7 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[13]     |  register__parameterized0_8 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[14]     |  register__parameterized0_9 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[15]     | register__parameterized0_10 |        128 |        128 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[16]     | register__parameterized0_11 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[17]     | register__parameterized0_12 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[18]     | register__parameterized0_13 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[19]     | register__parameterized0_14 |        192 |        192 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[1]      | register__parameterized0_15 |          1 |          1 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[20]     | register__parameterized0_16 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[21]     | register__parameterized0_17 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[22]     | register__parameterized0_18 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[23]     | register__parameterized0_19 |        128 |        128 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[24]     | register__parameterized0_20 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[25]     | register__parameterized0_21 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[26]     | register__parameterized0_22 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[27]     | register__parameterized0_23 |        160 |        160 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[28]     | register__parameterized0_24 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[29]     | register__parameterized0_25 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[2]      | register__parameterized0_26 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[30]     | register__parameterized0_27 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[31]     | register__parameterized0_28 |        128 |        128 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[3]      | register__parameterized0_29 |        128 |        128 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[4]      | register__parameterized0_30 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[5]      | register__parameterized0_31 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[6]      | register__parameterized0_32 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[7]      | register__parameterized0_33 |        128 |        128 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[8]      | register__parameterized0_34 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|         regs[9]      | register__parameterized0_35 |          0 |          0 |       0 |    0 |    64 |      0 |      0 |          0 |
+|     IF_stage         |                     core_IF |       3828 |       2804 |    1024 |    0 |  4572 |      0 |      0 |          0 |
+|       (IF_stage)     |                     core_IF |         71 |         71 |       0 |    0 |   449 |      0 |      0 |          0 |
+|       inst_cache     |                  cache_L1_3 |       3757 |       2733 |    1024 |    0 |  4123 |      0 |      0 |          0 |
+|     MEM_stage        |                    core_MEM |       5083 |       4059 |    1024 |    0 |  4669 |      0 |      0 |          0 |
+|       (MEM_stage)    |                    core_MEM |        898 |        898 |       0 |    0 |   401 |      0 |      0 |          0 |
+|       cp0_           |                         cp0 |          9 |          9 |       0 |    0 |   132 |      0 |      0 |          0 |
+|         EPC_reg      |  register__parameterized0_1 |          1 |          1 |       0 |    0 |    64 |      0 |      0 |          0 |
+|       data_cache     |                    cache_L1 |       4176 |       3152 |    1024 |    0 |  4136 |      0 |      0 |          0 |
+|     branch_predictor |       core_branch_predictor |       1620 |       1620 |       0 |    0 |  5312 |      0 |      0 |          0 |
+|   timer              |                       timer |         24 |         24 |       0 |    0 |   130 |      0 |      0 |          0 |
+|     interrupt_cycle  |    register__parameterized5 |         21 |         21 |       0 |    0 |    64 |      0 |      0 |          0 |
+|     cycle_counter    |    register__parameterized0 |          2 |          2 |       0 |    0 |    64 |      0 |      0 |          0 |
++----------------------+-----------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+
+

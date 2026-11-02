@@ -111,7 +111,7 @@
 <g stroke="#575d6c">
 <path d="M203 146h16v16h-16z" />
 <text x="230" y="141" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">mux2v_0</text>
-<text x="230" y="227" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized2</text>
+<text x="230" y="227" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized7</text>
 </g>
 <g stroke="#1c1f28">
 <path d="M190 215h10" />
@@ -144,7 +144,7 @@
 <g stroke="#575d6c">
 <path d="M203 286h16v16h-16z" />
 <text x="230" y="281" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">mux2v_1</text>
-<text x="230" y="367" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized2</text>
+<text x="230" y="367" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized7</text>
 </g>
 <g stroke="#1c1f28">
 <path d="M190 355h10" />
@@ -177,7 +177,7 @@
 <g stroke="#575d6c">
 <path d="M453 186h16v16h-16z" />
 <text x="480" y="181" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">mux2v_2</text>
-<text x="480" y="267" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized2</text>
+<text x="480" y="267" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized7</text>
 </g>
 <g stroke="#1c1f28">
 <path d="M440 255h10" />

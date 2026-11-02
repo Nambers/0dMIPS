@@ -592,7 +592,7 @@
 <g stroke="#575d6c">
 <path d="M1963 786h16v16h-16z" />
 <text x="1990" y="781" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">data_1_mux</text>
-<text x="1990" y="867" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized0</text>
+<text x="1990" y="867" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized2</text>
 </g>
 <g stroke="#1c1f28">
 <path d="M1950 855h10" />
@@ -625,7 +625,7 @@
 <g stroke="#575d6c">
 <path d="M1963 1006h16v16h-16z" />
 <text x="1990" y="1001" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">data_2_mux</text>
-<text x="1990" y="1087" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized0</text>
+<text x="1990" y="1087" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized2</text>
 </g>
 <g stroke="#1c1f28">
 <path d="M1950 1075h10" />

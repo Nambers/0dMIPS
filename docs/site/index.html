@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>0dMIPS Pipeline</title>
+<meta name="description" content="How the 0dMIPS MIPS64r6 pipeline works, scene by scene, plus a browser for its Vivado RTL schematics.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root {
+    --bg: #eef0f4; --surface: #ffffff; --band0: #fbfcfd; --band1: #f1f3f7; --line: #d6dbe4; --ink: #1a2130; --muted: #657085;
+    --card: #ffffff; --card-line: #c8cfda; --rail: #2b3446; --rail-text: #ffffff; --halo: #f6f7fa;
+    --ctrl: #3b6cf6; --fwd: #0b9a88; --hazard: #d17d00; --branch: #8656f2; --exc: #e0434a; --mem: #a8741a;
+    --tip-bg: #1a2130; --tip-fg: #f4f6fa;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+    color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg: #0c1016; --surface: #131922; --band0: #121821; --band1: #161d28; --line: #263041; --ink: #e3e8f0; --muted: #8b96aa;
+        --card: #1a2230; --card-line: #2f3a4c; --rail: #c8d1df; --rail-text: #121821; --halo: #141a24;
+        --ctrl: #7da1ff; --fwd: #33cdb7; --hazard: #f2ad42; --branch: #b293ff; --exc: #ff7a7e; --mem: #dfb35c;
+        --tip-bg: #e4e9f1; --tip-fg: #121821; color-scheme: dark;
+    }
+}
+:root[data-theme="dark"] {
+    --bg: #0c1016; --surface: #131922; --band0: #121821; --band1: #161d28; --line: #263041; --ink: #e3e8f0; --muted: #8b96aa;
+    --card: #1a2230; --card-line: #2f3a4c; --rail: #c8d1df; --rail-text: #121821; --halo: #141a24;
+    --ctrl: #7da1ff; --fwd: #33cdb7; --hazard: #f2ad42; --branch: #b293ff; --exc: #ff7a7e; --mem: #dfb35c;
+    --tip-bg: #e4e9f1; --tip-fg: #121821; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); }
+a { color: var(--ctrl); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ctrl); outline-offset: 2px; }
+code { font-family: var(--mono); font-size: .88em; }
+[hidden] { display: none !important; }
+.wrap { max-width: 2000px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left)) 48px; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 18px 0 14px; }
+.brand { display: flex; align-items: center; gap: 12px; margin-right: auto; min-width: 0; }
+.logo { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--ink); color: var(--surface); font: 600 16px var(--mono); letter-spacing: -.04em; }
+h1 { margin: 0; font-size: 21px; line-height: 1.2; font-weight: 700; }
+.brand p { margin: 1px 0 0; color: var(--muted); font-size: 13px; }
+.seg { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+.seg button { padding: 6px 14px; border: 0; border-radius: 7px; background: none; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--muted); }
+.seg button[aria-selected="true"] { background: var(--ink); color: var(--surface); }
+.icon-btn { padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; font-size: 13px; }
+.icon-btn:hover { border-color: var(--muted); }
+
+/* scene picker */
+.picker { display: grid; gap: 8px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px 14px 0 0; }
+.picker .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.picker .lbl { width: 150px; flex: none; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.picker button {
+    padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); cursor: pointer; font-size: 13.5px;
+    display: inline-flex; align-items: center; gap: 7px;
+}
+.picker button::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.picker button.m { font-family: var(--mono); font-size: 13px; }
+.picker button.m::before { border-radius: 2px; }
+.picker button:hover { border-color: var(--c); }
+.picker button[aria-pressed="true"] { background: var(--c); border-color: var(--c); color: var(--surface); }
+.picker button[aria-pressed="true"]::before { background: var(--surface); }
+@media (max-width: 700px) { .picker .lbl { width: 100%; } }
+
+.story { padding: 14px 18px 16px; background: var(--surface); border: 1px solid var(--line); border-top: 0; }
+.story h2 { margin: 0; font-size: 18px; line-height: 1.3; font-weight: 600; }
+.story p { margin: 4px 0 0; max-width: 95ch; color: var(--muted); font-size: 14.5px; }
+.story ol { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.story ol.cycles { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.story ol:empty { display: none; }
+.story li { display: flex; align-items: flex-start; gap: 9px; padding: 8px 10px 9px; border: 1px solid var(--line); border-radius: 10px; font-size: 13.5px; line-height: 1.45; cursor: default; }
+.story li .tg { flex: none; display: grid; place-items: center; min-width: 30px; height: 20px; margin-top: 1px; padding: 0 7px; border-radius: 10px; background: var(--sc, var(--ink)); color: var(--surface); font: 600 12px var(--mono); }
+.story li:hover, .story li.on { border-color: var(--sc, var(--ink)); background: var(--bg); }
+
+/* canvas */
+.canvas { margin: 0; background: var(--surface); border: 1px solid var(--line); border-top: 0; border-radius: 0 0 14px 14px; overflow: hidden; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.bar .lbl { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+.bar label { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; user-select: none; }
+.bar label:hover { border-color: var(--c); }
+.bar input { accent-color: var(--c); margin: 0; }
+.bar .sw { width: 16px; height: 3px; border-radius: 2px; background: var(--c); }
+.bar .sw.d { background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px); }
+.bar .zoom { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+.bar .zoom button { width: 30px; height: 28px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); cursor: pointer; }
+.bar output { min-width: 3.4em; text-align: center; font-family: var(--mono); color: var(--muted); }
+.scroll { overflow: auto; }
+.scroll.zoomed { max-height: 92vh; }
+#cd { display: block; width: calc(100% * var(--z, 1)); min-width: calc(1020px * var(--z, 1)); height: auto; }
+
+/* drawing */
+#cd text { font-family: var(--sans); fill: var(--ink); }
+#cd .band.b0 { fill: var(--band0); } #cd .band.b1 { fill: var(--band1); }
+#cd .hr { stroke: var(--line); }
+#cd .bh { font-size: 12.5px; font-weight: 700; letter-spacing: .12em; }
+#cd .bsub { font-size: 11px; fill: var(--muted); }
+#cd [data-layer="data"] { color: var(--ink); }
+#cd [data-layer="ctrl"] { color: var(--ctrl); }
+#cd [data-layer="fwd"] { color: var(--fwd); }
+#cd [data-layer="hazard"] { color: var(--hazard); }
+#cd [data-layer="branch"] { color: var(--branch); }
+#cd [data-layer="exc"] { color: var(--exc); }
+#cd [data-layer="mem"] { color: var(--mem); }
+#cd .card { fill: var(--card); stroke: var(--card-line); stroke-width: 1.2; }
+#cd .card.unit { stroke: currentColor; stroke-width: 1.6; }
+#cd .ct { font-size: 13.5px; font-weight: 600; }
+#cd .cs { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
+#cd .row { font-family: var(--mono); font-size: 11.5px; fill: var(--muted); }
+#cd .mx { fill: var(--card); stroke: var(--card-line); stroke-width: 1.2; }
+#cd .pin { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
+#cd .ln { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#cd .ln.dash { stroke-dasharray: 5 4; stroke-width: 1.6; }
+#cd .ar { marker-end: url(#mk-data); }
+#cd [data-layer="ctrl"] .ar { marker-end: url(#mk-ctrl); }
+#cd [data-layer="fwd"] .ar { marker-end: url(#mk-fwd); }
+#cd [data-layer="hazard"] .ar { marker-end: url(#mk-hazard); }
+#cd [data-layer="branch"] .ar { marker-end: url(#mk-branch); }
+#cd [data-layer="exc"] .ar { marker-end: url(#mk-exc); }
+#cd [data-layer="mem"] .ar { marker-end: url(#mk-mem); }
+#cd .dot { fill: currentColor; }
+#cd .lbl { font-family: var(--mono); font-size: 11.5px; fill: currentColor; paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-linejoin: round; }
+#cd .tag { fill: var(--card); stroke: currentColor; stroke-width: 1.1; }
+#cd .tagt { font-family: var(--mono); font-size: 10.5px; fill: currentColor; }
+#cd .rail { fill: var(--rail); }
+#cd .railtag { fill: var(--rail); }
+#cd .railt { font-family: var(--mono); font-size: 10.5px; font-weight: 600; fill: var(--rail-text); }
+#cd .go { fill: none; stroke: var(--muted); stroke-width: 1.2; stroke-linecap: round; }
+#cd [data-mod] { cursor: pointer; }
+#cd [data-mod]:hover .card, #cd [data-mod]:focus-visible .card, #cd [data-mod]:hover .mx { stroke: var(--ctrl); stroke-width: 2.2; }
+#cd [data-mod]:hover .go { stroke: var(--ctrl); }
+#cd [data-mod]:focus { outline: none; }
+#cd .step, #cd .badge { display: none; }
+#cd .step { pointer-events: all; cursor: help; }
+#cd .st { fill: var(--sc, var(--ink)); stroke: var(--surface); stroke-width: 2.5; }
+#cd .stn { font-family: var(--mono); font-size: 11.5px; font-weight: 600; fill: var(--surface); }
+#cd .val { fill: var(--ink); stroke: var(--surface); stroke-width: 1.5; }
+#cd .valt { font-family: var(--mono); font-size: 11px; font-weight: 600; fill: var(--surface); }
+#cd .step.pulse .st { stroke: var(--sc, var(--ink)); stroke-width: 6; stroke-opacity: .35; }
+
+/* show / focus */
+#cd.h-ctrl [data-layer="ctrl"], #cd.h-fwd [data-layer="fwd"], #cd.h-hazard [data-layer="hazard"], #cd.h-branch [data-layer="branch"],
+#cd.h-exc [data-layer="exc"], #cd.h-mem [data-layer="mem"] { display: none; }
+#cd [data-layer] { transition: opacity .18s ease; }
+#cd.focus [data-layer]:not(.on) { opacity: .1; }
+#cd.focus .on .ln { stroke-width: 2.6; }
+#cd.focus .on .ln.dash { stroke-width: 2.2; }
+@media (prefers-reduced-motion: reduce) { #cd [data-layer] { transition: none; } }
+
+#tip { position: fixed; z-index: 10; max-width: 340px; padding: 8px 11px; border-radius: 8px; pointer-events: none; background: var(--tip-bg); color: var(--tip-fg); font-size: 13px; line-height: 1.45; box-shadow: 0 8px 24px rgba(0, 0, 0, .22); }
+#tip b { display: block; font: 600 11.5px var(--mono); opacity: .8; margin-bottom: 2px; }
+
+
+/* RTL tab */
+.rtl { display: grid; grid-template-columns: 310px minmax(0, 1fr); height: min(86vh, 980px); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.tree { min-width: 0; border-right: 1px solid var(--line); padding: 12px 10px; overflow: auto; }
+.tree input { width: 100%; padding: 6px 9px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font: 13px var(--mono); color: var(--ink); }
+.tree ul { list-style: none; margin: 0; padding-left: 12px; border-left: 1px solid var(--line); }
+.tree > ul { padding-left: 0; border-left: 0; }
+.tree li { margin: 1px 0; }
+.tree .row { display: flex; align-items: flex-start; }
+.tree .tg { flex: none; width: 18px; padding: 3px 0; border: 0; background: none; cursor: pointer; color: var(--muted); font: 11px var(--mono); }
+.prov { margin: 0 0 10px; color: var(--muted); font-size: 13.5px; max-width: 140ch; }
+.prov code { color: var(--ink); }
+.tree .sz { margin-left: auto; padding-left: 8px; font: 11px var(--mono); color: var(--muted); white-space: nowrap; }
+.tree button[aria-current="true"] .sz { color: inherit; opacity: .75; }
+.tree .row > button:not(.tg) { flex: 1; display: flex; align-items: baseline; gap: 2px; padding: 2px 6px; border: 0; border-radius: 5px; background: none; text-align: left; cursor: pointer; font: 12.5px var(--mono); overflow-wrap: anywhere; }
+.tree button small { color: var(--muted); font-size: 11px; }
+.tree .row > button:not(.tg):hover { background: var(--bg); }
+.tree button[aria-current="true"] { background: var(--ink) !important; color: var(--surface); }
+.tree button[aria-current="true"] small { color: inherit; opacity: .75; }
+.viewer { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; }
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 9px 12px; border-bottom: 1px solid var(--line); font: 12.5px var(--mono); }
+.crumbs button { padding: 1px 4px; border: 0; background: none; cursor: pointer; color: var(--ctrl); font: inherit; }
+.crumbs .here { font-weight: 600; }
+.crumbs .sp { color: var(--muted); }
+.crumbs .hint { color: var(--muted); font-family: var(--sans); font-size: 12px; margin-left: 12px; }
+.crumbs a { margin-left: auto; font: 500 12px var(--sans); }
+#rtlf { width: 100%; height: 100%; border: 0; display: block; background: var(--bg); }
+.missing { padding: 30px; color: var(--muted); }
+@media (max-width: 760px) {
+    .rtl { grid-template-columns: 1fr; grid-template-rows: 200px minmax(0, 1fr); height: 92vh; }
+    .tree { border-right: 0; border-bottom: 1px solid var(--line); }
+}
+footer { margin-top: 26px; color: var(--muted); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+    <div class="brand">
+        <span class="logo" aria-hidden="true">0d</span>
+        <div><h1>0dMIPS pipeline</h1><p>MIPS64r6 · in-order · no delay slots · RTL @ <a href="https://github.com/Nambers/0dMIPS">6bdabdb</a> · 2026-11-02</p></div>
+    </div>
+    <nav class="seg" role="tablist" aria-label="Views">
+        <button type="button" role="tab" id="t-concept" aria-controls="p-concept" aria-selected="true">How it works</button>
+        <button type="button" role="tab" id="t-rtl" aria-controls="p-rtl" aria-selected="false">RTL schematic</button>
+    </nav>
+    <button type="button" class="icon-btn" id="theme" aria-label="Switch colour theme">Dark</button>
+</header>
+
+<main>
+<section id="p-concept" role="tabpanel" aria-labelledby="t-concept">
+    <div class="picker">
+        <div class="row" role="group" aria-label="Topics"><span class="lbl">How it works</span>
+<button type="button" data-scene="overview" style="--c: var(--ink)" aria-pressed="false">Overview</button>
+<button type="button" data-scene="fetch" style="--c: var(--ctrl)" aria-pressed="false">Fetch &amp; predict</button>
+<button type="button" data-scene="fwd" style="--c: var(--fwd)" aria-pressed="false">Forwarding</button>
+<button type="button" data-scene="stall" style="--c: var(--hazard)" aria-pressed="false">Load-use stall</button>
+<button type="button" data-scene="branch" style="--c: var(--branch)" aria-pressed="false">Branch &amp; flush</button>
+<button type="button" data-scene="exc" style="--c: var(--exc)" aria-pressed="false">Exceptions</button>
+<button type="button" data-scene="wb" style="--c: var(--ink)" aria-pressed="false">Write-back</button>
+<button type="button" data-scene="mem" style="--c: var(--mem)" aria-pressed="false">Memory &amp; MMIO</button>
+        </div>
+        <div class="row" role="group" aria-label="Instructions"><span class="lbl">Follow an instruction</span>
+<button type="button" class="m" data-scene="i-alu" style="--c: var(--ink)" aria-pressed="false">daddu</button>
+<button type="button" class="m" data-scene="i-ld" style="--c: var(--ink)" aria-pressed="false">ld</button>
+<button type="button" class="m" data-scene="i-sd" style="--c: var(--ink)" aria-pressed="false">sd</button>
+<button type="button" class="m" data-scene="i-beq" style="--c: var(--ink)" aria-pressed="false">beq</button>
+<button type="button" class="m" data-scene="i-jal" style="--c: var(--ink)" aria-pressed="false">jal</button>
+        </div>
+    </div>
+    <article class="story" aria-live="polite">
+        <h2 id="s-title"></h2>
+        <p id="s-text"></p>
+        <ol id="s-steps"></ol>
+    </article>
+    <figure class="canvas">
+        <div class="bar" role="group" aria-label="Show layers">
+            <span class="lbl">Show</span>
+            <label style="--c: var(--ctrl)"><input type="checkbox" data-layer="ctrl" checked><i class="sw d"></i>Control</label>
+            <label style="--c: var(--fwd)"><input type="checkbox" data-layer="fwd" checked><i class="sw"></i>Forwarding</label>
+            <label style="--c: var(--hazard)"><input type="checkbox" data-layer="hazard" checked><i class="sw d"></i>Stalls</label>
+            <label style="--c: var(--branch)"><input type="checkbox" data-layer="branch" checked><i class="sw"></i>Branch &amp; next PC</label>
+            <label style="--c: var(--exc)"><input type="checkbox" data-layer="exc" checked><i class="sw"></i>Exceptions</label>
+            <label style="--c: var(--mem)"><input type="checkbox" data-layer="mem" checked><i class="sw"></i>Memory</label>
+            <span class="zoom" role="group" aria-label="Zoom">
+                <button type="button" data-zoom="-1" aria-label="Zoom out">&minus;</button>
+                <output id="zv">100%</output>
+                <button type="button" data-zoom="1" aria-label="Zoom in">+</button>
+            </span>
+        </div>
+        <div class="scroll">
+            <svg id="cd" viewBox="0 0 1400 780" role="img" aria-labelledby="cd-t cd-d">
+                <title id="cd-t">0dMIPS pipeline</title>
+                <desc id="cd-d">Stage bands from left to right: next PC, fetch, decode, execute, memory 1, memory 2, write-back. Pipeline registers IF1, IF_regs, ID_regs, EX_regs, MEM1 and MEM_regs sit between them. Hazard unit, forwarding unit and CP0 are in the top row; next-PC selection, branch check, MMIO, cache arbiter and RAM in the bottom row. Forwarding paths run above the datapath; write-back, flush and redirects below it.</desc>
+                <defs>
+                    <marker id="mk-data" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1.5L9,5L1,8.5z" style="fill: var(--ink)"/></marker>
+                    <marker id="mk-ctrl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1.5L9,5L1,8.5z" style="fill: var(--ctrl)"/></marker>
+                    <marker id="mk-fwd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1.5L9,5L1,8.5z" style="fill: var(--fwd)"/></marker>
+                    <marker id="mk-hazard" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1.5L9,5L1,8.5z" style="fill: var(--hazard)"/></marker>
+                    <marker id="mk-branch" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1.5L9,5L1,8.5z" style="fill: var(--branch)"/></marker>
+                    <marker id="mk-exc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1.5L9,5L1,8.5z" style="fill: var(--exc)"/></marker>
+                    <marker id="mk-mem" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="M1,1.5L9,5L1,8.5z" style="fill: var(--mem)"/></marker>
+                </defs>
+<rect class="band b0" x="0.0" y="0" width="96.0" height="780"/>
+<text class="bh" x="48.0" y="20" text-anchor="middle">NEXT PC</text>
+<text class="bsub" x="48.0" y="35" text-anchor="middle">core_branch</text>
+<rect class="band b1" x="96.0" y="0" width="192.0" height="780"/>
+<text class="bh" x="192.0" y="20" text-anchor="middle">FETCH</text>
+<text class="bsub" x="192.0" y="35" text-anchor="middle">I$ · predictor</text>
+<rect class="band b0" x="288.0" y="0" width="247.0" height="780"/>
+<text class="bh" x="411.5" y="20" text-anchor="middle">DECODE</text>
+<text class="bsub" x="411.5" y="35" text-anchor="middle">RF read · write-back</text>
+<rect class="band b1" x="535.0" y="0" width="360.0" height="780"/>
+<text class="bh" x="715.0" y="20" text-anchor="middle">EXECUTE</text>
+<text class="bsub" x="715.0" y="35" text-anchor="middle">ALU · shift</text>
+<rect class="band b0" x="895.0" y="0" width="190.0" height="780"/>
+<text class="bh" x="990.0" y="20" text-anchor="middle">MEMORY 1</text>
+<text class="bsub" x="990.0" y="35" text-anchor="middle">D$ · MMIO · CP0</text>
+<rect class="band b1" x="1085.0" y="0" width="185.0" height="780"/>
+<text class="bh" x="1177.5" y="20" text-anchor="middle">MEMORY 2</text>
+<text class="bsub" x="1177.5" y="35" text-anchor="middle">pick the result</text>
+<rect class="band b0" x="1270.0" y="0" width="130.0" height="780"/>
+<text class="bh" x="1335.0" y="20" text-anchor="middle">WRITE-BACK</text>
+<text class="bsub" x="1335.0" y="35" text-anchor="middle">into the RF in ID</text>
+<line class="hr" x1="0" y1="44" x2="1400" y2="44"/>
+<g data-layer="data" class="rail-g" data-k="rail" data-tip="IF1 (in core_IF): fetch_pc and fetch_pc + 4. Held by stall, still loaded on flush." data-mod="core_IF" tabindex="0" role="link"><rect class="rail" x="92.0" y="158.0" width="8" height="356.0" rx="4"/></g>
+<g data-layer="data" class="rail-g" data-k="rail" data-tip="IF_regs: fetch_pc, fetch_pc4, predicted_npc, and inst (which is the I-cache&#x27;s own output register)." data-mod="core_IF" tabindex="0" role="link"><rect class="rail" x="284.0" y="158.0" width="8" height="356.0" rx="4"/></g>
+<g data-layer="data" class="rail-g" data-k="rail" data-tip="ID_regs: operands, targets and ~50 control bits. Bubble on stall or flush; held on a D-cache miss." data-mod="core_ID" tabindex="0" role="link"><rect class="rail" x="531.0" y="158.0" width="8" height="356.0" rx="4"/></g>
+<g data-layer="data" class="rail-g" data-k="rail" data-tip="EX_regs: result, store data, flags. Cleared by flush unless the instruction entering EX links (JAL/BAL/JALR)." data-mod="core_EX" tabindex="0" role="link"><rect class="rail" x="891.0" y="158.0" width="8" height="356.0" rx="4"/></g>
+<g data-layer="data" class="rail-g" data-k="rail" data-tip="MEM1 (in core_MEM): EX result, CP0 read data, EPC / takenHandler, pc4. Never stalled." data-mod="core_MEM" tabindex="0" role="link"><rect class="rail" x="1081.0" y="158.0" width="8" height="356.0" rx="4"/></g>
+<g data-layer="data" class="rail-g" data-k="rail" data-tip="MEM_regs: W_data, W_regnum, write_enable, EPC, takenHandler." data-mod="core_MEM" tabindex="0" role="link"><rect class="rail" x="1266.0" y="158.0" width="8" height="356.0" rx="4"/></g>
+<g data-layer="ctrl" data-k="ctrl i-alu i-ld i-sd i-beq i-jal" data-tip="~50 control bits decoded once in ID and carried in ID_regs → EX_regs → MEM1 → MEM_regs."><path class="ln dash ar" d="M358.0 205.0L358.0 182.0Q358.0 175.0 365.0 175.0L1265.4 175.0"/><text class="lbl" x="372.0" y="168.8">decoded control</text></g>
+<g data-layer="ctrl" data-k="i-alu i-ld i-sd i-beq"><path class="ln dash ar" d="M727.0 175.0L727.0 207.5"/><text class="lbl" x="732.0" y="197.5">op</text></g>
+<g data-layer="ctrl" data-k="i-alu i-ld i-sd"><path class="ln dash ar" d="M803.7 175.0L803.7 227.2"/><text class="lbl" x="809.7" y="197.5">sel</text></g>
+<g data-layer="ctrl" data-k="i-ld i-sd mem"><path class="ln dash ar" d="M1015.0 175.0L1015.0 293.7"/><text class="lbl" x="1010.0" y="197.5" text-anchor="end">type</text></g>
+<g data-layer="ctrl" data-k="wb i-alu i-ld i-jal"><path class="ln dash ar" d="M1174.0 175.0L1174.0 237.1"/><text class="lbl" x="1179.8" y="227.2">sel</text></g>
+<g data-layer="data" data-k="fetch branch exc i-alu i-ld i-sd i-beq i-jal"><path class="ln ar" d="M40.0 664.0L40.0 249.0Q40.0 242.0 47.0 242.0L92.0 242.0"/><text class="lbl" x="88.0" y="229.7" text-anchor="end">next PC</text></g>
+<g data-layer="data" data-k="fetch mem i-alu i-ld i-sd i-beq i-jal" data-tip="Looked up with IF1.fetch_pc. Its output register is IF_regs.inst, so the instruction reaches the decoder a cycle later. Line fills go through the cache arbiter. A miss holds IF1 and IF_regs&#x27; PC; the cache output reads 0 meanwhile, so decode sees NOPs until the line arrives." data-mod="core_IF" tabindex="0" role="link" data-inst="inst_cache"><rect class="card" x="118.0" y="205.0" width="150.0" height="103.5" rx="8"/><text class="ct" x="193.0" y="246.75" text-anchor="middle">I-cache</text><text class="cs" x="193.0" y="261.75" text-anchor="middle">4 KB · 2-way</text><text class="cs" x="193.0" y="274.75" text-anchor="middle">registered read</text><path class="go" d="M255.0 211.0h7v7M262.0 211.0l-7 7"/></g>
+<g data-layer="data" data-k="fetch i-alu i-ld i-sd i-beq i-jal"><path class="ln ar" d="M100.0 242.0L118.0 242.0"/><circle class="dot" cx="108.0" cy="242.0" r="3"/></g>
+<g data-layer="data" data-k="fetch branch i-alu i-ld i-sd i-beq i-jal"><path class="ln ar" d="M108.0 242.0L108.0 439.0Q108.0 444.0 113.0 444.0L118.0 444.0"/><circle class="dot" cx="108.0" cy="357.7" r="3"/></g>
+<g data-layer="data" data-k="fetch branch i-beq i-jal"><path class="ln ar" d="M108.0 357.7L284.0 357.7"/><text class="lbl" x="238.0" y="351.5">pc</text></g>
+<g data-layer="branch" data-k="fetch branch i-alu i-ld i-sd i-beq i-jal" data-tip="2-bit BHT + tagged direct-mapped BTB, looked up with IF1.fetch_pc. Only BEQ/BNE/BC/BAL are installed and EX checks the prediction of every one of them; the lookup is by PC alone (16-bit partial tag)." data-mod="core_branch_predictor" tabindex="0" role="link"><rect class="card unit" x="118.0" y="412.0" width="150.0" height="66.0" rx="8"/><text class="ct" x="193.0" y="440.0" text-anchor="middle">Branch predictor</text><text class="cs" x="193.0" y="455.0" text-anchor="middle">BHT + BTB · 64</text><path class="go" d="M255.0 418.0h7v7M262.0 418.0l-7 7"/></g>
+<g data-layer="data" data-k="fetch i-alu i-ld i-sd i-beq i-jal"><path class="ln ar" d="M268.0 242.0L284.0 242.0"/></g>
+<g data-layer="branch" data-k="fetch branch i-alu i-ld i-sd i-beq i-jal" data-tip="Taken in the BTB/BHT → BTB target, otherwise fetch_pc + 4. Used as next PC unless something redirects."><path class="ln ar" d="M200.0 478.0L200.0 641.7"/><text class="lbl" x="206.0" y="498.0">prediction</text></g>
+<g data-layer="branch" data-k="branch i-beq"><path class="ln ar" d="M268.0 452.0L284.0 452.0"/></g>
+<g data-layer="data" data-k="fetch i-alu i-ld i-sd i-beq i-jal"><path class="ln ar" d="M292.0 242.0L312.0 242.0"/></g>
+<g data-layer="data" data-k="i-alu i-ld i-sd i-beq i-jal" data-tip="One-hot instruction classes → control. Unknown encodings set reserved_inst_E, which CP0 sees from ID_regs." data-mod="mips_decoder" tabindex="0" role="link"><rect class="card" x="312.0" y="205.0" width="92.0" height="135.5" rx="8"/><text class="ct" x="358.0" y="267.75" text-anchor="middle">Decoder</text><text class="cs" x="358.0" y="282.75" text-anchor="middle">~50 ctrl bits</text><path class="go" d="M391.0 211.0h7v7M398.0 211.0l-7 7"/></g>
+<g data-layer="data" data-k="i-alu i-ld i-sd i-beq stall"><path class="ln ar" d="M404.0 237.1L431.1 237.1"/><text class="lbl" x="410.8" y="229.7">rs</text></g>
+<g data-layer="data" data-k="i-alu i-sd i-beq stall"><path class="ln ar" d="M404.0 291.2L431.1 291.2"/><text class="lbl" x="410.8" y="283.8">rt</text></g>
+<g data-layer="data" data-k="i-alu i-ld i-sd i-beq i-jal wb" data-tip="Written from MEM_regs during ID (this is the WB stage). forwarded_A/B_mux make a same-cycle write visible to the read." data-mod="core_ID" tabindex="0" role="link" data-inst="rf"><rect class="card" x="431.1" y="205.0" width="90.3" height="135.5" rx="8"/><text class="ct" x="476.25" y="262.75" text-anchor="middle">Registers</text><text class="cs" x="476.25" y="277.75" text-anchor="middle">32 × 64 b</text><text class="cs" x="476.25" y="290.75" text-anchor="middle">write-first</text><path class="go" d="M508.4 211.0h7v7M515.4 211.0l-7 7"/></g>
+<g data-layer="data" data-k="i-alu i-ld i-sd i-beq fwd"><path class="ln ar" d="M521.4 227.2L530.5 227.2"/></g>
+<g data-layer="data" data-k="i-alu i-sd i-beq fwd"><path class="ln ar" d="M521.4 301.1L530.5 301.1"/></g>
+<g data-layer="data" data-k="branch i-beq i-jal"><path class="ln ar" d="M292.0 357.7L296.0 357.7Q300.0 357.7 300.0 361.7L300.0 386.0Q300.0 392.0 306.0 392.0L312.0 392.0"/></g>
+<g data-layer="data" data-k="branch i-beq i-jal" data-tip="Branch target (pc4 + off·4 for BEQ/BNE/BAL, BC, ADDIUPC) and J/JAL target {pc[63:28], inst[25:0], 00}, computed in ID." data-mod="core_ID" tabindex="0" role="link" data-inst="BranchAddr_mux"><rect class="card" x="312.0" y="370.0" width="92.0" height="50.0" rx="8"/><text class="ct" x="358.0" y="390.0" text-anchor="middle">Targets</text><text class="cs" x="358.0" y="405.0" text-anchor="middle">branch · jump</text><path class="go" d="M391.0 376.0h7v7M398.0 376.0l-7 7"/></g>
+<g data-layer="data" data-k="branch i-beq i-jal" data-tip="pc_branch (BEQ/BNE/BC/ADDIUPC) and jumpAddr (J/JAL), carried in ID_regs."><path class="ln ar" d="M404.0 395.0L530.5 395.0"/><text class="lbl" x="410.8" y="389.0">targets</text></g>
+<g data-layer="branch" data-k="branch i-beq"><path class="ln ar" d="M292.0 452.0L530.5 452.0"/><text class="lbl" x="300.0" y="446.0">predicted_npc</text></g>
+<g data-layer="data" data-k="i-alu i-ld i-sd i-beq fwd"><path class="ln ar" d="M541.6 227.2L594.5 227.2"/></g>
+<g data-layer="data" data-k="i-alu i-sd i-beq fwd"><path class="ln ar" d="M541.6 303.5L594.5 303.5"/></g>
+<g data-layer="data" data-k="fwd i-alu i-ld i-sd i-beq" data-tip="forward_mux_A: register value, EX_regs.out, MEM1 result or MEM_regs.W_data." data-mod="core_EX" tabindex="0" role="link" data-inst="forward_mux_A"><path class="mx" d="M594.5 217.9Q594.5 214.9 597.5 215.9L618.9 221.9Q620.9 222.9 620.9 225.9V265.5Q620.9 268.5 618.9 269.5L597.5 275.5Q594.5 276.5 594.5 273.5Z"/></g>
+<g data-layer="data" data-k="fwd i-alu i-sd i-beq" data-tip="forward_mux_B: same sources, used only when operand B is a register." data-mod="core_EX" tabindex="0" role="link" data-inst="forward_mux_B"><path class="mx" d="M594.5 294.2Q594.5 291.2 597.5 292.2L618.9 298.2Q620.9 299.2 620.9 302.2V341.8Q620.9 344.8 618.9 345.8L597.5 351.8Q594.5 352.8 594.5 349.8Z"/></g>
+<g data-layer="fwd" data-k="fwd" data-tip="Forward from EX_regs.out: the previous instruction&#x27;s result (not a load)."><path class="ln ar" d="M907.0 254.3L907.0 129.0Q907.0 122.0 900.0 122.0L561.8 122.0Q554.8 122.0 554.8 129.0L554.8 235.0Q554.8 242.0 561.8 242.0L594.5 242.0"/><circle class="dot" cx="907.0" cy="254.3" r="3"/><circle class="dot" cx="554.8" cy="242.0" r="3"/><text class="lbl" x="847.6" y="117.0">EX_regs</text></g>
+<g data-layer="fwd" data-k="fwd"><path class="ln ar" d="M554.8 242.0L554.8 311.3Q554.8 318.3 561.8 318.3L594.5 318.3"/></g>
+<g data-layer="fwd" data-k="fwd" data-tip="Forward from MEM1: the result two instructions back (not a load)."><path class="ln ar" d="M1101.2 254.3L1101.2 141.0Q1101.2 134.0 1094.2 134.0L575.0 134.0Q568.0 134.0 568.0 141.0L568.0 247.3Q568.0 254.3 575.0 254.3L594.5 254.3"/><circle class="dot" cx="1101.2" cy="254.3" r="3"/><circle class="dot" cx="568.0" cy="254.3" r="3"/><text class="lbl" x="955.0" y="129.0">MEM1 result</text></g>
+<g data-layer="fwd" data-k="fwd"><path class="ln ar" d="M568.0 254.3L568.0 323.6Q568.0 330.6 575.0 330.6L594.5 330.6"/></g>
+<g data-layer="fwd" data-k="fwd stall i-ld" data-tip="Forward from MEM_regs: the value being written to the register file this cycle, loads included."><path class="ln ar" d="M1286.0 354.0L1286.0 153.0Q1286.0 146.0 1279.0 146.0L588.3 146.0Q581.3 146.0 581.3 153.0L581.3 260.0Q581.3 266.6 587.9 266.6L594.5 266.6"/><circle class="dot" cx="1286.0" cy="354.0" r="3"/><circle class="dot" cx="581.3" cy="266.6" r="3"/><text class="lbl" x="1117.4" y="141.0">MEM_regs.W_data</text></g>
+<g data-layer="fwd" data-k="fwd stall i-ld"><path class="ln ar" d="M581.3 266.6L581.3 336.29999999999995Q581.3 342.9 587.9 342.9L594.5 342.9"/></g>
+<g data-layer="data" data-k="i-alu i-ld i-sd i-beq branch" data-tip="64-bit ALU with 32-bit cut for the word ops; the branch comparison A == B is computed beside it." data-mod="core_EX" tabindex="0" role="link" data-inst="alu_"><rect class="card" x="687.0" y="210.0" width="80.0" height="118.2" rx="8"/><text class="ct" x="727.0" y="264.1" text-anchor="middle">ALU</text><text class="cs" x="727.0" y="279.1" text-anchor="middle">+ A == B</text><path class="go" d="M754.0 216.0h7v7M761.0 216.0l-7 7"/></g>
+<g data-layer="data" data-k="i-alu i-ld i-sd i-beq"><path class="ln ar" d="M620.9 245.7L687.0 245.7"/></g>
+<g data-layer="data" data-k="i-alu i-sd i-beq"><path class="ln" d="M620.9 322.0L650.7 322.0"/><circle class="dot" cx="650.7" cy="322.0" r="3"/></g>
+<g data-layer="data" data-k="i-alu i-beq"><path class="ln ar" d="M650.7 322.0L650.7 315.25Q650.7 308.5 657.45 308.5L687.0 308.5"/></g>
+<g data-layer="data" data-k="i-sd"><path class="ln" d="M650.7 322.0L650.7 370.0"/><circle class="dot" cx="650.7" cy="370.0" r="3"/></g>
+<g data-layer="data"><path class="ln ar" d="M650.7 370.0L687.0 370.0"/></g>
+<g data-layer="data" data-k="i-ld i-sd" data-tip="Sign- or zero-extended imm16 (alu_b_src) replaces B for loads, stores and the immediate ALU ops."><path class="tag" d="M701.0 210.0l-5 -5H684.1a3 3 0 0 1 -3 -3v-10a3 3 0 0 1 3 -3H717.9a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3H706.0Z"/><text class="tagt" x="701.0" y="201.0" text-anchor="middle">imm</text></g>
+<g data-layer="data" data-tip="barrel_shifter32 + 2 × barrel_rotator32, 32-bit cut and ±32 adjust; shifter_small feeds LSA." data-mod="core_EX" tabindex="0" role="link" data-inst="shifter"><rect class="card" x="687.0" y="347.8" width="80.0" height="42.2" rx="8"/><text class="ct" x="727.0" y="372.90000000000003" text-anchor="middle">Shifter</text><path class="go" d="M754.0 353.8h7v7M761.0 353.8l-7 7"/></g>
+<g data-layer="data" data-k="i-alu i-ld i-sd" data-tip="out_sel: ALU, shift, LUI, SLT/SLTU, SEB/SEH or pc_branch (ADDIUPC), one 8:1 mux." data-mod="core_EX" tabindex="0" role="link" data-inst="out_sel"><path class="mx" d="M795.4 227.8Q795.4 224.8 798.4 225.8L812.4 231.8Q814.4 232.8 814.4 235.8V299.9Q814.4 302.9 812.4 303.9L798.4 309.9Q795.4 310.9 795.4 307.9Z"/><text class="pin" x="804.9" y="323.9" text-anchor="middle">8:1</text></g>
+<g data-layer="data" data-k="i-alu i-ld i-sd"><path class="ln ar" d="M767.0 239.5L795.4 239.5"/></g>
+<g data-layer="data"><path class="ln ar" d="M767.0 371.0L774.2 371.0Q781.2 371.0 781.2 364.0L781.2 278.5Q781.2 271.5 788.2 271.5L795.4 271.5"/></g>
+<g data-layer="data" data-k="i-alu i-ld i-sd"><path class="ln ar" d="M814.4 267.8L890.3 267.8"/><text class="lbl" x="831.0" y="260.5">result</text></g>
+<g data-layer="branch" data-k="branch i-beq"><path class="ln ar" d="M767.0 310.9L890.3 310.9"/><text class="lbl" x="802.6" y="304.8">zero</text></g>
+<g data-layer="data" data-k="i-sd mem"><path class="ln ar" d="M650.7 370.0L650.7 479.0Q650.7 486.0 657.7 486.0L890.3 486.0"/><text class="lbl" x="755.0" y="480.0">store data</text></g>
+<g data-layer="data" data-k="branch i-beq"><path class="ln ar" d="M541.6 395.0L890.3 395.0"/></g>
+<g data-layer="branch" data-k="branch i-beq"><path class="ln ar" d="M541.6 452.0L890.3 452.0"/><text class="lbl" x="755.0" y="446.0">predicted_npc</text></g>
+<g data-layer="data" data-k="i-alu i-ld i-sd wb mem"><path class="ln ar" d="M899.0 267.8L903.0 267.8Q907.0 267.8 907.0 263.8L907.0 261.05Q907.0 254.3 913.75 254.3L1081.0 254.3"/><circle class="dot" cx="925.0" cy="254.3" r="3"/></g>
+<g data-layer="data" data-k="i-ld i-sd mem"><path class="ln ar" d="M925.0 254.3L925.0 326.1Q925.0 333.1 932.0 333.1L965.0 333.1"/><circle class="dot" cx="925.0" cy="333.1" r="3"/><text class="lbl" x="931.0" y="325.7">addr</text></g>
+<g data-layer="mem" data-k="mem"><path class="ln ar" d="M925.0 333.1L925.0 672.0"/><text class="lbl" x="930.0" y="609.5">d_addr</text></g>
+<g data-layer="data" data-k="i-ld i-sd mem stall" data-tip="Addressed by EX_regs.out in MEM1, data out in MEM2. Skipped when d_valid (MMIO). A miss raises data_cache_miss_stall and freezes IF, ID and EX; MEM1 and MEM2 keep clocking." data-mod="core_MEM" tabindex="0" role="link" data-inst="data_cache"><rect class="card" x="965.0" y="293.7" width="100.0" height="106.3" rx="8"/><text class="ct" x="1015.0" y="336.84999999999997" text-anchor="middle">D-cache</text><text class="cs" x="1015.0" y="351.84999999999997" text-anchor="middle">4 KB · 2-way</text><text class="cs" x="1015.0" y="364.84999999999997" text-anchor="middle">registered read</text><path class="go" d="M1052.0 299.7h7v7M1059.0 299.7l-7 7"/></g>
+<g data-layer="data" data-k="i-sd mem"><path class="ln ar" d="M899.0 486.0L920.0 486.0A5 5 0 0 1 930.0 486.0L934.0 486.0Q941.0 486.0 941.0 479.0L941.0 387.0Q941.0 380.0 948.0 380.0L965.0 380.0"/></g>
+<g data-layer="data" data-k="i-ld mem wb"><path class="ln ar" d="M1065.0 352.8L1081.0 352.8"/></g>
+<g data-layer="mem" data-k="mem"><path class="ln ar" d="M1061.0 400.0L1061.0 632.2Q1061.0 639.2 1068.0 639.2L1170.5 639.2Q1177.5 639.2 1177.5 646.2L1177.5 672.0"/></g>
+<g data-layer="hazard" data-k="stall mem" data-tip="data_cache_miss_stall holds IF1, IF_regs, ID_regs and EX_regs until the 64-byte line arrives."><path class="tag" d="M963.0 418.0l6 -8H1056.2a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3H969.0Z"/><text class="tagt" x="974.0" y="421.6">miss → stall</text></g>
+<g data-layer="exc" data-k="exc" data-tip="In MEM1: overflow/syscall/break from EX_regs, reserved instruction and ERET from ID_regs. takenHandler reaches core_branch two cycles later through MEM1 and MEM_regs. EPC = ID_regs.pc: the next instruction, or a reserved instruction itself." data-mod="cp0" tabindex="0" role="link"><rect class="card unit" x="925.0" y="52.0" width="150.0" height="60.0" rx="8"/><text class="ct" x="1000.0" y="72.0" text-anchor="middle">CP0</text><text class="cs" x="1000.0" y="87.0" text-anchor="middle">exceptions · EPC</text><text class="cs" x="1000.0" y="100.0" text-anchor="middle">RI · ERET ← ID_regs</text><path class="go" d="M1062.0 58.0h7v7M1069.0 58.0l-7 7"/></g>
+<g data-layer="exc" data-k="exc"><path class="ln ar" d="M899.0 197.5L905.0 197.5Q911.0 197.5 911.0 191.5L911.0 89.0Q911.0 82.0 918.0 82.0L925.0 82.0"/><text class="lbl" x="907.0" y="95.0" text-anchor="end">exc flags</text></g>
+<g data-layer="exc" data-k="wb"><path class="ln ar" d="M1045.0 112.0L1045.0 203.0Q1045.0 210.0 1052.0 210.0L1081.0 210.0"/></g>
+<g data-layer="exc" data-k="exc"><path class="ln ar" d="M1065.0 112.0L1065.0 183.0Q1065.0 190.0 1072.0 190.0L1081.0 190.0"/></g>
+<g data-layer="data" data-k="i-alu wb"><path class="ln ar" d="M1089.6 254.3L1165.9 254.3"/><text class="lbl" x="1110.4" y="246.9">alu</text></g>
+<g data-layer="exc" data-k="wb"><path class="ln ar" d="M1089.6 210.0L1135.8 210.0Q1142.8 210.0 1142.8 217.0L1142.8 284.2Q1142.8 291.2 1149.8 291.2L1165.9 291.2"/><text class="lbl" x="1110.4" y="205.0">cp0</text></g>
+<g data-layer="data" data-k="i-ld wb mem"><path class="ln ar" d="M1089.6 352.8L1165.9 352.8"/><text class="lbl" x="1110.4" y="345.4">load</text></g>
+<g data-layer="data" data-k="i-jal wb" data-tip="Link value for JAL/BAL/JALR."><path class="tag" d="M1165.9 386.0l-6 -8H1125.5a3 3 0 0 0 -3 3v10a3 3 0 0 0 3 3H1159.9Z"/><text class="tagt" x="1128.5" y="389.6">pc+4</text></g>
+<g data-layer="mem" data-k="mem wb" data-tip="d_rdata from the peripheral, combinational: it enters the MEM2 select without passing MEM1."><path class="ln ar" d="M1039.0 672.0L1039.0 445.0Q1039.0 438.0 1046.0 438.0L1165.9 438.0"/><text class="lbl" x="1096.6" y="432.0">mmio</text></g>
+<g data-layer="data" data-k="wb i-alu i-ld i-jal" data-tip="alu_mem_mux → mfc0_mux → linkpc_mux: EX result, D$ data, MMIO data, CP0 read or pc+4." data-mod="core_MEM" tabindex="0" role="link" data-inst="alu_mem_mux"><path class="mx" d="M1165.9 240.1Q1165.9 237.1 1168.9 238.1L1182.4 244.1Q1184.4 245.1 1184.4 248.1V441.0Q1184.4 444.0 1182.4 445.0L1168.9 451.0Q1165.9 452.0 1165.9 449.0Z"/></g>
+<g data-layer="data" data-k="wb i-alu i-ld i-jal"><path class="ln ar" d="M1184.4 354.0L1265.4 354.0"/><text class="lbl" x="1198.3" y="346.6">W_data</text></g>
+<g data-layer="exc" data-k="exc" data-tip="EPC and takenHandler from CP0, carried through MEM1 and MEM_regs."><path class="ln ar" d="M1089.6 190.0L1265.4 190.0"/></g>
+<g data-layer="data" data-k="wb i-alu i-ld i-jal" data-tip="MEM_regs.W_data / W_regnum / write_enable drive the register-file write port during ID."><path class="ln ar" d="M1274.0 354.0L1318.0 354.0Q1325.0 354.0 1325.0 361.0L1325.0 541.0Q1325.0 548.0 1318.0 548.0L483.3 548.0Q476.3 548.0 476.3 541.0L476.3 340.5"/><circle class="dot" cx="1286.0" cy="354.0" r="3"/><text class="lbl" x="650.7" y="544.0">write-back → RF (in ID)</text></g>
+<g data-layer="hazard" data-k="stall i-ld" data-tip="Stall when IF_regs reads the destination of a load (MFC0 counts as one) still in ID_regs or EX_regs, or an MMIO access is not ready." data-mod="core_hazard" tabindex="0" role="link"><rect class="card unit" x="120.0" y="52.0" width="180.0" height="60.0" rx="8"/><text class="ct" x="210.0" y="77.0" text-anchor="middle">Hazard unit</text><text class="cs" x="210.0" y="92.0" text-anchor="middle">load-use · MMIO not ready</text><path class="go" d="M287.0 58.0h7v7M294.0 58.0l-7 7"/></g>
+<g data-layer="hazard" data-k="stall i-ld"><path class="ln dash ar" d="M210.0 112.0L210.0 121.0Q210.0 128.0 203.0 128.0L103.0 128.0Q96.0 128.0 96.0 135.0L96.0 154.0"/><circle class="dot" cx="210.0" cy="128.0" r="3"/><circle class="dot" cx="288.0" cy="128.0" r="3"/><text class="lbl" x="104.0" y="144.0">hold</text></g>
+<g data-layer="hazard" data-k="stall i-ld"><path class="ln dash ar" d="M288.0 128.0L288.0 154.0"/><text class="lbl" x="296.0" y="144.0">hold</text></g>
+<g data-layer="hazard" data-k="stall i-ld"><path class="ln dash ar" d="M210.0 128.0L528.0 128.0Q535.0 128.0 535.0 135.0L535.0 154.0"/><text class="lbl" x="458.2" y="144.0" text-anchor="end">bubble</text></g>
+<g data-layer="fwd" data-k="fwd" data-tip="Compares ID_regs rs/rt with the destinations in EX_regs (not a load), MEM1 (not a load) and MEM_regs. Youngest wins." data-mod="core_forward" tabindex="0" role="link"><rect class="card unit" x="581.3" y="52.0" width="240.2" height="60.0" rx="8"/><text class="ct" x="701.4" y="77.0" text-anchor="middle">Forwarding unit</text><text class="cs" x="701.4" y="92.0" text-anchor="middle">EX_regs › MEM1 › MEM_regs</text><path class="go" d="M808.5 58.0h7v7M815.5 58.0l-7 7"/></g>
+<g data-layer="fwd" data-k="fwd"><path class="ln dash ar" d="M607.7 112.0L607.7 217.4"/></g>
+<g data-layer="fwd" data-k="fwd"><path class="ln dash ar" d="M630.8 112.0L630.8 276.8Q630.8 283.8 623.8 283.8L612.6500000000001 283.8Q607.7 283.8 607.7 288.75L607.7 293.7"/></g>
+<g data-layer="branch" data-k="fetch branch exc i-alu i-ld i-sd i-beq i-jal" data-tip="core_branch picks next_fetch_pc by priority: exception &gt; ERET &gt; mispredict &gt; J/JR &gt; prediction. During a D-cache freeze only an exception redirects; ERET, mispredict and J/JR wait until it ends. Any redirect also raises flush." data-mod="core_branch" tabindex="0" role="link"><rect class="card unit" x="16.0" y="641.7" width="208.0" height="120.3" rx="8"/><text class="ct" x="120.0" y="664.0" text-anchor="middle">Next PC</text><path class="go" d="M211.0 647.7h7v7M218.0 647.7l-7 7"/><text class="row" x="30.0" y="680.0">exception/irq · ERET</text><text class="row" x="30.0" y="704.0">mispredict</text><text class="row" x="30.0" y="728.0">J · JR</text><text class="row" x="30.0" y="756.0">prediction</text></g>
+<g data-layer="exc" data-k="exc"><text class="lbl" x="1292.0" y="227.2">EPC · exc</text></g>
+<g data-layer="exc" data-k="exc" data-tip="MEM_regs.takenHandler: an exception redirect lands two cycles after CP0 decides. ERET instead redirects from ID_regs to MEM_regs.EPC."><path class="ln ar" d="M1274.0 190.0L1353.0 190.0Q1360.0 190.0 1360.0 197.0L1360.0 584.0Q1360.0 591.0 1353.0 591.0L930.0 591.0A5 5 0 0 0 920.0 591.0L239.0 591.0Q232.0 591.0 232.0 598.0L232.0 672.0Q232.0 676.0 228.0 676.0L224.0 676.0"/><text class="lbl" x="1075.0" y="584.8">exception → handler 0x0 · ERET → EPC</text></g>
+<g data-layer="branch" data-k="branch i-beq"><path class="ln ar" d="M667.2 672.0L667.2 616.5Q667.2 609.5 660.2 609.5L253.0 609.5Q246.0 609.5 246.0 616.5L246.0 693.0Q246.0 700.0 239.0 700.0L224.0 700.0"/><text class="lbl" x="300.0" y="603.3">mispredict → correct PC</text></g>
+<g data-layer="branch" data-k="branch i-jal" data-tip="J/JAL jump to jumpAddr; JR/JALR to the forwarded rs. Resolved from ID_regs, 2 younger slots flushed."><path class="ln ar" d="M541.6 410.0L554.4 410.0Q561.4 410.0 561.4 417.0L561.4 621.1Q561.4 628.1 554.4 628.1L267.0 628.1Q260.0 628.1 260.0 635.1L260.0 717.0Q260.0 724.0 253.0 724.0L224.0 724.0"/><text class="lbl" x="300.0" y="621.9">J / JR target (from ID_regs)</text></g>
+<g data-layer="branch" data-k="branch exc i-jal i-beq" data-tip="flush loads IF1 with the new PC and clears IF_regs, ID_regs, and EX_regs unless the instruction entering EX links (and no exception is being taken)."><path class="ln dash" d="M150.0 641.7L150.0 572.0Q150.0 565.0 157.0 565.0L195.0 565.0A5 5 0 0 1 205.0 565.0L535.0 565.0"/><circle class="dot" cx="288.0" cy="565.0" r="3"/><circle class="dot" cx="535.0" cy="565.0" r="3"/><text class="lbl" x="330.0" y="559.0">flush</text></g>
+<g data-layer="branch" data-k="branch exc i-beq" data-tip="flush loads IF1 with the new PC and clears IF_regs, ID_regs, and EX_regs unless the instruction entering EX links (and no exception is being taken)."><path class="ln dash ar" d="M535.0 565.0L556.4 565.0A5 5 0 0 1 566.4 565.0L888.0 565.0Q895.0 565.0 895.0 558.0L895.0 535.0"/></g>
+<g data-layer="branch" data-k="branch exc i-jal i-beq"><path class="ln dash ar" d="M150.0 565.0L103.0 565.0Q96.0 565.0 96.0 558.0L96.0 535.0"/></g>
+<g data-layer="branch" data-k="branch exc i-jal i-beq"><path class="ln dash ar" d="M288.0 565.0L288.0 535.0"/></g>
+<g data-layer="branch" data-k="branch exc i-jal i-beq"><path class="ln dash ar" d="M535.0 565.0L535.0 535.0"/></g>
+<g data-layer="branch" data-k="branch i-beq" data-tip="From EX_regs: taken = BC | BAL | BEQ·zero | BNE·!zero; correct = taken ? pc_branch : pc4. A mismatch with predicted_npc redirects and flushes 3 slots; EX_regs also trains the predictor." data-mod="core_branch" tabindex="0" role="link"><rect class="card unit" x="601.1" y="672.0" width="246.5" height="80.0" rx="8"/><text class="ct" x="724.35" y="702.0" text-anchor="middle">Branch check</text><text class="cs" x="724.35" y="717.0" text-anchor="middle">taken? → correct next PC</text><text class="cs" x="724.35" y="730.0" text-anchor="middle">≠ predicted_npc → redirect</text><path class="go" d="M834.6 678.0h7v7M841.6 678.0l-7 7"/></g>
+<g data-layer="branch" data-k="branch i-beq"><path class="ln ar" d="M899.0 452.0L904.0 452.0Q909.0 452.0 909.0 457.0L909.0 705.0Q909.0 712.0 902.0 712.0L847.6 712.0"/><text class="lbl" x="903.0" y="659.0" text-anchor="end">EX_regs → check</text></g>
+<g data-layer="mem" data-k="mem" data-tip="Peripherals in SOC.sv. d_valid comes from core_hazard. The timer answers in the same cycle; stdout and LED raise d_ready a cycle later. Only the timer returns read data." data-mod="TOP" tabindex="0" role="link"><rect class="card unit" x="915.0" y="672.0" width="150.0" height="80.0" rx="8"/><text class="ct" x="990.0" y="702.0" text-anchor="middle">MMIO port</text><text class="cs" x="990.0" y="717.0" text-anchor="middle">d_* · ≥ 0x2000_0000</text><text class="cs" x="990.0" y="730.0" text-anchor="middle">timer · LED · stdout</text><path class="go" d="M1052.0 678.0h7v7M1059.0 678.0l-7 7"/></g>
+<g data-layer="mem" data-k="mem" data-tip="Serialises I-cache and D-cache line fills / write-backs onto mem_bus." data-mod="cache_arbiter" tabindex="0" role="link"><rect class="card unit" x="1096.6" y="672.0" width="161.8" height="80.0" rx="8"/><text class="ct" x="1177.5" y="702.0" text-anchor="middle">Cache arbiter</text><text class="cs" x="1177.5" y="717.0" text-anchor="middle">I$ + D$ → 1 bus</text><text class="cs" x="1177.5" y="730.0" text-anchor="middle">512-bit lines</text><path class="go" d="M1245.3999999999999 678.0h7v7M1252.3999999999999 678.0l-7 7"/></g>
+<g data-layer="mem" data-k="mem"><path class="ln ar" d="M1258.4 712.0L1276.0 712.0"/></g>
+<g data-layer="mem" data-k="mem" data-tip="Outside the core: data_mem (DATA_LEN = 0x1000, 4 KB) behind mem_bus. 0x1000_0000 is reserved for a ROM that is not instantiated." data-mod="TOP" tabindex="0" role="link" data-inst="data_mem"><rect class="card unit" x="1276.0" y="672.0" width="116.0" height="80.0" rx="8"/><text class="ct" x="1334.0" y="702.0" text-anchor="middle">RAM</text><text class="cs" x="1334.0" y="717.0" text-anchor="middle">4 KB @ 0x0</text><text class="cs" x="1334.0" y="730.0" text-anchor="middle">ROM: not built</text><path class="go" d="M1379.0 678.0h7v7M1386.0 678.0l-7 7"/></g>
+<g data-layer="data" class="rail-g" data-k="rail" data-tip="IF1 (in core_IF): fetch_pc and fetch_pc + 4. Held by stall, still loaded on flush." data-mod="core_IF" tabindex="0" role="link"><rect class="railtag" x="56.0" y="514.0" width="80.0" height="17" rx="4"/><text class="railt" x="96.0" y="526.0" text-anchor="middle">IF1 · 128b</text></g>
+<g data-layer="data" class="rail-g" data-k="rail" data-tip="IF_regs: fetch_pc, fetch_pc4, predicted_npc, and inst (which is the I-cache&#x27;s own output register)." data-mod="core_IF" tabindex="0" role="link"><rect class="railtag" x="234.8" y="514.0" width="106.39999999999999" height="17" rx="4"/><text class="railt" x="288.0" y="526.0" text-anchor="middle">IF_regs · 224b</text></g>
+<g data-layer="data" class="rail-g" data-k="rail" data-tip="ID_regs: operands, targets and ~50 control bits. Bubble on stall or flush; held on a D-cache miss." data-mod="core_ID" tabindex="0" role="link"><rect class="railtag" x="481.8" y="514.0" width="106.39999999999999" height="17" rx="4"/><text class="railt" x="535.0" y="526.0" text-anchor="middle">ID_regs · 544b</text></g>
+<g data-layer="data" class="rail-g" data-k="rail" data-tip="EX_regs: result, store data, flags. Cleared by flush unless the instruction entering EX links (JAL/BAL/JALR)." data-mod="core_EX" tabindex="0" role="link"><rect class="railtag" x="841.8" y="514.0" width="106.39999999999999" height="17" rx="4"/><text class="railt" x="895.0" y="526.0" text-anchor="middle">EX_regs · 354b</text></g>
+<g data-layer="data" class="rail-g" data-k="rail" data-tip="MEM1 (in core_MEM): EX result, CP0 read data, EPC / takenHandler, pc4. Never stalled." data-mod="core_MEM" tabindex="0" role="link"><rect class="railtag" x="1041.7" y="514.0" width="86.6" height="17" rx="4"/><text class="railt" x="1085.0" y="526.0" text-anchor="middle">MEM1 · 266b</text></g>
+<g data-layer="data" class="rail-g" data-k="rail" data-tip="MEM_regs: W_data, W_regnum, write_enable, EPC, takenHandler." data-mod="core_MEM" tabindex="0" role="link"><rect class="railtag" x="1213.5" y="514.0" width="113.0" height="17" rx="4"/><text class="railt" x="1270.0" y="526.0" text-anchor="middle">MEM_regs · 135b</text></g>
+<g class="step" data-scene="fetch" data-tag="c−1"><rect class="st" x="23.2" y="450.0" width="33.6" height="20" rx="10"/><text class="stn" x="40.0" y="464.0" text-anchor="middle">c−1</text></g>
+<g class="step" data-scene="fetch" data-tag="c0"><rect class="st" x="104.8" y="195.0" width="26.4" height="20" rx="10"/><text class="stn" x="118.0" y="209.0" text-anchor="middle">c0</text></g>
+<g class="step" data-scene="fetch" data-tag="c0"><rect class="st" x="104.8" y="402.0" width="26.4" height="20" rx="10"/><text class="stn" x="118.0" y="416.0" text-anchor="middle">c0</text></g>
+<g class="step" data-scene="fetch" data-tag="c+1"><rect class="st" x="271.2" y="261.5" width="33.6" height="20" rx="10"/><text class="stn" x="288.0" y="275.5" text-anchor="middle">c+1</text></g>
+<g class="step" data-scene="fwd" data-tag="A"><rect class="st" x="571.3" y="42.0" width="20" height="20" rx="10"/><text class="stn" x="581.3" y="56.0" text-anchor="middle">A</text></g>
+<g class="step" data-scene="fwd" data-tag="B"><rect class="st" x="897.0" y="298.5" width="20" height="20" rx="10"/><text class="stn" x="907.0" y="312.5" text-anchor="middle">B</text></g>
+<g class="step" data-scene="fwd" data-tag="C"><rect class="st" x="1091.2" y="298.5" width="20" height="20" rx="10"/><text class="stn" x="1101.2" y="312.5" text-anchor="middle">C</text></g>
+<g class="step" data-scene="fwd" data-tag="D"><rect class="st" x="1276.0" y="380.0" width="20" height="20" rx="10"/><text class="stn" x="1286.0" y="394.0" text-anchor="middle">D</text></g>
+<g class="step" data-scene="stall" data-tag="c0"><rect class="st" x="106.8" y="42.0" width="26.4" height="20" rx="10"/><text class="stn" x="120.0" y="56.0" text-anchor="middle">c0</text></g>
+<g class="step" data-scene="stall" data-tag="c+1"><rect class="st" x="518.2" y="136.0" width="33.6" height="20" rx="10"/><text class="stn" x="535.0" y="150.0" text-anchor="middle">c+1</text></g>
+<g class="step" data-scene="stall" data-tag="c+2"><rect class="st" x="1269.2" y="380.0" width="33.6" height="20" rx="10"/><text class="stn" x="1286.0" y="394.0" text-anchor="middle">c+2</text></g>
+<g class="step" data-scene="stall" data-tag="also"><rect class="st" x="940.6" y="428.0" width="40.8" height="20" rx="10"/><text class="stn" x="961.0" y="442.0" text-anchor="middle">also</text></g>
+<g class="step" data-scene="branch" data-tag="c0"><rect class="st" x="104.8" y="402.0" width="26.4" height="20" rx="10"/><text class="stn" x="118.0" y="416.0" text-anchor="middle">c0</text></g>
+<g class="step" data-scene="branch" data-tag="c0"><rect class="st" x="431.5" y="442.0" width="26.4" height="20" rx="10"/><text class="stn" x="444.7" y="456.0" text-anchor="middle">c0</text></g>
+<g class="step" data-scene="branch" data-tag="c+2"><rect class="st" x="544.6" y="470.0" width="33.6" height="20" rx="10"/><text class="stn" x="561.4" y="484.0" text-anchor="middle">c+2</text></g>
+<g class="step" data-scene="branch" data-tag="c+3"><rect class="st" x="584.3000000000001" y="662.0" width="33.6" height="20" rx="10"/><text class="stn" x="601.1" y="676.0" text-anchor="middle">c+3</text></g>
+<g class="step" data-scene="branch" data-tag="c+3"><rect class="st" x="133.2" y="584.7" width="33.6" height="20" rx="10"/><text class="stn" x="150.0" y="598.7" text-anchor="middle">c+3</text></g>
+<g class="step" data-scene="exc" data-tag="c0"><rect class="st" x="897.8" y="130.0" width="26.4" height="20" rx="10"/><text class="stn" x="911.0" y="144.0" text-anchor="middle">c0</text></g>
+<g class="step" data-scene="exc" data-tag="c0"><rect class="st" x="911.8" y="42.0" width="26.4" height="20" rx="10"/><text class="stn" x="925.0" y="56.0" text-anchor="middle">c0</text></g>
+<g class="step" data-scene="exc" data-tag="c+1"><rect class="st" x="1068.2" y="180.0" width="33.6" height="20" rx="10"/><text class="stn" x="1085.0" y="194.0" text-anchor="middle">c+1</text></g>
+<g class="step" data-scene="exc" data-tag="c+2"><rect class="st" x="1253.2" y="180.0" width="33.6" height="20" rx="10"/><text class="stn" x="1270.0" y="194.0" text-anchor="middle">c+2</text></g>
+<g class="step" data-scene="exc" data-tag="c+2"><rect class="st" x="229.2" y="649.0" width="33.6" height="20" rx="10"/><text class="stn" x="246.0" y="663.0" text-anchor="middle">c+2</text></g>
+<g class="step" data-scene="wb" data-tag="c0"><rect class="st" x="1162.0" y="450.0" width="26.4" height="20" rx="10"/><text class="stn" x="1175.2" y="464.0" text-anchor="middle">c0</text></g>
+<g class="step" data-scene="wb" data-tag="c+1"><rect class="st" x="1253.2" y="370.0" width="33.6" height="20" rx="10"/><text class="stn" x="1270.0" y="384.0" text-anchor="middle">c+1</text></g>
+<g class="step" data-scene="wb" data-tag="c+1"><rect class="st" x="459.5" y="345.2" width="33.6" height="20" rx="10"/><text class="stn" x="476.3" y="359.2" text-anchor="middle">c+1</text></g>
+<g class="step" data-scene="mem" data-tag="A"><rect class="st" x="955.0" y="283.7" width="20" height="20" rx="10"/><text class="stn" x="965.0" y="297.7" text-anchor="middle">A</text></g>
+<g class="step" data-scene="mem" data-tag="B"><rect class="st" x="1167.5" y="649.0" width="20" height="20" rx="10"/><text class="stn" x="1177.5" y="663.0" text-anchor="middle">B</text></g>
+<g class="step" data-scene="mem" data-tag="C"><rect class="st" x="915.0" y="649.0" width="20" height="20" rx="10"/><text class="stn" x="925.0" y="663.0" text-anchor="middle">C</text></g>
+<g class="step" data-scene="mem" data-tag="D"><rect class="st" x="1029.0" y="470.0" width="20" height="20" rx="10"/><text class="stn" x="1039.0" y="484.0" text-anchor="middle">D</text></g>
+<g class="step" data-scene="i-alu" data-tag="c0"><rect class="st" x="82.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="96.0" y="502.0" text-anchor="middle">c0</text></g>
+<g class="step" data-scene="i-alu" data-tag="c1"><rect class="st" x="274.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="288.0" y="502.0" text-anchor="middle">c1</text></g>
+<g class="step" data-scene="i-alu" data-tag="c2"><rect class="st" x="521.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="535.0" y="502.0" text-anchor="middle">c2</text></g>
+<g class="step" data-scene="i-alu" data-tag="c3"><rect class="st" x="881.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="895.0" y="502.0" text-anchor="middle">c3</text></g>
+<g class="step" data-scene="i-alu" data-tag="c4"><rect class="st" x="1071.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="1085.0" y="502.0" text-anchor="middle">c4</text></g>
+<g class="step" data-scene="i-alu" data-tag="c5"><rect class="st" x="1256.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="1270.0" y="502.0" text-anchor="middle">c5</text></g>
+<g class="step" data-scene="i-ld" data-tag="c0"><rect class="st" x="82.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="96.0" y="502.0" text-anchor="middle">c0</text></g>
+<g class="step" data-scene="i-ld" data-tag="c1"><rect class="st" x="274.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="288.0" y="502.0" text-anchor="middle">c1</text></g>
+<g class="step" data-scene="i-ld" data-tag="c2"><rect class="st" x="521.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="535.0" y="502.0" text-anchor="middle">c2</text></g>
+<g class="step" data-scene="i-ld" data-tag="c3"><rect class="st" x="881.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="895.0" y="502.0" text-anchor="middle">c3</text></g>
+<g class="step" data-scene="i-ld" data-tag="c4"><rect class="st" x="1071.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="1085.0" y="502.0" text-anchor="middle">c4</text></g>
+<g class="step" data-scene="i-ld" data-tag="c5"><rect class="st" x="1256.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="1270.0" y="502.0" text-anchor="middle">c5</text></g>
+<g class="step" data-scene="i-sd" data-tag="c0"><rect class="st" x="82.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="96.0" y="502.0" text-anchor="middle">c0</text></g>
+<g class="step" data-scene="i-sd" data-tag="c1"><rect class="st" x="274.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="288.0" y="502.0" text-anchor="middle">c1</text></g>
+<g class="step" data-scene="i-sd" data-tag="c2"><rect class="st" x="521.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="535.0" y="502.0" text-anchor="middle">c2</text></g>
+<g class="step" data-scene="i-sd" data-tag="c3"><rect class="st" x="881.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="895.0" y="502.0" text-anchor="middle">c3</text></g>
+<g class="step" data-scene="i-sd" data-tag="c4"><rect class="st" x="1071.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="1085.0" y="502.0" text-anchor="middle">c4</text></g>
+<g class="step" data-scene="i-sd" data-tag="c5"><rect class="st" x="1256.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="1270.0" y="502.0" text-anchor="middle">c5</text></g>
+<g class="step" data-scene="i-beq" data-tag="c0"><rect class="st" x="82.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="96.0" y="502.0" text-anchor="middle">c0</text></g>
+<g class="step" data-scene="i-beq" data-tag="c1"><rect class="st" x="274.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="288.0" y="502.0" text-anchor="middle">c1</text></g>
+<g class="step" data-scene="i-beq" data-tag="c2"><rect class="st" x="521.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="535.0" y="502.0" text-anchor="middle">c2</text></g>
+<g class="step" data-scene="i-beq" data-tag="c3"><rect class="st" x="881.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="895.0" y="502.0" text-anchor="middle">c3</text></g>
+<g class="step" data-scene="i-beq" data-tag="c4"><rect class="st" x="1071.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="1085.0" y="502.0" text-anchor="middle">c4</text></g>
+<g class="step" data-scene="i-beq" data-tag="c5"><rect class="st" x="1256.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="1270.0" y="502.0" text-anchor="middle">c5</text></g>
+<g class="step" data-scene="i-jal" data-tag="c0"><rect class="st" x="82.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="96.0" y="502.0" text-anchor="middle">c0</text></g>
+<g class="step" data-scene="i-jal" data-tag="c1"><rect class="st" x="274.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="288.0" y="502.0" text-anchor="middle">c1</text></g>
+<g class="step" data-scene="i-jal" data-tag="c2"><rect class="st" x="521.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="535.0" y="502.0" text-anchor="middle">c2</text></g>
+<g class="step" data-scene="i-jal" data-tag="c3"><rect class="st" x="881.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="895.0" y="502.0" text-anchor="middle">c3</text></g>
+<g class="step" data-scene="i-jal" data-tag="c4"><rect class="st" x="1071.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="1085.0" y="502.0" text-anchor="middle">c4</text></g>
+<g class="step" data-scene="i-jal" data-tag="c5"><rect class="st" x="1256.8" y="488.0" width="26.4" height="20" rx="10"/><text class="stn" x="1270.0" y="502.0" text-anchor="middle">c5</text></g>
+<g class="badge" data-scene="i-alu"><rect class="val" x="439.25" y="183.5" width="74.1" height="18" rx="4"/><text class="valt" x="476.3" y="196.5" text-anchor="middle">$1=5 $2=7</text></g>
+<g class="badge" data-scene="i-alu"><rect class="val" x="848.9" y="277.3" width="25.8" height="18" rx="4"/><text class="valt" x="861.8" y="290.3" text-anchor="middle">12</text></g>
+<g class="badge" data-scene="i-alu"><rect class="val" x="1210.8999999999999" y="363.0" width="25.8" height="18" rx="4"/><text class="valt" x="1223.8" y="376.0" text-anchor="middle">12</text></g>
+<g class="badge" data-scene="i-alu"><rect class="val" x="864.85" y="539.0" width="60.300000000000004" height="18" rx="4"/><text class="valt" x="895.0" y="552.0" text-anchor="middle">$3 ← 12</text></g>
+<g class="badge" data-scene="i-ld"><rect class="val" x="442.7" y="183.5" width="67.2" height="18" rx="4"/><text class="valt" x="476.3" y="196.5" text-anchor="middle">$1=0x100</text></g>
+<g class="badge" data-scene="i-ld"><rect class="val" x="838.55" y="277.3" width="46.5" height="18" rx="4"/><text class="valt" x="861.8" y="290.3" text-anchor="middle">0x108</text></g>
+<g class="badge" data-scene="i-ld"><rect class="val" x="1101.1" y="310.5" width="53.400000000000006" height="18" rx="4"/><text class="valt" x="1127.8" y="323.5" text-anchor="middle">0x1234</text></g>
+<g class="badge" data-scene="i-ld"><rect class="val" x="851.05" y="539.0" width="87.9" height="18" rx="4"/><text class="valt" x="895.0" y="552.0" text-anchor="middle">$4 ← 0x1234</text></g>
+<g class="badge" data-scene="i-sd"><rect class="val" x="418.65" y="183.5" width="101.7" height="18" rx="4"/><text class="valt" x="469.5" y="196.5" text-anchor="middle">$1=0x100 $2=7</text></g>
+<g class="badge" data-scene="i-sd"><rect class="val" x="838.55" y="277.3" width="46.5" height="18" rx="4"/><text class="valt" x="861.8" y="290.3" text-anchor="middle">0x110</text></g>
+<g class="badge" data-scene="i-sd"><rect class="val" x="767.05" y="492.0" width="18.9" height="18" rx="4"/><text class="valt" x="776.5" y="505.0" text-anchor="middle">7</text></g>
+<g class="badge" data-scene="i-beq"><rect class="val" x="439.25" y="183.5" width="74.1" height="18" rx="4"/><text class="valt" x="476.3" y="196.5" text-anchor="middle">$1=5 $2=5</text></g>
+<g class="badge" data-scene="i-beq"><rect class="val" x="842.8499999999999" y="320.4" width="18.9" height="18" rx="4"/><text class="valt" x="852.3" y="333.4" text-anchor="middle">1</text></g>
+<g class="badge" data-scene="i-beq"><rect class="val" x="443.95" y="401.0" width="46.5" height="18" rx="4"/><text class="valt" x="467.2" y="414.0" text-anchor="middle">0x130</text></g>
+<g class="badge" data-scene="i-beq"><rect class="val" x="671.75" y="458.0" width="46.5" height="18" rx="4"/><text class="valt" x="695.0" y="471.0" text-anchor="middle">0x124</text></g>
+<g class="badge" data-scene="i-beq"><rect class="val" x="546.15" y="600.5" width="60.300000000000004" height="18" rx="4"/><text class="valt" x="576.3" y="613.5" text-anchor="middle">→ 0x130</text></g>
+<g class="badge" data-scene="i-jal"><rect class="val" x="443.95" y="401.0" width="46.5" height="18" rx="4"/><text class="valt" x="467.2" y="414.0" text-anchor="middle">0x200</text></g>
+<g class="badge" data-scene="i-jal"><rect class="val" x="531.25" y="471.0" width="60.300000000000004" height="18" rx="4"/><text class="valt" x="561.4" y="484.0" text-anchor="middle">→ 0x200</text></g>
+<g class="badge" data-scene="i-jal"><rect class="val" x="1200.55" y="363.0" width="46.5" height="18" rx="4"/><text class="valt" x="1223.8" y="376.0" text-anchor="middle">0x144</text></g>
+<g class="badge" data-scene="i-jal"><rect class="val" x="851.05" y="539.0" width="87.9" height="18" rx="4"/><text class="valt" x="895.0" y="552.0" text-anchor="middle">$31 ← 0x144</text></g>
+            </svg>
+        </div>
+    </figure>
+</section>
+
+<section id="p-rtl" role="tabpanel" aria-labelledby="t-rtl" hidden>
+    <p class="prov" id="prov"></p>
+    <div class="rtl">
+        <nav class="tree" aria-label="Module hierarchy">
+            <input type="search" id="tq" placeholder="Filter modules" aria-label="Filter modules" autocomplete="off">
+            <ul id="tree"></ul>
+        </nav>
+        <div class="viewer">
+            <div class="crumbs" id="crumbs"></div>
+            <iframe id="rtlf" title="Vivado RTL schematic"></iframe>
+        </div>
+    </div>
+</section>
+</main>
+<footer>The drawing is hand-placed from <code>src/</code> (<code>docs/concept/</code>); the RTL schematics are exported by Vivado (<code>docs/export_schematics.tcl</code>) and made interactive by <code>docs/gen_export_schematics_site.py</code>.</footer>
+</div>
+<div id="tip" role="tooltip" hidden></div>
+
+<script>window.SCENES = {"overview": {"title": "Six pipeline registers, write-back folded into decode", "text": "An instruction spends one cycle in each register: IF1 → IF_regs → ID_regs → EX_regs → MEM1 → MEM_regs. Fetch and memory each take two cycles, and the register file is written while a younger instruction decodes. Pick a topic or an instruction to light up only the parts it uses; hover anything for details, click a card to open its Vivado schematic.", "steps": [], "label": "Overview"}, "fetch": {"title": "Fetch takes two cycles and guesses the next PC", "text": "Cycles are counted from the cycle the instruction's PC sits in IF1 (c0).", "steps": [["c−1", "Next PC picks the address (the prediction, unless something redirects fetch); it is latched into IF1 at the clock edge."], ["c0", "IF1 holds fetch_pc: the I-cache and the BHT/BTB are read, and the prediction goes straight back to Next PC as the address of the following fetch."], ["c+1", "The I-cache's output register is IF_regs.inst, so the decoder sees the instruction one cycle after the lookup."]], "label": "Fetch & predict"}, "fwd": {"title": "Three forwarding sources, youngest wins", "text": "All of this happens in one cycle: the one in which the consumer sits in ID_regs and executes.", "steps": [["A", "The forwarding unit compares ID_regs rs/rt with the destination registers held in EX_regs, MEM1 and MEM_regs."], ["B", "EX_regs.out: the instruction one ahead. Not for loads, whose data does not exist yet."], ["C", "MEM1 result: two ahead, an EX result. Not a load, and MFC0 counts as a load, so a CP0 read comes from MEM_regs after a stall."], ["D", "MEM_regs.W_data: three ahead, the value being written back right now, loads included."]], "label": "Forwarding"}, "stall": {"title": "A load's data arrives late, so its consumer waits", "text": "c0 is the cycle in which the consumer sits in IF_regs and the load just ahead of it in ID_regs.", "steps": [["c0", "The hazard unit sees IF_regs read a register the load will write: IF1 and IF_regs hold, ID_regs gets a bubble."], ["c+1", "The load is in EX_regs and its data still does not exist: a second bubble."], ["c+2", "The load is in MEM1 and the consumer decodes; one cycle later it executes with the load data forwarded from MEM_regs."], ["also", "A not-ready MMIO access also inserts a bubble. A D-cache miss instead freezes IF, ID and EX until the line arrives, while MEM1 and MEM2 keep clocking. Only an exception redirects during the freeze; ERET, a mispredict or a jump in ID_regs waits until it ends."]], "label": "Load-use stall"}, "branch": {"title": "Branches are checked late and flushed on a miss", "text": "There are no delay slots. c0 is the cycle the branch or jump sits in IF1.", "steps": [["c0", "The predictor guesses while the branch is fetched; fetch follows the guess, which rides along as predicted_npc next to pc_branch."], ["c+2", "Jumps (J, JAL, JR, JALR, and BAL, which the decoder also marks as a jump) redirect from ID_regs; the two younger instructions are flushed."], ["c+3", "A conditional branch is checked from EX_regs: on a mismatch with predicted_npc, Next PC redirects and flush clears the three younger instructions, except a JAL/JALR/BAL entering EX, which is kept so it can write its link register. The predictor is trained in the same cycle."]], "label": "Branch & flush"}, "exc": {"title": "CP0 decides in MEM1, fetch jumps two cycles later", "text": "c0 is the cycle the faulting instruction sits in EX_regs.", "steps": [["c0", "CP0 sees overflow, SYSCALL or BREAK from EX_regs (a reserved instruction from ID_regs) and takes the exception if EXL is clear. EPC = ID_regs.pc: for overflow, SYSCALL and BREAK that is the next instruction (handlers must not add 4); a reserved instruction is caught while it is itself in ID_regs, so EPC is its own PC."], ["c+1", "takenHandler sits in MEM1. The EPC register already holds the new value; the copy that rides MEM1 and MEM_regs is one cycle behind."], ["c+2", "takenHandler reaches MEM_regs: Next PC jumps to the handler at 0x0 and flushes IF_regs, ID_regs and EX_regs. The faulting instruction and the two behind it are already past EX and still complete. The handler is fetched from c+3."], ["ERET", "ERET returns differently: it redirects from ID_regs like a jump, to MEM_regs.EPC, which is the EPC register as it was two cycles earlier."]], "label": "Exceptions"}, "wb": {"title": "Write-back happens in the decode stage", "text": "There is no separate WB hardware. c0 is the cycle the instruction sits in MEM1.", "steps": [["c0", "MEM2 picks the value: ALU result, load data, MMIO data, CP0 read or pc + 4 for JAL/BAL/JALR."], ["c+1", "MEM_regs drives the register-file write port while a younger instruction decodes; a same-cycle read sees the new value, and EX gets it by forwarding."]], "label": "Write-back"}, "mem": {"title": "Two L1 caches share one bus; peripherals skip the cache", "text": "Everything below 0x2000_0000 is cached; peripherals are memory-mapped above it.", "steps": [["A", "The D-cache is addressed by EX_regs in MEM1; its registered read comes out in MEM2."], ["B", "A miss fills a 64-byte line through the cache arbiter, which the I-cache shares."], ["C", "Addresses ≥ 0x2000_0000 skip the cache and use the d_* port (timer, LED, simulated stdout)."], ["D", "MMIO read data comes back while the access is still in EX_regs and goes straight into the MEM2 select, without passing the MEM1 register."]], "label": "Memory & MMIO"}, "i-alu": {"title": "daddu $3, $1, $2", "text": "Encoding 0x0022182D at pc 0x100, with $1 = 5 and $2 = 7. One card per cycle; the marker on the drawing shows which register holds the instruction.", "steps": [["c0", "IF1 · fetch: 0x100 is looked up in the I-cache; no BTB entry, so the next fetch is 0x104."], ["c1", "IF_regs · decode: rs 1, rt 2, rd 3, alu_op add, alu_b_src register, write_enable 1. Reads $1 = 5, $2 = 7."], ["c2", "ID_regs · execute: nothing to forward; the ALU computes 5 + 7 = 12."], ["c3", "EX_regs · MEM1: out = 12; no memory access."], ["c4", "MEM1 · MEM2: the select picks the ALU result, W_data = 12."], ["c5", "MEM_regs · write-back: $3 ← 12, written while a younger instruction decodes."]], "label": "daddu"}, "i-ld": {"title": "ld $4, 8($1)", "text": "Encoding 0xDC240008 at pc 0x104, with $1 = 0x100 and 0x1234 stored at 0x108.", "steps": [["c0", "IF1 · fetch: 0x104."], ["c1", "IF_regs · decode: rs 1, rt 4 is the destination, imm 8, alu_b_src sign-extended imm, mem_load_type doubleword. Reads $1 = 0x100."], ["c2", "ID_regs · execute: the ALU computes 0x100 + 8 = 0x108. An instruction right behind that reads $4 is held in IF_regs."], ["c3", "EX_regs · MEM1: 0x108 is below 0x2000_0000, so the D-cache is read (a hit)."], ["c4", "MEM1 · MEM2: the D-cache data 0x1234 becomes W_data."], ["c5", "MEM_regs · write-back: $4 ← 0x1234, also forwarded to the instruction that waited."]], "label": "ld"}, "i-sd": {"title": "sd $2, 16($1)", "text": "Encoding 0xFC220010 at pc 0x108, with $1 = 0x100 and $2 = 7.", "steps": [["c0", "IF1 · fetch: 0x108."], ["c1", "IF_regs · decode: rs 1, rt 2 is the store data, imm 16, alu_b_src sign-extended imm, mem_store_type doubleword, write_enable 0."], ["c2", "ID_regs · execute: the ALU computes 0x100 + 16 = 0x110; B = 7 rides along as store data."], ["c3", "EX_regs · MEM1: the D-cache writes 7 at 0x110 and marks the line dirty."], ["c4", "MEM1 · MEM2: nothing to select."], ["c5", "MEM_regs: write_enable is 0, no register is written."]], "label": "sd"}, "i-beq": {"title": "beq $1, $2, +12", "text": "Encoding 0x10220003 at pc 0x120, with $1 = $2 = 5 and a predictor that has never seen this branch.", "steps": [["c0", "IF1 · fetch: 0x120. No BTB entry, so the guess is not taken: the next fetch is 0x124."], ["c1", "IF_regs · decode: BEQ, pc_branch = 0x124 + 3·4 = 0x130. Reads $1 = 5, $2 = 5."], ["c2", "ID_regs · execute: A == B, so zero = 1."], ["c3", "EX_regs · branch check: taken, so the next PC should be 0x130, not the predicted 0x124. Next PC redirects to 0x130 and flushes 0x124, 0x128 and 0x12C; the BHT/BTB learn the branch."], ["c4", "MEM1 · MEM2: nothing to select."], ["c5", "MEM_regs: nothing is written."]], "label": "beq"}, "i-jal": {"title": "jal 0x200", "text": "Encoding 0x0C000080 at pc 0x140.", "steps": [["c0", "IF1 · fetch: 0x140; the predicted next fetch is 0x144."], ["c1", "IF_regs · decode: J type, jumpAddr = {pc[63:28], 0x80 << 2} = 0x200, rd = 31, linkpc 1."], ["c2", "ID_regs: Next PC redirects to 0x200 and flushes 0x144 and 0x148; the JAL itself keeps going because it links."], ["c3", "EX_regs · MEM1: carries pc4 = 0x144."], ["c4", "MEM1 · MEM2: linkpc selects pc + 4, W_data = 0x144."], ["c5", "MEM_regs · write-back: $31 ← 0x144."]], "label": "jal"}};</script>
+<script src="modules.js" onerror="window.SCHEM_MODULES = null"></script>
+<script>
+(function () {
+    "use strict";
+    var $ = function (s, r) { return (r || document).querySelector(s); };
+    var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+    var root = document.documentElement, cd = $("#cd"), frame = $("#rtlf"), S = window.SCENES;
+
+    // ---------- theme ----------
+    function stored() { try { return localStorage.getItem("0dmips-theme"); } catch (e) { return null; } }
+    function theme() { return root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); }
+    function applyTheme(t) {
+        if (t) root.setAttribute("data-theme", t); else root.removeAttribute("data-theme");
+        $("#theme").textContent = theme() === "dark" ? "Light" : "Dark";
+        if (frame.contentWindow) frame.contentWindow.postMessage({ type: "theme", theme: theme() }, "*");
+    }
+    applyTheme(stored());
+    $("#theme").addEventListener("click", function () {
+        var t = theme() === "dark" ? "light" : "dark";
+        try { localStorage.setItem("0dmips-theme", t); } catch (e) { }
+        applyTheme(t);
+    });
+
+    // ---------- tabs + routing: #<scene> | #rtl/<module>[/<instance>] ----------
+    function showTab(name) {
+        $$(".seg button").forEach(function (b) { b.setAttribute("aria-selected", b.id === "t-" + name ? "true" : "false"); });
+        $("#p-concept").hidden = name !== "concept";
+        $("#p-rtl").hidden = name !== "rtl";
+    }
+    $("#t-concept").addEventListener("click", function () { route("#" + scene); });
+    $("#t-rtl").addEventListener("click", function () { route("#rtl/" + (path.length ? path[path.length - 1].mod : "core")); });
+
+    // ---------- layers ----------
+    $$(".bar input[data-layer]").forEach(function (i) {
+        var sync = function () { cd.classList.toggle("h-" + i.getAttribute("data-layer"), !i.checked); };
+        i.addEventListener("change", sync);
+        sync();
+    });
+
+    // ---------- scenes ----------
+    var layered = $$("#cd [data-layer]"), scene = "overview";
+    function tokens(e) { return (e.getAttribute("data-k") || "").split(" "); }
+    function light(keys) {
+        layered.forEach(function (e) {
+            var k = tokens(e);
+            e.classList.toggle("on", k.indexOf("rail") !== -1 || k.some(function (x) { return keys.indexOf(x) !== -1; }));
+        });
+        cd.classList.add("focus");
+    }
+    function unlight() { cd.classList.remove("focus"); layered.forEach(function (e) { e.classList.remove("on"); }); }
+    function colorOf(id) {
+        var b = $('.picker button[data-scene="' + id + '"]');
+        return b ? b.style.getPropertyValue("--c") : "var(--ink)";
+    }
+    function setScene(id) {
+        if (!S[id]) id = "overview";
+        scene = id;
+        var s = S[id], c = colorOf(id);
+        $$(".picker button").forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-scene") === id ? "true" : "false"); });
+        $("#s-title").textContent = s.title;
+        $("#s-text").textContent = s.text;
+        var ol = $("#s-steps");
+        ol.innerHTML = "";
+        ol.className = id.indexOf("i-") === 0 ? "cycles" : "";
+        ol.style.setProperty("--sc", c);
+        s.steps.forEach(function (st) {
+            var li = document.createElement("li"), tg = document.createElement("span");
+            tg.className = "tg"; tg.textContent = st[0];
+            li.appendChild(tg);
+            li.appendChild(document.createTextNode(st[1]));
+            li.setAttribute("data-tag", st[0]);
+            li.addEventListener("mouseenter", function () { pulse(st[0], true); });
+            li.addEventListener("mouseleave", function () { pulse(st[0], false); });
+            ol.appendChild(li);
+        });
+        $$("#cd .step, #cd .badge").forEach(function (g) {
+            var on = g.getAttribute("data-scene") === id;
+            g.style.display = on ? "inline" : "none";
+            g.style.setProperty("--sc", c);
+        });
+        if (id === "overview") unlight(); else light([id]);
+    }
+    function pulse(tag, on) {
+        $$('#cd .step[data-scene="' + scene + '"]').forEach(function (g) {
+            if (g.getAttribute("data-tag") === tag) g.classList.toggle("pulse", on);
+        });
+        $$("#s-steps li").forEach(function (li) { if (li.getAttribute("data-tag") === tag) li.classList.toggle("on", on); });
+    }
+    $$("#cd .step").forEach(function (g) {
+        var tag = g.getAttribute("data-tag");
+        g.addEventListener("mouseenter", function () { pulse(tag, true); });
+        g.addEventListener("mouseleave", function () { pulse(tag, false); });
+    });
+    $$(".picker button").forEach(function (b) {
+        b.addEventListener("click", function () {
+            var id = b.getAttribute("data-scene");
+            route("#" + (id === scene && id !== "overview" ? "overview" : id));
+        });
+    });
+
+
+    // ---------- zoom ----------
+    var zoom = 1, ZOOMS = [1, 1.3, 1.65, 2.1];
+    $$(".bar [data-zoom]").forEach(function (b) {
+        b.addEventListener("click", function () {
+            zoom = ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, ZOOMS.indexOf(zoom) + +b.getAttribute("data-zoom")))];
+            cd.style.setProperty("--z", zoom);
+            $(".scroll").classList.toggle("zoomed", zoom > 1);
+            $("#zv").textContent = Math.round(zoom * 100) + "%";
+        });
+    });
+
+    // ---------- tooltip ----------
+    var tip = $("#tip");
+    function tipFor(t) { return t && t.closest ? t.closest("#cd [data-tip]") : null; }
+    function showTip(g, x, y) {
+        var mod = g.getAttribute("data-mod"), inst = g.getAttribute("data-inst");
+        tip.innerHTML = "";
+        if (mod) { var b = document.createElement("b"); b.textContent = (inst ? inst + " · " : "") + mod + " · click to open ↗"; tip.appendChild(b); }
+        tip.appendChild(document.createTextNode(g.getAttribute("data-tip")));
+        tip.hidden = false;
+        var r = tip.getBoundingClientRect(), top = y + 16;
+        if (top + r.height > window.innerHeight - 8) top = y - r.height - 12;
+        tip.style.left = Math.max(8, Math.min(x + 14, window.innerWidth - r.width - 8)) + "px";
+        tip.style.top = Math.max(8, top) + "px";
+    }
+    cd.addEventListener("pointermove", function (e) { var g = tipFor(e.target); if (g) showTip(g, e.clientX, e.clientY); else tip.hidden = true; });
+    cd.addEventListener("pointerleave", function () { tip.hidden = true; });
+    cd.addEventListener("focusin", function (e) { var g = tipFor(e.target); if (g) { var r = g.getBoundingClientRect(); showTip(g, r.left, r.bottom); } });
+    cd.addEventListener("focusout", function () { tip.hidden = true; });
+
+    // ---------- drawing → RTL ----------
+    function openFromDrawing(g) {
+        tip.hidden = true;
+        var mod = g.getAttribute("data-mod"), inst = g.getAttribute("data-inst");
+        route("#rtl/" + mod + (inst ? "/" + inst : ""));
+        window.scrollTo({ top: 0 });
+    }
+    cd.addEventListener("click", function (e) { var g = e.target.closest && e.target.closest("#cd [data-mod]"); if (g) openFromDrawing(g); });
+    cd.addEventListener("keydown", function (e) {
+        if ((e.key === "Enter" || e.key === " ") && e.target.hasAttribute && e.target.hasAttribute("data-mod")) { e.preventDefault(); openFromDrawing(e.target); }
+    });
+
+    // ---------- RTL browser ----------
+    var M = window.SCHEM_MODULES, path = [], loaded = null;
+    if (!M) $(".rtl").innerHTML = '<p class="missing">The RTL pages are generated: run <code>python docs/gen_export_schematics_site.py</code> and serve <code>docs/schematic_html/</code>.</p>';
+    function children(mod) { return (M && M.modules[mod]) || []; }
+    var UR = M && M.util ? M.util.rows : {}, UM = M && M.util ? M.util.meta : null;
+    function kfmt(n) { return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k" : String(n); }
+    if (M) {
+        var prov = $("#prov");
+        prov.innerHTML = "";
+        var add = function (t, code) { var e = document.createElement(code ? "code" : "span"); e.textContent = t; prov.appendChild(e); };
+        add("Schematics: Vivado " + (UM ? UM.tool + " " : "") + "elaborated RTL (");
+        add("synth_design -rtl", true);
+        add(") of SOC" + (UM ? " for " + UM.part : "") + ": generic RTL cells, before mapping to FPGA primitives. ");
+        if (UM && UR.SOC) {
+            var t = UR.SOC, d = UM.device, pc = function (v, c) { return c ? " (" + (100 * v / c).toFixed(1) + "%)" : ""; };
+            add("Sizes: post-synthesis ");
+            add("report_utilization -hierarchical", true);
+            add(" of the same design. Whole SoC: " + t.lut.toLocaleString("en-US") + " LUT" + pc(t.lut, d.lut) + " · " +
+                t.ff.toLocaleString("en-US") + " FF" + pc(t.ff, d.ff) + " · " + t.bram + " BRAM" + pc(t.bram, d.bram) + " · " + t.dsp + " DSP.");
+        }
+    }
+    function findPath(target) {
+        var q = [[{ inst: M.top, mod: M.top }]], seen = {};
+        while (q.length) {
+            var p = q.shift(), m = p[p.length - 1].mod;
+            if (m === target) return p;
+            if (seen[m]) continue;
+            seen[m] = 1;
+            children(m).forEach(function (c) { q.push(p.concat([{ inst: c[0], mod: c[1] }])); });
+        }
+        return [{ inst: M.top, mod: M.top }, { inst: target, mod: target }];
+    }
+    function buildTree() {
+        if (!M) return;
+        function node(inst, mod, depth, upath) {
+            var li = document.createElement("li"), row = document.createElement("div"), kids = children(mod);
+            row.className = "row";
+            var tg = document.createElement("button");
+            tg.type = "button"; tg.className = "tg"; tg.tabIndex = -1;
+            var b = document.createElement("button");
+            b.type = "button";
+            b.setAttribute("data-mod", mod);
+            var nm = document.createElement("span");
+            nm.appendChild(document.createTextNode(inst));
+            if (inst !== mod) { var s = document.createElement("small"); s.textContent = " : " + mod; nm.appendChild(s); }
+            b.appendChild(nm);
+            var u = UR[upath];
+            if (u) {
+                var sz = document.createElement("span"); sz.className = "sz"; sz.textContent = kfmt(u.lut) + " LUT";
+                sz.title = u.lut + " LUT · " + u.ff + " FF" + (u.bram ? " · " + u.bram + " BRAM" : "") + " (post-synthesis)";
+                b.appendChild(sz);
+            }
+            b.addEventListener("click", function () { go(mod, null, true); });
+            row.appendChild(tg); row.appendChild(b); li.appendChild(row);
+            if (kids.length && depth < 8) {
+                var ul = document.createElement("ul"), open = depth < 1 || mod === "core";
+                kids.forEach(function (c) { ul.appendChild(node(c[0], c[1], depth + 1, upath + "/" + c[0])); });
+                li.appendChild(ul);
+                ul.hidden = !open;
+                tg.textContent = open ? "▾" : "▸";
+                tg.setAttribute("aria-label", "Expand " + inst);
+                tg.addEventListener("click", function () { ul.hidden = !ul.hidden; tg.textContent = ul.hidden ? "▸" : "▾"; });
+            } else {
+                tg.disabled = true;
+            }
+            return li;
+        }
+        $("#tree").appendChild(node("SOC", M.top, 0, "SOC"));
+    }
+    buildTree();
+    $("#tq").addEventListener("input", function () {
+        var s = this.value.trim().toLowerCase();
+        $$("#tree li").forEach(function (li) {
+            var hit = !s || li.textContent.toLowerCase().indexOf(s) !== -1;
+            li.hidden = !hit;
+            var ul = li.querySelector(":scope > ul");
+            if (ul && s && hit) ul.hidden = false;
+        });
+    });
+    function reveal(mod) {
+        var b = $('#tree button[data-mod="' + mod + '"]');
+        for (var ul = b && b.closest("ul"); ul && ul.id !== "tree"; ul = ul.parentNode.closest("ul")) {
+            if (ul.hidden) { ul.hidden = false; ul.parentNode.querySelector(".tg").textContent = "▾"; }
+        }
+    }
+    function drawCrumbs() {
+        var c = $("#crumbs");
+        c.innerHTML = "";
+        path.forEach(function (p, i) {
+            if (i) { var sp = document.createElement("span"); sp.className = "sp"; sp.textContent = "›"; c.appendChild(sp); }
+            var label = i === 0 ? "SOC" : p.inst + (p.inst !== p.mod ? " : " + p.mod : "");
+            if (i === path.length - 1) {
+                var h = document.createElement("span"); h.className = "here"; h.textContent = label; c.appendChild(h);
+            } else {
+                var b = document.createElement("button"); b.type = "button"; b.textContent = label;
+                b.addEventListener("click", function () { go(p.mod, null, true); });
+                c.appendChild(b);
+            }
+        });
+        var hint = document.createElement("span"); hint.className = "hint";
+        hint.textContent = "drag to pan · wheel to zoom · click a wire to trace it · a blue box to go in · a frame's − to go up";
+        c.appendChild(hint);
+        var a = document.createElement("a");
+        a.href = path.length ? encodeURIComponent(path[path.length - 1].mod) + ".html" : "#";
+        a.target = "_blank"; a.rel = "noopener"; a.textContent = "Open alone ↗";
+        c.appendChild(a);
+        var cur = path.length ? path[path.length - 1].mod : null;
+        $$("#tree .row > button[data-mod]").forEach(function (b) { b.setAttribute("aria-current", b.getAttribute("data-mod") === cur ? "true" : "false"); });
+        if (cur) reveal(cur);
+    }
+    function go(mod, inst, push) {
+        if (!M) return;
+        if (!path.length || path[path.length - 1].mod !== mod) path = findPath(mod);
+        if (loaded === mod && inst) frame.contentWindow.postMessage({ type: "focus", inst: inst }, "*");
+        else { frame.src = encodeURIComponent(mod) + ".html" + (inst ? "#focus=" + encodeURIComponent(inst) : ""); loaded = mod; }
+        drawCrumbs();
+        var h = "#rtl/" + mod + (inst ? "/" + inst : "");
+        if (location.hash !== h) history[push ? "pushState" : "replaceState"](null, "", h);
+    }
+    window.addEventListener("message", function (e) {
+        var m = e.data || {};
+        if (m.src !== "schem" || e.source !== frame.contentWindow) return;
+        if (m.type === "ready") {
+            loaded = m.module;
+            // the sheet's own frames name the instance path it was exported from
+            path = [{ inst: M.top, mod: M.top }].concat((m.chain || []).map(function (c) { return { inst: c[0], mod: c[1] }; }));
+            if (path[path.length - 1].mod !== m.module) path = findPath(m.module);
+            drawCrumbs();
+            frame.contentWindow.postMessage({ type: "theme", theme: theme() }, "*");
+            // compare the whole module segment: "#rtl/core_branch" must not count as being on core
+            var on = /^#rtl\/([^\/]+)/.exec(location.hash);
+            if (!on || decodeURIComponent(on[1]) !== m.module) history.pushState(null, "", "#rtl/" + m.module);
+        }
+    });
+    function route(h, replace) {
+        var m = /^#rtl(?:\/([^\/]+))?(?:\/(.+))?$/.exec(h || "");
+        if (m) {
+            showTab("rtl");
+            go(decodeURIComponent(m[1] || "core"), m[2] ? decodeURIComponent(m[2]) : null, !replace);
+        } else {
+            showTab("concept");
+            var id = (h || "").replace(/^#/, "");
+            setScene(id);
+            var want = "#" + scene;
+            if (location.hash !== want) history[replace ? "replaceState" : "pushState"](null, "", want);
+        }
+    }
+    window.addEventListener("popstate", function () { route(location.hash, true); });
+    route(location.hash, true);
+})();
+</script>
+</body>
+</html>

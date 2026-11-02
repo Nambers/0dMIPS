@@ -144,7 +144,7 @@
 <g stroke="#575d6c">
 <path d="M203 286h16v16h-16z" />
 <text x="230" y="281" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">mux2v_1</text>
-<text x="230" y="367" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v</text>
+<text x="230" y="367" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized0</text>
 </g>
 <g stroke="#1c1f28">
 <path d="M190 355h10" />
@@ -177,7 +177,7 @@
 <g stroke="#575d6c">
 <path d="M453 186h16v16h-16z" />
 <text x="480" y="181" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">mux2v_2</text>
-<text x="480" y="267" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v</text>
+<text x="480" y="267" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized1</text>
 </g>
 <g stroke="#1c1f28">
 <path d="M440 255h10" />

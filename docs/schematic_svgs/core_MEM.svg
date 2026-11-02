@@ -600,7 +600,7 @@
 <g stroke="#575d6c">
 <path d="M1513 816h16v16h-16z" />
 <text x="1540" y="811" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">alu_mem_mux</text>
-<text x="1540" y="937" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux4v__parameterized2</text>
+<text x="1540" y="937" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux4v__parameterized6</text>
 </g>
 <g stroke="#1c1f28" stroke-width="3">
 <path d="M1500 845h10" />
@@ -883,7 +883,7 @@
 <g stroke="#575d6c">
 <path d="M2653 706h16v16h-16z" />
 <text x="2680" y="701" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">linkpc_mux</text>
-<text x="2680" y="787" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized2</text>
+<text x="2680" y="787" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized7</text>
 </g>
 <g stroke="#1c1f28">
 <path d="M2640 775h10" />
@@ -962,7 +962,7 @@
 <g stroke="#575d6c">
 <path d="M1993 706h16v16h-16z" />
 <text x="2020" y="701" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="-1.6">mfc0_mux</text>
-<text x="2020" y="787" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized2</text>
+<text x="2020" y="787" fill="#1c1f28" stroke-width="0" text-anchor="middle" dy="9.6">mux2v__parameterized7</text>
 </g>
 <g stroke="#1c1f28">
 <path d="M1980 775h10" />

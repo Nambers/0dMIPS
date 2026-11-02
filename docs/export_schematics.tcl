@@ -1,3 +1,4 @@
+# --- elaborate RTL ---
 set output_dir "./schematic_svgs"
 file mkdir $output_dir
 
@@ -43,3 +44,9 @@ current_instance
 
 puts " Exported [expr $idx - 1] unique modules"
 puts "  Location: [file normalize $output_dir]"
+
+# --- post-synthesis utilization ---
+synth_design -top [get_property top [current_fileset]] -flatten_hierarchy rebuilt
+report_utilization -hierarchical -hierarchical_depth 10 -file "${output_dir}/utilization_hier.rpt"
+report_utilization -file "${output_dir}/utilization.rpt"
+puts " Utilization reports: [file normalize $output_dir]/utilization*.rpt"
