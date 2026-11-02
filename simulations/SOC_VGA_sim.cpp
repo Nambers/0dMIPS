@@ -2,8 +2,6 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SOC_VGA_sim.h>
-#include <SOC_VGA_sim__Syms.h>
-#include <SOC_VGA_sim_data_mem.h>
 #include <verilated.h>
 
 #include <iostream>
@@ -95,15 +93,15 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     static uint32_t frame_counter = 0;
 
     if (as->ctx->time() % VGA_CLK_V_CLK == 0 && as->top->VGA_clk &&
-        as->top->SOC->vga->h < SCREEN_WIDTH &&
-        as->top->SOC->vga->v < SCREEN_HEIGHT) {
+        as->top->probe_vga_h < SCREEN_WIDTH &&
+        as->top->probe_vga_v < SCREEN_HEIGHT) {
         SDL_SetRenderDrawColor(as->renderer, color4to8(as->top->VGA_r),
                                color4to8(as->top->VGA_g),
                                color4to8(as->top->VGA_b), SDL_ALPHA_OPAQUE);
-        SDL_RenderPoint(as->renderer, as->top->SOC->vga->h,
-                        as->top->SOC->vga->v);
+        SDL_RenderPoint(as->renderer, as->top->probe_vga_h,
+                        as->top->probe_vga_v);
 
-        if (as->top->SOC->vga->h == 0 && as->top->SOC->vga->v == 0) {
+        if (as->top->probe_vga_h == 0 && as->top->probe_vga_v == 0) {
             SDL_RenderPresent(as->renderer);
             fps_frames++;
             frame_counter++;
@@ -115,8 +113,8 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
             }
         }
     }
-    if (as->top->SOC->stdout->stdout_taken) {
-        uint64_t stdout_data = be64toh(as->top->SOC->stdout->buffer);
+    if (as->top->probe_stdout_taken) {
+        uint64_t stdout_data = be64toh(as->top->probe_stdout_buffer);
         printf("stdout: %s \n", (const char *)&stdout_data);
     }
     TICK;

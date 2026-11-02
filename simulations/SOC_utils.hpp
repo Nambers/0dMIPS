@@ -1,7 +1,10 @@
 #ifndef SOC_UTILS_HPP
 #define SOC_UTILS_HPP
 
+// Shared by the soc_tb-based harnesses (SOC_sim, SOC_debug): everything is read
+// from soc_tb's probe_* ports or the DPI inspectors in soc_inspect.hpp.
 #include "common.hpp"
+#include "soc_inspect.hpp"
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -20,38 +23,38 @@ void mainLoop(T *machine, C *ctx, unsigned int cycle_max, csh &cs_handle,
               << std::endl;
     std::cout << "simulation starting" << std::endl;
     while (ctx->time() < cycle_max * 2) {
-        if (machine->SOC->stdout->stdout_taken) {
-            uint64_t data = be64toh(machine->SOC->stdout->buffer);
+        if (machine->probe_stdout_taken) {
+            uint64_t data = be64toh(machine->probe_stdout_buffer);
             printf("stdout: %s \n", reinterpret_cast<char *>(&data));
         }
         std::cout << "time = " << ctx->time() << "\tpc = " << std::hex
                   << std::right << std::setfill('0') << std::setw(8)
-                  << vlwide_get(machine->SOC->core->IF_regs, 32, 64) << std::dec
-                  << std::left << "\t flags = ";
+                  << machine->probe_ID_pc << std::dec << std::left
+                  << "\t flags = ";
         std::string flags;
-        if (machine->SOC->interrupt_sources)
+        if (machine->probe_interrupt_sources)
             flags += "I|";
-        if (machine->SOC->core->stall)
+        if (machine->probe_stall)
             flags += "S|";
-        if (machine->SOC->core->IF_stage->inst_cache_miss_stall)
+        if (machine->probe_inst_cache_miss_stall)
             flags += "IS|";
-        if (machine->SOC->core->data_cache_miss_stall)
+        if (machine->probe_data_cache_miss_stall)
             flags += "DS|";
-        if (machine->SOC->core->flush)
+        if (machine->probe_flush)
             flags += "F|";
-        if (machine->SOC->reset)
+        if (machine->probe_reset)
             flags += "R|";
-        if (machine->SOC->core->__PVT__d_valid)
+        if (machine->probe_d_valid)
             flags += "D|";
-        if (machine->SOC->core->forward_A == 1)
+        if (machine->probe_forward_A == 1)
             flags += "AA|";
-        if (machine->SOC->core->forward_A == 2)
+        if (machine->probe_forward_A == 2)
             flags += "AM|";
-        if (machine->SOC->core->forward_B == 1)
+        if (machine->probe_forward_B == 1)
             flags += "BA|";
-        if (machine->SOC->core->forward_B == 2)
+        if (machine->probe_forward_B == 2)
             flags += "BM|";
-        switch (machine->SOC->core->MEM_stage->cp0_->exc_code) {
+        switch (machine->probe_exc_code) {
         case 0:
             break;
         case 0xc:
@@ -71,20 +74,19 @@ void mainLoop(T *machine, C *ctx, unsigned int cycle_max, csh &cs_handle,
 
         std::cout << std::left << std::setfill(' ') << std::setw(16) << flags;
         std::cout << "ID_inst = "
-                  << get_disasm(vlwide_get(machine->SOC->core->IF_regs, 32, 64),
-                                vlwide_get(machine->SOC->core->IF_regs, 0, 32),
+                  << get_disasm(machine->probe_ID_pc, machine->probe_ID_inst,
                                 disasm_cache, cs_handle);
-        if (machine->SOC->d_valid) {
+        if (machine->probe_d_valid) {
             std::cout << "\td_addr = " << std::hex << std::right
                       << std::setfill('0') << std::setw(8)
-                      << machine->SOC->d_addr << " d_wdata = " << std::setw(8)
-                      << machine->SOC->d_wdata << " d_rdata = " << std::setw(8)
-                      << machine->SOC->d_rdata << std::dec << std::left;
+                      << machine->probe_d_addr << " d_wdata = " << std::setw(8)
+                      << machine->probe_d_wdata << " d_rdata = " << std::setw(8)
+                      << machine->probe_d_rdata << std::dec << std::left;
         }
-        if (machine->SOC->interrupt_sources) {
+        if (machine->probe_interrupt_sources) {
             std::cout << "\tinterrupt_sources = " << std::hex << std::right
                       << std::setfill('0') << std::setw(2)
-                      << (int)machine->SOC->interrupt_sources << std::dec;
+                      << (int)machine->probe_interrupt_sources << std::dec;
         }
         std::cout << std::endl;
         TICK;
@@ -93,20 +95,15 @@ void mainLoop(T *machine, C *ctx, unsigned int cycle_max, csh &cs_handle,
     }
 }
 
-template <class T> void dumpMem(T *machine) {
+// memory_after.txt: one line per 4 bytes, in address order
+inline void dumpMem() {
     std::ofstream mem_out("memory_after.txt");
-    auto &mem = machine->SOC->data_mem->data_seg_xpm->mem;
-    for (size_t line = 0; line < mem.size(); ++line) {
-        for (size_t offset = 0; offset < 64; offset += 4) {
-            mem_out << std::hex << std::setfill('0') << std::setw(2)
-                    << vlwide_get(mem[line], (offset + 0) * 8, 8)
-                    << std::setw(2)
-                    << vlwide_get(mem[line], (offset + 1) * 8, 8)
-                    << std::setw(2)
-                    << vlwide_get(mem[line], (offset + 2) * 8, 8)
-                    << std::setw(2)
-                    << vlwide_get(mem[line], (offset + 3) * 8, 8) << "\n";
-        }
+    const soc_inspect::MemView mem;
+    for (uint64_t addr = 0; addr < mem.size_bytes(); addr += 4) {
+        mem_out << std::hex << std::setfill('0');
+        for (uint64_t b = 0; b < 4; ++b)
+            mem_out << std::setw(2) << int(mem.byte(addr + b));
+        mem_out << "\n";
     }
     mem_out.close();
 }

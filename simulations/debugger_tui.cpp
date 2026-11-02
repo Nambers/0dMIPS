@@ -8,31 +8,23 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <unordered_map>
 
+// Everything is read from soc_tb's probe_* ports or the DPI inspectors
+// (soc_inspect.hpp); nothing depends on Verilator's internal class layout.
 #include <SOC_sim.h>
-#include <SOC_sim_SOC.h>
-#include <SOC_sim_cache_L1.h>
-#include <SOC_sim_core.h>
-#include <SOC_sim_core_ID.h>
-#include <SOC_sim_core_IF.h>
-#include <SOC_sim_core_MEM.h>
-#include <SOC_sim_cp0.h>
-#include <SOC_sim_data_mem.h>
-#include <SOC_sim_regfile__W40.h>
-#include <SOC_sim_stdout.h>
-#include <SOC_sim_timer.h>
-#include <SOC_sim_xpm_memory_sdpram__pi1.h>
 #include <capstone/capstone.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 
-#include "../tests/cache_L1_helper.hpp"
 #include "common.hpp"
+#include "soc_inspect.hpp"
 
-enum class MemType { NO = 0, BYTE, WORD, DWORD };
+// mirrors mem_load_type_t / mem_store_type_t in structures.sv
+enum class MemType { NO = 0, BYTE, HALF, WORD, DWORD };
 
 using namespace ftxui;
 
@@ -87,7 +79,7 @@ class RingBuffer {
 uint64_t mem_center = 0x0;
 uint64_t last_mem_read = -1, last_mem_write = -1;
 MemType readType = MemType::NO, writeType = MemType::NO;
-std::array typeBytes = {0, 1, 4, 8}; // NO, BYTE, WORD, DWORD
+std::array typeBytes = {0, 1, 2, 4, 8}; // NO, BYTE, HALF, WORD, DWORD
 
 std::map<std::string, std::string> pipeline;
 
@@ -98,6 +90,11 @@ std::map<std::string, bool> flags;
 SOC_sim *machine = nullptr;
 VerilatedContext *ctx = nullptr;
 csh cs_handle;
+
+// created in main() once the model exists
+std::unique_ptr<soc_inspect::RegFileView> rf_view;
+std::unique_ptr<soc_inspect::CacheView> icache_view, dcache_view;
+std::unique_ptr<soc_inspect::MemView> mem_view;
 
 std::string reg_name(int i) {
     constexpr static std::array names = {
@@ -114,60 +111,43 @@ std::unordered_map<uint64_t, DisasmEntry> disasm_cache;
 void update_state_from_sim() {
     TICK;
     pipeline["IF"] = "N/A";
-    pipeline["ID"] = get_disasm(vlwide_get(machine->SOC->core->IF_regs, 32, 64),
-                                vlwide_get(machine->SOC->core->IF_regs, 0, 32),
+    pipeline["ID"] = get_disasm(machine->probe_ID_pc, machine->probe_ID_inst,
                                 disasm_cache, cs_handle);
-    pipeline["EX"] = get_disasm(vlwide_get(machine->SOC->core->ID_regs, 0, 64),
-                                vlwide_get(machine->SOC->core->ID_regs, 64, 32),
+    pipeline["EX"] = get_disasm(machine->probe_EX_pc, machine->probe_EX_inst,
                                 disasm_cache, cs_handle);
-    pipeline["MEM"] =
-        get_disasm(vlwide_get(machine->SOC->core->EX_regs, 0, 64),
-                   vlwide_get(machine->SOC->core->EX_regs, 64, 32),
-                   disasm_cache, cs_handle);
-    pipeline["WB"] =
-        get_disasm(vlwide_get(machine->SOC->core->MEM_regs, 0, 64),
-                   vlwide_get(machine->SOC->core->MEM_regs, 64, 32),
-                   disasm_cache, cs_handle);
+    pipeline["MEM"] = get_disasm(machine->probe_MEM_pc, machine->probe_MEM_inst,
+                                 disasm_cache, cs_handle);
+    pipeline["WB"] = get_disasm(machine->probe_WB_pc, machine->probe_WB_inst,
+                                disasm_cache, cs_handle);
 
-    auto &R = machine->SOC->core->ID_stage->rf
-                  ->__PVT__reg_out; // VlWide<64>，2048 bits
+    for (int i = 0; i < rf_view->size(); ++i)
+        RF[i] = (*rf_view)[i];
 
-    // reg0 = bits [63:0]，reg1 = bits [127:64], ..., reg31 = bits [2047:1984]
-    for (int i = 0; i < 32; ++i) {
-        // idx = i*64； width = 64
-        RF[i] = vlwide_get(R, i * 64, 64);
-    }
-
-    const auto &readTmp =
-        vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 10, 2);
-    const auto &memAddr = vlwide_get(machine->SOC->core->EX_regs,
-                                     64 + 32 + 10 + 2 * 2 + 3 + 5 + 3 * 64, 64);
-    if (readTmp) {
+    const uint64_t memAddr = machine->probe_MEM_addr;
+    if (machine->probe_MEM_load_type) {
         // load
-        readType = static_cast<MemType>(readTmp);
+        readType = static_cast<MemType>(machine->probe_MEM_load_type);
         last_mem_read = memAddr;
     }
-    const auto &writeTmp =
-        vlwide_get(machine->SOC->core->EX_regs, 64 + 32 + 10 + 2, 2);
-    if (writeTmp) {
+    if (machine->probe_MEM_store_type) {
         // store
-        writeType = static_cast<MemType>(writeTmp);
+        writeType = static_cast<MemType>(machine->probe_MEM_store_type);
         last_mem_write = memAddr;
     }
 
-    flags["I"] = machine->SOC->interrupt_sources;
-    flags["S"] = machine->SOC->core->stall;
-    flags["F"] = machine->SOC->core->flush;
-    flags["R"] = machine->SOC->reset;
-    flags["D"] = machine->SOC->core->__PVT__d_valid;
-    flags["AA"] = (machine->SOC->core->forward_A == 1);
-    flags["AM"] = (machine->SOC->core->forward_A == 2);
-    flags["BA"] = (machine->SOC->core->forward_B == 1);
-    flags["BM"] = (machine->SOC->core->forward_B == 2);
-    flags["DR"] = machine->SOC->core->__PVT__d_ready;
-    flags["OE"] = (machine->SOC->core->MEM_stage->cp0_->exc_code == 0xc);
-    flags["IE"] = (machine->SOC->core->MEM_stage->cp0_->exc_code == 0xa);
-    flags["SC"] = (machine->SOC->core->MEM_stage->cp0_->exc_code == 0x8);
+    flags["I"] = machine->probe_interrupt_sources;
+    flags["S"] = machine->probe_stall;
+    flags["F"] = machine->probe_flush;
+    flags["R"] = machine->probe_reset;
+    flags["D"] = machine->probe_d_valid;
+    flags["AA"] = (machine->probe_forward_A == 1);
+    flags["AM"] = (machine->probe_forward_A == 2);
+    flags["BA"] = (machine->probe_forward_B == 1);
+    flags["BM"] = (machine->probe_forward_B == 2);
+    flags["DR"] = machine->probe_d_ready;
+    flags["OE"] = (machine->probe_exc_code == 0xc);
+    flags["IE"] = (machine->probe_exc_code == 0xa);
+    flags["SC"] = (machine->probe_exc_code == 0x8);
 }
 
 Element render_pipeline() {
@@ -213,14 +193,14 @@ Element render_pipeline() {
     auto timer_panel =
         vbox({
             text("⏱ Peripheral: Timer") | bold,
-            text("Cycle: " + std::to_string(machine->SOC->timer->cycle_D)),
+            text("Cycle: " + std::to_string(machine->probe_timer_cycle)),
         }) |
         border | size(WIDTH, EQUAL, 22);
 
     // PC indicator
     std::ostringstream pc_hex;
     pc_hex << "0x" << std::hex << std::setw(8) << std::setfill('0')
-           << vlwide_get(machine->SOC->core->IF_regs, 32, 64);
+           << machine->probe_ID_pc;
 
     auto pc_panel = vbox({
                         text("📍 PC") | bold,
@@ -258,13 +238,13 @@ Element render_registers() {
     return vbox(lines) | border;
 }
 
-Element render_cache(SOC_sim_cache_L1 *cache, const std::string &label,
-                     bool miss_stall) {
-    constexpr int num_entries = 32;
-    uint64_t cur_addr = cache->addr;
-    unsigned int cur_idx = getIndex(cur_addr);
-    uint64_t cur_tag = getTag(cur_addr);
-    uint8_t way_hit_bits = cache->way_hit;
+Element render_cache(const soc_inspect::CacheView &cache,
+                     const std::string &label, uint64_t cur_addr,
+                     uint8_t way_hit_bits, bool miss_stall) {
+    const int num_entries = cache.entries();
+    const auto cur = cache.decode(cur_addr);
+    unsigned int cur_idx = cur.index;
+    uint64_t cur_tag = cur.tag;
 
     std::ostringstream addr_oss;
     addr_oss << "0x" << std::hex << std::setw(8) << std::setfill('0')
@@ -289,10 +269,11 @@ Element render_cache(SOC_sim_cache_L1 *cache, const std::string &label,
     }));
 
     auto make_way_elem = [&](int w, int i, bool is_lru) -> Element {
-        bool valid = (bool)cache->valid_array[w][i];
-        bool dirty = (bool)cache->dirty_array[w][i];
-        uint64_t tag = cache->tag_array[w][i];
-        uint64_t data0 = cacheDataBank(cache, w, 0)[i];
+        const auto line = cache.meta(w, i);
+        bool valid = line.valid;
+        bool dirty = line.dirty;
+        uint64_t tag = line.tag;
+        uint64_t data0 = cache.word(w, 0, i);
         bool is_hit = (way_hit_bits >> w) & 1;
         bool tag_match = (i == (int)cur_idx) && valid && (tag == cur_tag);
 
@@ -317,7 +298,7 @@ Element render_cache(SOC_sim_cache_L1 *cache, const std::string &label,
 
     for (int i = 0; i < num_entries; ++i) {
         bool is_cur = (i == (int)cur_idx);
-        uint8_t lru = cache->__PVT__LRU_way_array[i];
+        uint8_t lru = cache.meta(0, i).lru;
 
         std::ostringstream idx_oss;
         idx_oss << std::setw(2) << std::setfill(' ') << i;
@@ -343,13 +324,12 @@ Element render_cache(SOC_sim_cache_L1 *cache, const std::string &label,
 }
 
 Element render_cache_L1() {
-    bool dcache_miss =
-        (bool)machine->SOC->core->MEM_stage->data_cache_miss_stall;
+    bool dcache_miss = machine->probe_data_cache_miss_stall;
     return hbox({
-        render_cache(machine->SOC->core->IF_stage->inst_cache, "⚡ ICache L1",
-                     false),
-        render_cache(machine->SOC->core->MEM_stage->data_cache, "⚡ DCache L1",
-                     dcache_miss),
+        render_cache(*icache_view, "⚡ ICache L1", machine->probe_icache_addr,
+                     machine->probe_icache_way_hit, false),
+        render_cache(*dcache_view, "⚡ DCache L1", machine->probe_dcache_addr,
+                     machine->probe_dcache_way_hit, dcache_miss),
     });
 }
 
@@ -358,15 +338,10 @@ Element render_memory(uint64_t &center_addr) {
     constexpr int row_radius = 8;
     uint64_t base_row;
 
-    // mem_bus_req packed fields (572 bits total, little-endian in VlWide):
-    //   [0]      = mem_req_load
-    //   [1]      = mem_req_store
-    //   [513:2]  = mem_data_out (512 bits)
-    //   [571:514]= mem_addr (58 bits = physical_addr >> 6, cache-line aligned)
-    bool bus_load = vlwide_get(machine->SOC->mem_bus_req, 0, 1);
-    bool bus_store = vlwide_get(machine->SOC->mem_bus_req, 1, 1);
-    uint64_t bus_lo = vlwide_get(machine->SOC->mem_bus_req, 512 + 2, 58) << 6;
-    uint64_t bus_hi = bus_lo + 64;
+    bool bus_load = machine->probe_bus_load;
+    bool bus_store = machine->probe_bus_store;
+    uint64_t bus_lo = machine->probe_bus_addr; // byte address of the line
+    uint64_t bus_hi = bus_lo + mem_view->line_bytes();
 
     if (bus_load || bus_store) {
         // if there's an ongoing bus request, center the view on the requested
@@ -376,14 +351,6 @@ Element render_memory(uint64_t &center_addr) {
     } else {
         base_row = (center_addr / bytes_per_row) * bytes_per_row;
     }
-
-    auto load_byte = [&](uint64_t addr) -> uint8_t {
-        constexpr size_t W = 16; // VlWide<16>
-        auto &row = machine->SOC->data_mem->data_seg_xpm
-                        ->mem[addr / (sizeof(EData) * W)];
-        EData word = row[(addr / sizeof(EData)) % W];
-        return word >> ((addr % sizeof(EData)) * 8);
-    };
 
     std::vector<Element> lines;
     lines.push_back(text("📦 Memory") | bold);
@@ -409,10 +376,15 @@ Element render_memory(uint64_t &center_addr) {
             }
 
             uint64_t addr = row_addr + b;
-            uint8_t val = load_byte(addr);
+            // past the end of the backing memory: show "--"
+            const bool mapped = mem_view->contains(addr);
+            uint8_t val = mapped ? mem_view->byte(addr) : 0;
 
             std::ostringstream h;
-            h << std::hex << std::setw(2) << std::setfill('0') << (int)val;
+            if (mapped)
+                h << std::hex << std::setw(2) << std::setfill('0') << (int)val;
+            else
+                h << "--";
             auto cell = text(h.str());
 
             // bus request highlight: dim background for the 64-byte cache line
@@ -485,9 +457,9 @@ Element render_perip() {
     lines.push_back(text("🔌 Peripheral: STDOUT") | bold);
     static size_t lastCheck = 0;
 
-    if (ctx->time() > lastCheck && machine->SOC->stdout->stdout_taken) {
+    if (ctx->time() > lastCheck && machine->probe_stdout_taken) {
         lastCheck = ctx->time();
-        uint64_t data = be64toh(machine->SOC->stdout->buffer);
+        uint64_t data = be64toh(machine->probe_stdout_buffer);
         char *buf = reinterpret_cast<char *>(&data);
 
         for (int i = 0; i < 8; ++i) {
@@ -521,6 +493,12 @@ int main(int argc, char **argv) {
     if (init_capstone(&cs_handle) != 0) {
         return 1;
     }
+    rf_view = std::make_unique<soc_inspect::RegFileView>();
+    icache_view =
+        std::make_unique<soc_inspect::CacheView>(soc_inspect::ICACHE_PATH);
+    dcache_view =
+        std::make_unique<soc_inspect::CacheView>(soc_inspect::DCACHE_PATH);
+    mem_view = std::make_unique<soc_inspect::MemView>();
 
     machine->sys_clk = 1;
     machine->sys_rst_n = 0;

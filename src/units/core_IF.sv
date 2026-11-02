@@ -31,7 +31,7 @@ module core_IF #(
     IF1_t IF1;
     logic [63:0] inst_L1;
     logic [63:0] if_fetch_pc, if_fetch_pc4, if_predicted_npc;
-    logic inst_cache_miss, inst_cache_miss_stall  /* verilator public */;
+    logic inst_cache_miss, inst_cache_miss_stall;
 
     cache_L1 inst_cache (
         .clock(clock),

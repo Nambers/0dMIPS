@@ -16,7 +16,7 @@ module led #(
     input  mem_store_type_t        mem_store_type,
     input  logic            [63:0] w_data,
     output logic            [ 3:0] led_out,
-    output logic                   led_taken        /* verilator public */
+    output logic                   led_taken
 );
 
     always_ff @(posedge clock or posedge reset) begin

@@ -19,22 +19,13 @@ module SOC (
 `endif
     input logic sys_rst_n  // active low
 );
-    logic [63:0]
-        d_addr  /* verilator public */,
-        d_wdata  /* verilator public */,
-        d_rdata  /* verilator public */,
-        timer_out;
-    logic [7:0] interrupt_sources  /* verilator public */;
+    logic [63:0] d_addr, d_wdata, d_rdata, timer_out;
+    logic [7:0] interrupt_sources;
     mem_store_type_t d_store_type;
-    mem_bus_req_t mem_bus_req  /* verilator public */;
-    mem_bus_resp_t mem_bus_resp  /* verilator public */;
-    logic reset  /* verilator public */;
-    logic
-        d_valid  /* verilator public */,
-        d_ready,
-        taken,
-        timer_taken,
-        timer_interrupt;
+    mem_bus_req_t mem_bus_req;
+    mem_bus_resp_t mem_bus_resp;
+    logic reset;
+    logic d_valid, d_ready, taken, timer_taken, timer_interrupt;
 `ifdef VGA_ENABLED
     logic VGA_taken;
 `endif

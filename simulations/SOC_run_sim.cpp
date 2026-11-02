@@ -1,17 +1,8 @@
 #include <SOC_run_sim.h>
-#include <SOC_run_sim_SOC.h>
-#include <SOC_run_sim_core.h>
-#include <SOC_run_sim_core_MEM.h>
-#include <SOC_run_sim_cp0.h>
-#include <SOC_run_sim_data_mem.h>
-#include <SOC_run_sim_stdout.h>
 #include <verilated.h>
 
 #include <endian.h>
-#include <fstream>
-#include <iomanip>
 #include <iostream>
-#include <unordered_map>
 
 #ifdef TRACE
 #include <verilated_vcd_c.h>
@@ -25,7 +16,7 @@
 
 #define TICK_HALF                                                              \
     do {                                                                       \
-        machine->sys_clk = !machine->sys_clk;                                          \
+        machine->sys_clk = !machine->sys_clk;                                  \
         machine->eval();                                                       \
         TICK_TRACE                                                             \
         ctx->timeInc(1);                                                       \
@@ -53,8 +44,8 @@ int main(int argc, char **argv) {
     machine->sys_rst_n = 1;
 
     while (1) {
-        if (machine->SOC->stdout->stdout_taken) {
-            uint64_t data = be64toh(machine->SOC->stdout->buffer);
+        if (machine->probe_stdout_taken) {
+            uint64_t data = be64toh(machine->probe_stdout_buffer);
             char buf[9];
             memmove(buf, &data, 8);
             std::cout << buf << std::flush;

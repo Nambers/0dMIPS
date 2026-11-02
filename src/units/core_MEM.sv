@@ -25,7 +25,7 @@ module core_MEM (
     output logic [63:0] MEM1_forward_data,
     output logic [4:0] MEM1_forward_regnum,
     output logic MEM1_forward_write_enable,
-    output logic data_cache_miss_stall  /* verilator public */,
+    output logic data_cache_miss_stall,
 
     // -- mem bus --
     output mem_bus_req_t  data_req,
@@ -46,7 +46,7 @@ module core_MEM (
 
     MEM1_t MEM1;
     logic [63:0] EPC, c0_rd_data, data_out;
-    logic takenHandler  /* verilator public */, data_cache_miss;
+    logic takenHandler, data_cache_miss;
 
     // -- MEM cycle 1 --
     // -- cp0 --
@@ -92,7 +92,7 @@ module core_MEM (
 
     // -- MEM cycle 2 --
     logic [63:0] alu_mem_d_out, W_data, W_data_lui_linkpc;
-    mux4v #(64) alu_mem_mux (
+    mux4v #(64, 4'b0010) alu_mem_mux (
         alu_mem_d_out,
         MEM1.EX_out,
         data_out,

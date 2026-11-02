@@ -13,9 +13,9 @@ module stdout (
     input  logic            [63:0] addr,
     input  mem_store_type_t        mem_store_type,
     input  logic            [63:0] w_data,
-    output logic                   stdout_taken     /* verilator public */
+    output logic                   stdout_taken
 );
-    logic [63:0] buffer  /* verilator public */;
+    logic [63:0] buffer;
 
     always_ff @(posedge clock or posedge reset) begin
         if (reset) begin

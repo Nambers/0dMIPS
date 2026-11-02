@@ -1,13 +1,4 @@
 #include <SOC_debug.h>
-#include <SOC_debug_SOC.h>
-#include <SOC_debug_core.h>
-#include <SOC_debug_core_ID.h>
-#include <SOC_debug_core_IF.h>
-#include <SOC_debug_core_MEM.h>
-#include <SOC_debug_cp0.h>
-#include <SOC_debug_data_mem.h>
-#include <SOC_debug_stdout.h>
-#include <SOC_debug_xpm_memory_sdpram__pi1.h>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 
@@ -56,7 +47,7 @@ int main(int argc, char **argv) {
     machine->sys_rst_n = 1;
     std::cout << "Press any key to step." << std::endl;
     mainLoop(machine, ctx, cycle_max, cs_handle, disasm_cache, true);
-    dumpMem(machine);
+    dumpMem();
 
     // tfp->flush();
     // tfp->close();
