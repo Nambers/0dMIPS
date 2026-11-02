@@ -32,15 +32,20 @@ module VGA (
     // double buffers for write and display
     // Forced to block RAM: each buffer is 128*96*12 = 147456 bits; without the
     // attribute Vivado infers ~9000 LUT-RAMs per buffer, consuming ~18000 LUTs.
-    (* ram_style = "block" *) logic [11:0] frame_buf0[BUF_WIDTH * BUF_HEIGHT - 1:0];
-    (* ram_style = "block" *) logic [11:0] frame_buf1[BUF_WIDTH * BUF_HEIGHT - 1:0];
+    (* ram_style = "block" *)logic [11:0] frame_buf0[BUF_WIDTH * BUF_HEIGHT - 1:0];
+    (* ram_style = "block" *)logic [11:0] frame_buf1[BUF_WIDTH * BUF_HEIGHT - 1:0];
+
+    // Power-on values are declaration initialisers rather than an `initial`
+    // block: these are written by always_ff, and another process writing them
+    // is MULTIDRIVEN since Verilator 5.054. Vivado uses them as INIT values.
 
     // display counters
-    logic [9:0] h  /* verilator public */, v  /* verilator public */;
+    logic [9:0]
+        h  /* verilator public */ = 10'b0, v  /* verilator public */ = 10'b0;
 
     // double buffer control
-    logic display_buf;  // curr display buffer
-    logic write_buf;  // curr write buffer
+    logic display_buf = 1'b0;  // curr display buffer
+    logic write_buf = 1'b1;  // curr write buffer
 
     logic display_buf_sync1, display_buf_sync2;
 
@@ -50,13 +55,6 @@ module VGA (
     logic [9:0] w_x;
     logic [9:0] w_y;
     logic [13:0] read_index;
-
-    initial begin
-        h = 10'b0;
-        v = 10'b0;
-        display_buf = 1'b0;
-        write_buf = 1'b1;
-    end
 
     always_comb begin
         VGA_enable = (h < H_DISPLAY && v < V_DISPLAY);

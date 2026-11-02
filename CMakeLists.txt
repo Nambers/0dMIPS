@@ -13,6 +13,14 @@ find_package(verilator HINTS $ENV{VERILATOR_ROOT})
 find_package(GTest REQUIRED)
 find_package(Threads REQUIRED)
 
+# Verilator 5.054 added UNOPTPUBLIC
+# only pass the flag from 5.054 on.
+set(ODMIPS_VERILATOR_WARN_ARGS)
+if("${verilator_VERSION}" VERSION_GREATER_EQUAL 5.054)
+    list(APPEND ODMIPS_VERILATOR_WARN_ARGS -Wno-UNOPTPUBLIC)
+endif()
+message(STATUS "Verilator ${verilator_VERSION}, extra warning flags: ${ODMIPS_VERILATOR_WARN_ARGS}")
+
 function(capitalize_first input_var output_var)
     string(SUBSTRING "${${input_var}}" 0 1 first)
     string(TOUPPER "${first}" firstU)
