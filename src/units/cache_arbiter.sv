@@ -26,7 +26,7 @@ module cache_arbiter #(
         reset
     );
 
-    mux4v #(64 - 6) addr_mux (
+    mux4v #(64 - 6, 4'b1001) addr_mux (
         req.mem_addr,
         'x,
         req1.mem_addr,
@@ -35,7 +35,7 @@ module cache_arbiter #(
         {cache2_st_Q, cache1_st_Q}
     );
 
-    mux4v #(CACHE_LINE_SIZE) data_out_mux (
+    mux4v #(CACHE_LINE_SIZE, 4'b1001) data_out_mux (
         req.mem_data_out,
         'x,
         req1.mem_data_out,
@@ -44,21 +44,22 @@ module cache_arbiter #(
         {cache2_st_Q, cache1_st_Q}
     );
 
-    mux2v #(CACHE_LINE_SIZE) data_1_mux (
+    // caches only read mem_data while their mem_ready is high
+    mux2v #(CACHE_LINE_SIZE, 2'b10) data_1_mux (
         resp1.mem_data,
         'x,
         resp.mem_data,
         cache1_st_Q && resp.mem_ready
     );
 
-    mux2v #(CACHE_LINE_SIZE) data_2_mux (
+    mux2v #(CACHE_LINE_SIZE, 2'b10) data_2_mux (
         resp2.mem_data,
         'x,
         resp.mem_data,
         cache2_st_Q && resp.mem_ready
     );
 
-    mux4v #(1) req_load_mux (
+    mux4v #(1, 4'b0001) req_load_mux (
         req.mem_req_load,
         1'b0,
         req1.mem_req_load && !reset,
@@ -67,7 +68,7 @@ module cache_arbiter #(
         {cache2_st_Q, cache1_st_Q}
     );
 
-    mux4v #(1) req_store_mux (
+    mux4v #(1, 4'b0001) req_store_mux (
         req.mem_req_store,
         1'b0,
         req1.mem_req_store && !reset,

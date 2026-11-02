@@ -59,7 +59,7 @@ module barrel_rotator32 #(
         rotate_amount
     );
 
-    mux2v #(WIDTH) final_mux (
+    mux2v #(WIDTH, 2'b10) final_mux (
         data_out,
         'x,
         right_result,

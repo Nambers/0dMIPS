@@ -63,7 +63,7 @@ module core_EX (
         forward_B
     );
 
-    mux8v #(64) B_in_barrel_mux (
+    mux8v #(64, 8'b0100_0111) B_in_barrel_mux (
         B_in_barrel,
         forwarded_B,
         'x,
