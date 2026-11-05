@@ -224,6 +224,15 @@ def pill(layer, x, y, text, k="", side="left", tip=None):
             tip=tip,
         )
         return
+    if side == "up":
+        d = f"M{x} {y}l-5 5H{x - w / 2}a3 3 0 0 0 -3 3v10a3 3 0 0 0 3 3H{x + w / 2}a3 3 0 0 0 3 -3v-10a3 3 0 0 0 -3 -3H{x + 5}Z"
+        grp(
+            layer,
+            f'<path class="tag" d="{d}"/>' + T(x, y + 17, text, "tagt", "middle"),
+            k=k,
+            tip=tip,
+        )
+        return
     if side == "left":
         d = f"M{x} {y}l-6 -8H{x - w}a3 3 0 0 0 -3 3v10a3 3 0 0 0 3 3H{x - 6}Z"
         tx = x - w + 3
@@ -314,7 +323,7 @@ rail(
     "EX_regs",
     354,
     "core_EX",
-    "EX_regs: result, store data, flags. Cleared by flush unless the instruction entering EX links (JAL/BAL/JALR).",
+    "EX_regs: result, store data, flags. Cleared by flush unless the instruction entering EX links (JAL/BAL/JALR); a taken exception or interrupt clears it regardless.",
 )
 rail(
     990,
@@ -339,7 +348,7 @@ lane(
     (372, 167),
     dash=True,
     k="ctrl " + ALL_I,
-    tip="~50 control bits decoded once in ID and carried in ID_regs → EX_regs → MEM1 → MEM_regs.",
+    tip="~50 control bits decoded once in ID into ID_regs; EX_regs, MEM1 and MEM_regs keep only the ones their stages still use.",
 )
 lane(
     "ctrl",
@@ -393,6 +402,15 @@ card(
     k="fetch mem " + ALL_I,
     tip="Looked up with IF1.fetch_pc. Its output register is IF_regs.inst, so the instruction reaches the decoder a cycle later. Line fills go through the cache arbiter. A miss holds IF1 and IF_regs' PC; the cache output reads 0 meanwhile, so decode sees NOPs until the line arrives.",
 )
+pill(
+    "mem",
+    193,
+    280,
+    "line fill ← arbiter",
+    k="mem",
+    side="up",
+    tip="I-cache misses fill a 64-byte line through the cache arbiter, which it shares with the D-cache.",
+)
 lane("data", [(100, 226), (118, 226)], dots=[(108, 226)], k="fetch " + ALL_I)
 lane(
     "data",
@@ -411,7 +429,7 @@ card(
     "BHT + BTB · 64",
     mod="core_branch_predictor",
     k="fetch branch " + ALL_I,
-    tip="2-bit BHT + tagged direct-mapped BTB, looked up with IF1.fetch_pc. Only BEQ/BNE/BC/BAL are installed and EX checks the prediction of every one of them; the lookup is by PC alone (16-bit partial tag).",
+    tip="2-bit BHT + tagged direct-mapped BTB, looked up with IF1.fetch_pc. Only BEQ/BNE/BC/BAL train it (a taken one (re)allocates its BTB entry), and EX checks the prediction of every one of them; the lookup is by PC alone (16-bit partial tag).",
 )
 lane("data", [(268, 226), (284, 226)], k="fetch " + ALL_I)
 lane(
@@ -470,7 +488,7 @@ card(
     mod="core_ID",
     inst="BranchAddr_mux",
     k="branch i-beq i-jal",
-    tip="Branch target (pc4 + off·4 for BEQ/BNE/BAL, BC, ADDIUPC) and J/JAL target {pc[63:28], inst[25:0], 00}, computed in ID.",
+    tip="Branch target (pc4 + off·4 for BEQ/BNE/BAL and BC; fetch_pc + imm19·4 for ADDIUPC) and J/JAL target {pc[63:28], inst[25:0], 00}, computed in ID.",
 )
 lane(
     "data",
@@ -478,7 +496,7 @@ lane(
     "targets",
     (410, 349),
     k="branch i-beq i-jal",
-    tip="pc_branch (BEQ/BNE/BC/ADDIUPC) and jumpAddr (J/JAL), carried in ID_regs.",
+    tip="pc_branch (BEQ/BNE/BAL/BC/ADDIUPC) and jumpAddr (J/JAL), carried in ID_regs.",
 )
 lane("branch", [(292, 412), (516, 412)], "predicted_npc", (300, 406), k="branch i-beq")
 
@@ -663,7 +681,7 @@ card(
     sub2="RI · ERET ← ID_regs",
     mod="cp0",
     k="exc",
-    tip="In MEM1: overflow/syscall/break from EX_regs, reserved instruction and ERET from ID_regs. takenHandler reaches core_branch two cycles later through MEM1 and MEM_regs. EPC = ID_regs.pc: the next instruction, or a reserved instruction itself.",
+    tip="In MEM1: overflow/syscall/break from EX_regs, reserved instruction and ERET from ID_regs. takenHandler reaches core_branch two cycles later through MEM1 and MEM_regs. For an exception EPC = ID_regs.pc (the next instruction, or a reserved instruction itself); for an interrupt EPC = IF1.fetch_pc.",
 )
 lane(
     "exc",
@@ -802,7 +820,7 @@ card(
     k="fetch branch exc " + ALL_I,
     ty=604,
     extra=inner,
-    tip="core_branch picks next_fetch_pc by priority: exception > ERET > mispredict > J/JR > prediction. During a D-cache freeze only an exception redirects; ERET, mispredict and J/JR wait until it ends. Any redirect also raises flush.",
+    tip="core_branch picks next_fetch_pc by priority: exception > ERET > mispredict > J/JR > prediction. During a D-cache freeze only an exception or interrupt redirects; ERET, mispredict and J/JR wait until it ends. Any redirect also raises flush.",
 )
 grp("exc", TM(1172, 214, "EPC · exc", "lbl"), k="exc")
 lane(
@@ -903,6 +921,15 @@ card(
     mod="cache_arbiter",
     k="mem",
     tip="Serialises I-cache and D-cache line fills / write-backs onto mem_bus.",
+)
+pill(
+    "mem",
+    1118,
+    612,
+    "I$ miss",
+    k="mem",
+    side="down",
+    tip="Line requests from the I-cache (core_IF) share the arbiter with the D-cache.",
 )
 lane("mem", [(1140, 652), (1156, 652)], k="mem")
 card(

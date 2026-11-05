@@ -106,7 +106,7 @@ SCENES = [
             ),
             (
                 "also",
-                "A not-ready MMIO access also inserts a bubble. A D-cache miss instead freezes IF, ID and EX until the line arrives, while MEM1 and MEM2 keep clocking. Only an exception redirects during the freeze; ERET, a mispredict or a jump in ID_regs waits until it ends.",
+                "A not-ready MMIO access also inserts a bubble. A D-cache miss instead freezes IF, ID and EX until the line arrives, while MEM1 and MEM2 keep clocking. Only an exception or interrupt redirects during the freeze; ERET, a mispredict or a jump in ID_regs waits until it ends.",
             ),
         ],
     ),
@@ -142,11 +142,11 @@ SCENES = [
         [
             (
                 "c0",
-                "CP0 sees overflow, SYSCALL or BREAK from EX_regs (a reserved instruction from ID_regs) and takes the exception if EXL is clear. EPC = ID_regs.pc: for overflow, SYSCALL and BREAK that is the next instruction (handlers must not add 4); a reserved instruction is caught while it is itself in ID_regs, so EPC is its own PC.",
+                "CP0 sees overflow, SYSCALL or BREAK from EX_regs (a reserved instruction from ID_regs) and takes the exception if EXL is clear. EPC = ID_regs.pc: for overflow, SYSCALL and BREAK that is the next instruction (handlers must not add 4); a reserved instruction is caught while it is itself in ID_regs, so EPC is its own PC. (An interrupt saves IF1.fetch_pc instead.)",
             ),
             (
                 "c+1",
-                "takenHandler sits in MEM1. The EPC register already holds the new value; the copy that rides MEM1 and MEM_regs is one cycle behind.",
+                "takenHandler sits in MEM1. The EPC register already holds the new value; its copies in MEM1 and MEM_regs lag one and two cycles behind.",
             ),
             (
                 "c+2",
