@@ -2,7 +2,9 @@
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/dom/node.hpp>
+#include <ftxui/screen/terminal.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <iomanip>
@@ -151,8 +153,18 @@ void update_state_from_sim() {
 }
 
 Element render_pipeline() {
+    std::ostringstream pc_hex;
+    pc_hex << "0x" << std::hex << std::setw(8) << std::setfill('0')
+           << machine->probe_ID_pc;
+
     std::vector<Element> lines;
-    lines.push_back(text("🚀 Pipeline") | bold);
+    lines.push_back(hbox({
+        text("🚀 Pipeline") | bold,
+        text("   cycle ") | dim,
+        text(std::to_string(machine->probe_timer_cycle)),
+        text("   PC ") | dim,
+        text(pc_hex.str()) | color(Color::Cyan),
+    }));
 
     for (const auto &stage :
          std::array<std::string, 5>{"IF", "ID", "EX", "MEM", "WB"}) {
@@ -173,10 +185,8 @@ Element render_pipeline() {
 
     std::vector<Element> flag_elems;
     auto push_flag = [&](const std::string &name, bool on) {
-        std::string label = name.substr(0, 10);
-        auto style = on ? color(Color::Green) : color(Color::Red);
-        flag_elems.push_back(text(label) | style);
-        flag_elems.push_back(text("  "));
+        flag_elems.push_back(text(name) |
+                             color(on ? Color::Green : Color::Red));
     };
 
     for (auto &p : persistent)
@@ -185,30 +195,9 @@ Element render_pipeline() {
         if (p.second)
             push_flag(p.first, p.second);
 
-    lines.push_back(hbox(flag_elems));
+    lines.push_back(flexbox(flag_elems, FlexboxConfig().SetGap(2, 0)));
 
-    auto left_panel = vbox(lines) | border | flex;
-
-    // Timer peripheral
-    auto timer_panel =
-        vbox({
-            text("⏱ Peripheral: Timer") | bold,
-            text("Cycle: " + std::to_string(machine->probe_timer_cycle)),
-        }) |
-        border | size(WIDTH, EQUAL, 22);
-
-    // PC indicator
-    std::ostringstream pc_hex;
-    pc_hex << "0x" << std::hex << std::setw(8) << std::setfill('0')
-           << machine->probe_ID_pc;
-
-    auto pc_panel = vbox({
-                        text("📍 PC") | bold,
-                        text("Value: " + pc_hex.str()),
-                    }) |
-                    border | size(WIDTH, EQUAL, 22);
-
-    return hbox({left_panel, vbox({timer_panel, pc_panel})}) | flex;
+    return vbox(lines) | border;
 }
 
 Element render_registers() {
@@ -259,13 +248,26 @@ Element render_cache(const soc_inspect::CacheView &cache,
         text(miss_stall ? "  MISS-STALL" : "") | color(Color::Red) | bold,
     }));
 
+    constexpr int IDX_W = 3, LRU_W = 5, WAY_W = 3, TAG_W = 6, DATA_W = 16;
+    auto way_cols = [&](Element way, Element v, Element d, Element tag,
+                        Element data) {
+        return hbox({way | size(WIDTH, EQUAL, WAY_W), v, text(" "), d,
+                     text(" "), tag | size(WIDTH, EQUAL, TAG_W), text(" "),
+                     data | size(WIDTH, EQUAL, DATA_W)});
+    };
+    auto way_header = [&](int w) {
+        return way_cols(text("W" + std::to_string(w)), text("V"), text("D"),
+                        text("Tag"), text("Data[0]")) |
+               bold | dim;
+    };
+
     rows.push_back(hbox({
-        text("Idx") | size(WIDTH, EQUAL, 3) | bold | dim,
-        text(" LRU") | bold | dim,
-        text(" | ") | dim,
-        text("W0 V D Tag    Data[0]          ") | bold | dim,
+        text("Idx") | size(WIDTH, EQUAL, IDX_W) | bold | dim,
+        text(" LRU") | size(WIDTH, EQUAL, LRU_W) | bold | dim,
         text("| ") | dim,
-        text("W1 V D Tag    Data[0]         ") | bold | dim,
+        way_header(0),
+        text(" | ") | dim,
+        way_header(1),
     }));
 
     auto make_way_elem = [&](int w, int i, bool is_lru) -> Element {
@@ -287,15 +289,15 @@ Element render_cache(const soc_inspect::CacheView &cache,
                                   : Color::GrayDark);
         auto d_elem = text(dirty ? "D" : ".") |
                       color(dirty ? Color::Red : Color::GrayDark);
-        auto tag_elem = text(tag_oss.str()) | size(WIDTH, EQUAL, 6);
+        auto tag_elem = text(tag_oss.str());
         if (tag_match || is_hit)
             tag_elem = tag_elem | color(Color::Yellow) | bold;
-        auto data_elem = text(data_oss.str()) | dim | size(WIDTH, EQUAL, 16);
+        auto data_elem = text(data_oss.str()) | dim;
 
-        return hbox({v_elem, text(" "), d_elem, text("  "), tag_elem,
-                     text("  "), data_elem});
+        return way_cols(text(""), v_elem, d_elem, tag_elem, data_elem);
     };
 
+    std::vector<Element> entries;
     for (int i = 0; i < num_entries; ++i) {
         bool is_cur = (i == (int)cur_idx);
         uint8_t lru = cache.meta(0, i).lru;
@@ -306,36 +308,38 @@ Element render_cache(const soc_inspect::CacheView &cache,
         auto lru_elem = text(lru == 0 ? " W0 " : " W1 ") | color(Color::Blue);
 
         auto row_elem = hbox({
-            text(idx_oss.str()) | size(WIDTH, EQUAL, 3),
-            lru_elem,
+            text(idx_oss.str()) | size(WIDTH, EQUAL, IDX_W),
+            lru_elem | size(WIDTH, EQUAL, LRU_W),
             text("| ") | dim,
-            make_way_elem(0, i, lru == 0) | size(WIDTH, EQUAL, 30),
+            make_way_elem(0, i, lru == 0),
             text(" | ") | dim,
             make_way_elem(1, i, lru == 1),
         });
 
         if (is_cur)
-            row_elem = row_elem | bgcolor(Color::DarkBlue);
+            row_elem = row_elem | bgcolor(Color::DarkBlue) | focus;
 
-        rows.push_back(row_elem);
+        entries.push_back(row_elem);
     }
 
-    return vbox(rows) | border | flex;
+    rows.push_back(vbox(entries) | yframe | flex);
+    return vbox(rows) | border;
 }
 
-Element render_cache_L1() {
-    bool dcache_miss = machine->probe_data_cache_miss_stall;
-    return hbox({
-        render_cache(*icache_view, "⚡ ICache L1", machine->probe_icache_addr,
-                     machine->probe_icache_way_hit, false),
-        render_cache(*dcache_view, "⚡ DCache L1", machine->probe_dcache_addr,
-                     machine->probe_dcache_way_hit, dcache_miss),
-    });
+Element render_icache() {
+    return render_cache(*icache_view, "⚡ ICache L1",
+                        machine->probe_icache_addr,
+                        machine->probe_icache_way_hit, false);
 }
 
-Element render_memory(uint64_t &center_addr) {
-    constexpr int bytes_per_row = 16;
-    constexpr int row_radius = 8;
+Element render_dcache() {
+    return render_cache(
+        *dcache_view, "⚡ DCache L1", machine->probe_dcache_addr,
+        machine->probe_dcache_way_hit, machine->probe_data_cache_miss_stall);
+}
+
+Element render_memory(uint64_t &center_addr, int bytes_per_row,
+                      int row_radius) {
     uint64_t base_row;
 
     bool bus_load = machine->probe_bus_load;
@@ -352,29 +356,18 @@ Element render_memory(uint64_t &center_addr) {
         base_row = (center_addr / bytes_per_row) * bytes_per_row;
     }
 
-    std::vector<Element> lines;
-    lines.push_back(text("📦 Memory") | bold);
+    const uint64_t rows_above =
+        std::min<uint64_t>(row_radius, base_row / bytes_per_row);
+    const uint64_t first_row = base_row - rows_above * bytes_per_row;
 
-    for (int dr = -row_radius; dr <= row_radius; ++dr) {
-        uint64_t row_addr;
-        if (dr < 0) {
-            uint64_t abs_offset = uint64_t(-dr) * bytes_per_row;
-            if (base_row < abs_offset) {
-                lines.push_back(text("   ...") | dim);
-                continue;
-            }
-            row_addr = base_row - abs_offset;
-        } else {
-            row_addr = base_row + uint64_t(dr) * bytes_per_row;
-        }
+    std::vector<Element> lines;
+
+    for (int r = 0; r <= 2 * row_radius; ++r) {
+        const uint64_t row_addr = first_row + uint64_t(r) * bytes_per_row;
 
         std::vector<Element> hex_cells;
         std::string ascii;
         for (int b = 0; b < bytes_per_row; ++b) {
-            if (b == 8) {
-                hex_cells.push_back(text("  "));
-            }
-
             uint64_t addr = row_addr + b;
             // past the end of the backing memory: show "--"
             const bool mapped = mem_view->contains(addr);
@@ -408,8 +401,11 @@ Element render_memory(uint64_t &center_addr) {
 
             ascii += (val >= 32 && val <= 126) ? char(val) : '.';
 
-            if ((b + 1) % 4 == 0 && b != 7 && b != 15) {
-                hex_cells.push_back(text(" "));
+            if (b + 1 < bytes_per_row) {
+                if ((b + 1) % 8 == 0)
+                    hex_cells.push_back(text("  "));
+                else if ((b + 1) % 4 == 0)
+                    hex_cells.push_back(text(" "));
             }
         }
 
@@ -418,15 +414,24 @@ Element render_memory(uint64_t &center_addr) {
         auto row = hbox({
             text(addr_s.str()) | dim,
             text(": "),
-            hbox(hex_cells) | flex,
+            hbox(hex_cells),
             text("  "),
             text(ascii) | dim,
         });
+        if (row_addr == base_row)
+            row = row | focus;
 
         lines.push_back(row);
     }
 
-    return vbox(lines) | border | flex;
+    return vbox({text("📦 Memory") | bold, vbox(lines) | yframe | flex}) |
+           border;
+}
+
+// border + "xxxxxxxx: " + hex groups + "  " + ascii
+constexpr int memory_panel_width(int bytes_per_row) {
+    return 2 + 10 + bytes_per_row * 2 + (bytes_per_row / 4 - 1) +
+           (bytes_per_row / 8 - 1) + 2 + bytes_per_row;
 }
 
 std::unordered_map<uint32_t, std::string> parseInst(FILE *f) {
@@ -451,10 +456,10 @@ std::unordered_map<uint32_t, std::string> parseInst(FILE *f) {
     return insts;
 }
 
+// asks for all 256 lines' height: callers must cap it with size(HEIGHT, ...)
 Element render_perip() {
-    static RingBuffer stdoutBuffer(6);
+    static RingBuffer stdoutBuffer(256);
     std::vector<Element> lines;
-    lines.push_back(text("🔌 Peripheral: STDOUT") | bold);
     static size_t lastCheck = 0;
 
     if (ctx->time() > lastCheck && machine->probe_stdout_taken) {
@@ -470,20 +475,20 @@ Element render_perip() {
         }
     }
 
-    std::string output = stdoutBuffer.str();
-    if (output.empty()) {
-        output = "No output yet.";
-    }
-
-    std::istringstream iss(output);
+    std::istringstream iss(stdoutBuffer.str());
     std::string line;
     while (std::getline(iss, line)) {
         if (!line.empty()) {
             lines.push_back(text(line) | dim);
         }
     }
+    if (lines.empty())
+        lines.push_back(text("No output yet.") | dim);
+    lines.back() = lines.back() | focus;
 
-    return vbox(lines) | border | flex | size(WIDTH, GREATER_THAN, 30);
+    return vbox({text("🔌 Peripheral: STDOUT") | bold,
+                 vbox(lines) | yframe | flex}) |
+           border;
 }
 
 int main(int argc, char **argv) {
@@ -514,12 +519,50 @@ int main(int argc, char **argv) {
                            "[c] jump to cycle") |
                       dim;
 
-        return vbox({render_pipeline(),
-                     hbox({render_registers() | flex, render_perip()}) |
-                         size(HEIGHT, GREATER_THAN, 10),
-                     render_cache_L1() | size(HEIGHT, GREATER_THAN, 10),
-                     render_memory(mem_center) | flex, footer}) |
-               flex;
+        const auto term = Terminal::Size();
+        auto measure = [](const Element &e) {
+            e->ComputeRequirement();
+            return e->requirement();
+        };
+
+        auto pipe = render_pipeline();
+        auto regs = render_registers();
+        auto icache = render_icache();
+        auto dcache = render_dcache();
+        auto perip = render_perip();
+        const auto ic = measure(icache), dc = measure(dcache);
+        const int caches_w = ic.min_x + dc.min_x;
+        const int caches_h = std::max(ic.min_y, dc.min_y);
+
+        auto top = hbox({pipe | flex, regs});
+        const int top_h = measure(top).min_y;
+
+        constexpr int perip_min_w = 30;
+        Element body;
+        if (term.dimx >= caches_w + memory_panel_width(16)) {
+            const int mem_w = std::min(term.dimx / 2, term.dimx - caches_w);
+            const int perip_h = std::max(4, term.dimy - top_h - 1 - caches_h);
+            const int bpr = mem_w >= memory_panel_width(32) ? 32 : 16;
+            body = hbox({
+                vbox({hbox({icache | flex, dcache | flex}) | yflex_shrink,
+                      perip | size(HEIGHT, EQUAL, perip_h)}) |
+                    flex,
+                render_memory(mem_center, bpr, term.dimy / 2) |
+                    size(WIDTH, EQUAL, mem_w),
+            });
+        } else {
+            const int bpr =
+                term.dimx >= memory_panel_width(32) + perip_min_w ? 32 : 16;
+            body = vbox({
+                hbox({icache | flex, dcache | flex}) | flex,
+                hbox({render_memory(mem_center, bpr, term.dimy / 4),
+                      perip | size(WIDTH, GREATER_THAN, perip_min_w) | flex |
+                          size(HEIGHT, LESS_THAN, term.dimy)}) |
+                    flex,
+            });
+        }
+
+        return vbox({top, body | flex, footer});
     });
 
     Component jumpModal = ([&] {
