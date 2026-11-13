@@ -198,8 +198,8 @@ module cache_L1 #(
 
     always_ff @(posedge clock, posedge reset) begin
         if (reset) begin
-            valid_array <= '{default: '{default: '0}};
-            dirty_array <= '{default: '{default: '0}};
+            valid_array <= '{default: '0};
+            dirty_array <= '{default: '0};
             LRU_way_array <= '{default: '0};
             rdata <= '0;
         end else if (cache_inst) begin
